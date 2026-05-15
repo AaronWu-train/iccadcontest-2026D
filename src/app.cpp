@@ -1,3 +1,8 @@
+/**
+ * @file app.cpp
+ * @brief Command-line parsing and application bootstrap helpers.
+ */
+
 #include "app.hpp"
 
 #include <CLI/CLI.hpp>
