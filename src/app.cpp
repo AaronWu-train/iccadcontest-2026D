@@ -13,15 +13,13 @@ void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
                    "Directory containing clk_tree.structure, buf.lib, "
                    "SS_delay.rpt, and FF_delay.rpt")
         ->required();
-    app.add_option("output_file", output_file,
-                   "Path to write modified_clk_tree.structure")
+    app.add_option("output_file", output_file, "Path to write modified_clk_tree.structure")
         ->required();
 }
 
 }  // namespace
 
-AppConfig make_config(std::filesystem::path testcase_dir,
-                      std::filesystem::path output_file) {
+AppConfig make_config(std::filesystem::path testcase_dir, std::filesystem::path output_file) {
     AppConfig config;
     config.testcase_dir = std::move(testcase_dir);
     config.output_file = std::move(output_file);
@@ -54,7 +52,9 @@ std::string help_message() {
 }
 
 int run(const AppConfig& config) {
-    (void)config;
+    (void)config;  // Placeholder for actual implementation
+    // [TODO]: Implement the logic to read the input files, process the data,
+    // and write the output file.
     return 0;
 }
 
