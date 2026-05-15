@@ -105,7 +105,29 @@ make test
 
 ## Contribution Notes
 
-- Follow Git Flow: develop features on `feature/*`, fixes on `fix/*`, and merge
-  back through the normal review flow.
+- Follow Git Flow:
+  - `main` keeps stable code.
+  - `dev` is the integration branch for ongoing work.
+  - Create feature branches from `dev`, such as `feat/clock-tree-parser`.
+  - Create urgent release fixes from `main`, such as `hotfix/parser-crash`.
+  - Before starting work, update `dev` and branch from it:
+    ```sh
+    git checkout dev
+    git pull --ff-only origin dev
+    git checkout -b feat/<name>
+    ```
+  - While working, keep your branch current by rebasing onto latest `dev`:
+    ```sh
+    git fetch origin
+    git rebase origin/dev
+    ```
+  - Rebase only your own feature or hotfix branch. Do not rebase shared branches
+    such as `main` or `dev`.
+  - After conflicts are resolved and tests pass, push your branch and open a
+    merge request or pull request back into `dev`.
+  - Reference for git flow:
+    - https://ithelp.ithome.com.tw/articles/10245221
+    - https://gitbook.tw/chapters/gitflow/why-need-git-flow
+    - https://medium.com/@shanpigliao/%E6%B7%BA%E8%AB%87%E9%96%8B%E7%99%BC%E6%B5%81%E7%A8%8B-git-flow-%E5%88%B0-trunk-based-development-%E7%9A%84%E5%9C%98%E9%9A%8A%E7%B6%93%E9%A9%97%E9%9B%9C%E8%AB%87-a956a379987
 - Use clear commit messages. Prefer short imperative summaries such as
   `Add clock tree parser` or `Fix delay report parsing`.
