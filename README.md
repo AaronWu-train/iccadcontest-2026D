@@ -102,3 +102,10 @@ Typical development loop:
 make
 make test
 ```
+
+## Contribution Notes
+
+- Follow Git Flow: develop features on `feature/*`, fixes on `fix/*`, and merge
+  back through the normal review flow.
+- Use clear commit messages. Prefer short imperative summaries such as
+  `Add clock tree parser` or `Fix delay report parsing`.
