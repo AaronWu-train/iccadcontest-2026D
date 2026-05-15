@@ -24,6 +24,11 @@ FetchContent_MakeAvailable(Catch2 CLI11)
 
 add_library(cadd0040_core
     src/app.cpp
+    src/clock_tree.cpp
+    src/datapath_graph.cpp
+    src/evaluator.cpp
+    src/optimization/optimizer.cpp
+    src/solver.cpp
 )
 
 target_include_directories(cadd0040_core

@@ -1,3 +1,8 @@
+/**
+ * @file main.cpp
+ * @brief Executable entry point for the ICCAD Contest 2026 Problem D solver.
+ */
+
 #include <CLI/CLI.hpp>
 #include <exception>
 #include <iostream>

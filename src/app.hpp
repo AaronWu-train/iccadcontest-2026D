@@ -1,3 +1,8 @@
+/**
+ * @file app.hpp
+ * @brief Command-line configuration and top-level application entry helpers.
+ */
+
 #pragma once
 
 #include <filesystem>
@@ -15,8 +20,7 @@ struct AppConfig {
     std::filesystem::path ff_delay_path;
 };
 
-AppConfig make_config(std::filesystem::path testcase_dir,
-                      std::filesystem::path output_file);
+AppConfig make_config(std::filesystem::path testcase_dir, std::filesystem::path output_file);
 
 AppConfig parse_arguments(const std::vector<std::string>& args);
 

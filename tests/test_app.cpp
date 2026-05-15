@@ -9,21 +9,15 @@
 TEST_CASE("make_config derives testcase input paths") {
     const auto config = cadd0040::make_config(
         std::filesystem::path{"testcases/testcase0"},
-        std::filesystem::path{
-            "testcases/testcase0/modified_clk_tree.structure"});
+        std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
 
     CHECK(config.testcase_dir == std::filesystem::path{"testcases/testcase0"});
     CHECK(config.output_file ==
-          std::filesystem::path{
-              "testcases/testcase0/modified_clk_tree.structure"});
-    CHECK(config.clk_tree_path ==
-          std::filesystem::path{"testcases/testcase0/clk_tree.structure"});
-    CHECK(config.buflib_path ==
-          std::filesystem::path{"testcases/testcase0/buf.lib"});
-    CHECK(config.ss_delay_path ==
-          std::filesystem::path{"testcases/testcase0/SS_delay.rpt"});
-    CHECK(config.ff_delay_path ==
-          std::filesystem::path{"testcases/testcase0/FF_delay.rpt"});
+          std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
+    CHECK(config.clk_tree_path == std::filesystem::path{"testcases/testcase0/clk_tree.structure"});
+    CHECK(config.buflib_path == std::filesystem::path{"testcases/testcase0/buf.lib"});
+    CHECK(config.ss_delay_path == std::filesystem::path{"testcases/testcase0/SS_delay.rpt"});
+    CHECK(config.ff_delay_path == std::filesystem::path{"testcases/testcase0/FF_delay.rpt"});
 }
 
 TEST_CASE("parse_arguments accepts the required positional arguments") {
@@ -36,8 +30,7 @@ TEST_CASE("parse_arguments accepts the required positional arguments") {
 
     CHECK(config.testcase_dir == std::filesystem::path{"testcases/testcase0"});
     CHECK(config.output_file ==
-          std::filesystem::path{
-              "testcases/testcase0/modified_clk_tree.structure"});
+          std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
 }
 
 TEST_CASE("parse_arguments rejects missing positional arguments") {
