@@ -49,13 +49,11 @@ public:
 
 private:
     InputData load_input(const AppConfig& config) const;
-    Metrics evaluate_current_design(const ClockTree& clock_tree,
-                                    const DataPathGraph& data_path_graph,
-                                    const BufferLibrary& buffer_library) const;
-    ClockTree optimize_design(const ClockTree& clock_tree,
-                              const DataPathGraph& data_path_graph) const;
-    ValidationResult validate_result(const ClockTree& clock_tree,
-                                     const BufferLibrary& buffer_library) const;
+    Metrics evaluate(const ClockTree& clock_tree, const DataPathGraph& data_path_graph,
+                     const BufferLibrary& buffer_library) const;
+    ClockTree optimize(const ClockTree& clock_tree, const DataPathGraph& data_path_graph) const;
+    ValidationResult validate(const ClockTree& clock_tree,
+                              const BufferLibrary& buffer_library) const;
     void write_output(const ClockTree& clock_tree, const std::filesystem::path& output_path) const;
 
     AppConfig config_;
