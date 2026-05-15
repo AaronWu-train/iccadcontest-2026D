@@ -1,0 +1,35 @@
+.PHONY: all configure build release test run clean
+
+all: build
+
+BUILD_DIR := build
+RELEASE_DIR := build-release
+TARGET := cadd0040
+TESTCASE := ./testcases/testcase0
+OUTPUT := $(TESTCASE)/modified_clk_tree.structure
+
+ifeq ($(shell command -v ninja >/dev/null 2>&1 && echo yes),yes)
+CMAKE_GENERATOR := -G Ninja
+else
+CMAKE_GENERATOR :=
+endif
+
+configure:
+	cmake -S . -B $(BUILD_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Debug
+
+build:
+	cmake -S . -B $(BUILD_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Debug
+	cmake --build $(BUILD_DIR)
+
+release:
+	cmake -S . -B $(RELEASE_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Release
+	cmake --build $(RELEASE_DIR)
+
+test: build
+	ctest --test-dir $(BUILD_DIR) --output-on-failure
+
+run: build
+	./$(BUILD_DIR)/$(TARGET) $(TESTCASE) $(OUTPUT)
+
+clean:
+	rm -rf $(BUILD_DIR) $(RELEASE_DIR)
