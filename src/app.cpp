@@ -1,15 +1,13 @@
 #include "app.hpp"
 
 #include <CLI/CLI.hpp>
-
 #include <sstream>
 #include <utility>
 
 namespace cadd0040 {
 namespace {
 
-void configure_cli_app(CLI::App& app,
-                       std::filesystem::path& testcase_dir,
+void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
                        std::filesystem::path& output_file) {
     app.add_option("testcase_dir", testcase_dir,
                    "Directory containing clk_tree.structure, buf.lib, "

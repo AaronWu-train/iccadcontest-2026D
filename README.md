@@ -10,6 +10,7 @@ to the requested output path.
 - A C++20 compiler
 - Make
 - Git, for CMake FetchContent dependencies
+- clang-format and pre-commit, for the formatting hook
 - Ninja is recommended for faster builds, but not required
 
 Catch2 v3 and CLI11 are fetched automatically by CMake.
@@ -67,6 +68,15 @@ make test
 Tests are written with Catch2 v3 and registered with CTest.
 
 ## Development
+
+Install the formatting hook once per checkout:
+
+```sh
+pre-commit install
+```
+
+The hook runs `clang-format` on staged C/C++ files using the repo's
+`.clang-format`.
 
 The project keeps headers next to their `.cpp` files:
 

@@ -1,4 +1,4 @@
-.PHONY: all configure build release test run clean
+.PHONY: all configure build release test run format clean
 
 all: build
 
@@ -30,6 +30,9 @@ test: build
 
 run: build
 	./$(BUILD_DIR)/$(TARGET) $(TESTCASE) $(OUTPUT)
+
+format:
+	clang-format -i src/*.cpp src/*.hpp tests/*.cpp
 
 clean:
 	rm -rf $(BUILD_DIR) $(RELEASE_DIR)
