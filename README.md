@@ -1,4 +1,4 @@
-# iccadcontest-2026D
+# 2026 ICCAD CAD-contest pD
 
 C++ scaffold for ICCAD Contest 2026 Problem D. The executable reads a testcase
 directory, prepares the required input paths, and writes the modified clock tree
