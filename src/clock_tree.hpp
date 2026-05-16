@@ -12,6 +12,9 @@
 
 namespace cadd0040 {
 
+// TODO: @liuchengLYC - you can modify all the code in this file as needed, as long as the overall
+// solver workflow is not affected.
+
 struct ClockNode {
     NodeId id = 0;
     std::string name;

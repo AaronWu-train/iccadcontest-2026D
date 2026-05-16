@@ -11,6 +11,10 @@
 
 namespace cadd0040 {
 
+// FIXME: @BenLai95 @AaronWu-train @liuchengLYC The types defined in this file are just
+// placeholders. You should feel free to modify them as needed, as long as the overall solver
+// workflow is not affected.
+
 using NodeId = std::size_t;
 using EdgeId = std::size_t;
 
