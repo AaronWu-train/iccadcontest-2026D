@@ -20,7 +20,7 @@ namespace cadd0040 {
 using NodeId = std::size_t;
 using EdgeId = std::size_t;
 
-// Variable to check whether the node is root or not existing node
+// Sentinel value used for missing nodes or nodes without a parent.
 inline constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
 
 enum class Corner {

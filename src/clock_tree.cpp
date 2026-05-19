@@ -6,6 +6,7 @@
 #include "clock_tree.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <stdexcept>
 #include <string>
 
@@ -33,6 +34,13 @@ double buffer_delay(const BufferCell& buffer_cell, std::size_t fanout, Corner co
     }
 
     return delays[fanout - 1];
+}
+
+double buffer_area(const BufferCell& buffer_cell) {
+    if (buffer_cell.area != 0.0) {
+        return buffer_cell.area;
+    }
+    return buffer_cell.width * buffer_cell.height;
 }
 
 }  // namespace
@@ -70,6 +78,9 @@ NodeId ClockTree::add_node(const std::string& node_name, const std::string& cell
     if (node_kind == NodeKind::ClockSource) {
         throw std::invalid_argument("Use add_root to create clock source nodes");
     }
+    if (node(parent_id).kind == NodeKind::FlipFlop) {
+        throw std::invalid_argument("Flip-flop nodes cannot drive child nodes");
+    }
 
     const NodeId node_id = nodes_.size();
     nodes_.push_back(ClockNode{
@@ -98,6 +109,9 @@ NodeId ClockTree::insert_buffer(NodeId parent_id, NodeId child_id, const std::st
     }
     if (node(child_id).parent_id != parent_id) {
         throw std::invalid_argument("Child is not driven by the specified parent");
+    }
+    if (node(parent_id).kind == NodeKind::FlipFlop) {
+        throw std::invalid_argument("Flip-flop nodes cannot drive inserted buffers");
     }
 
     const auto& parent_children = node(parent_id).child_ids;
@@ -181,6 +195,60 @@ std::size_t ClockTree::fanout(NodeId node_id) const {
     return node(node_id).child_ids.size();
 }
 
+std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
+    std::vector<ClockTreeTraversalEntry> traversal;
+    if (root_id_ == kInvalidNodeId) {
+        return traversal;
+    }
+
+    std::vector<ClockTreeTraversalEntry> stack;
+    stack.push_back(ClockTreeTraversalEntry{
+        .node_id = root_id_,
+        .depth = 0,
+    });
+
+    // Preserve child_ids order so the writer can reproduce clk_tree.structure ordering.
+    while (!stack.empty()) {
+        const auto current = stack.back();
+        stack.pop_back();
+
+        const auto& current_node = node(current.node_id);
+        traversal.push_back(current);
+
+        for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
+            stack.push_back(ClockTreeTraversalEntry{
+                .node_id = *it,
+                .depth = current.depth + 1,
+            });
+        }
+    }
+
+    return traversal;
+}
+
+std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth_recursive() const {
+    std::vector<ClockTreeTraversalEntry> traversal;
+    if (root_id_ == kInvalidNodeId) {
+        return traversal;
+    }
+
+    // Recursive reference implementation; avoid this for very deep clock trees.
+    const std::function<void(NodeId, std::size_t)> visit = [&](NodeId node_id, std::size_t depth) {
+        const auto& current_node = node(node_id);
+        traversal.push_back(ClockTreeTraversalEntry{
+            .node_id = node_id,
+            .depth = depth,
+        });
+
+        for (const NodeId child_id : current_node.child_ids) {
+            visit(child_id, depth + 1);
+        }
+    };
+
+    visit(root_id_, 0);
+    return traversal;
+}
+
 std::vector<NodeId> ClockTree::path_to_root(NodeId node_id) const {
     std::vector<NodeId> path;
     NodeId current_id = node_id;
@@ -225,7 +293,7 @@ double ClockTree::area(const BufferLibrary& buffer_library) const {
             continue;
         }
 
-        total_area += find_buffer_cell(buffer_library, clock_node.cell_type).area;
+        total_area += buffer_area(find_buffer_cell(buffer_library, clock_node.cell_type));
     }
 
     return total_area;
