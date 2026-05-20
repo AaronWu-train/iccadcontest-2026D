@@ -46,7 +46,7 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
     const std::regex node_pattern{
         R"(^\s*\[(\d+)\]\s+(\S+)\s+\(([^()]*)\)(?:\s+\(SINK\))?\s*$)"};
 
-    std::vector<NodeId> node_at_depth;
+    std::vector<std::string> node_name_at_depth;
     std::string line;
     std::size_t line_number = 0;
     bool saw_root = false;
@@ -64,8 +64,8 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
             }
 
             const std::string root_name = match[1].str();
-            const NodeId root_id = clock_tree.add_root(root_name);
-            node_at_depth.assign(1, root_id);
+            clock_tree.add_root(root_name);
+            node_name_at_depth.assign(1, root_name);
             saw_root = true;
             continue;
         }
@@ -82,7 +82,7 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
         if (depth == 0) {
             throw parse_error(path, line_number, "Clock tree node depth must be at least 1");
         }
-        if (depth > node_at_depth.size() || node_at_depth[depth - 1] == kInvalidNodeId) {
+        if (depth > node_name_at_depth.size() || node_name_at_depth[depth - 1].empty()) {
             throw parse_error(path, line_number, "Missing parent at previous depth");
         }
 
@@ -91,14 +91,14 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
         const bool is_sink = line.find("(SINK)") != std::string::npos;
         const NodeKind node_kind = is_sink ? NodeKind::FlipFlop : NodeKind::Buffer;
 
-        const NodeId parent_id = node_at_depth[depth - 1];
-        const NodeId node_id = clock_tree.add_node(node_name, cell_type, node_kind, parent_id);
+        const std::string parent_name = node_name_at_depth[depth - 1];
+        clock_tree.add_node(node_name, cell_type, node_kind, parent_name);
 
-        if (node_at_depth.size() <= depth) {
-            node_at_depth.resize(depth + 1, kInvalidNodeId);
+        if (node_name_at_depth.size() <= depth) {
+            node_name_at_depth.resize(depth + 1);
         }
-        node_at_depth[depth] = node_id;
-        node_at_depth.resize(depth + 1);
+        node_name_at_depth[depth] = node_name;
+        node_name_at_depth.resize(depth + 1);
     }
 
     if (!saw_root) {

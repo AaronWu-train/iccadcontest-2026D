@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "parser.hpp"
 #include "types.hpp"
@@ -39,25 +40,19 @@ TEST_CASE("parse_clock_tree builds a clock tree from level notation") {
     cadd0040::parse_clock_tree(path, clock_tree);
 
     REQUIRE(clock_tree.size() == 6);
-    REQUIRE(clock_tree.root_id() != cadd0040::kInvalidNodeId);
-    CHECK(clock_tree.node(clock_tree.root_id()).name == "ROOT_CLK");
+    CHECK(clock_tree.root_name() == "ROOT_CLK");
 
-    const auto buf0_id = clock_tree.find_node("BUF_0");
-    const auto buf4_id = clock_tree.find_node("BUF_4");
-    const auto ff37_id = clock_tree.find_node("FF_37");
-    const auto ff24_id = clock_tree.find_node("FF_24");
+    REQUIRE(clock_tree.contains_name("BUF_0"));
+    REQUIRE(clock_tree.contains_name("BUF_4"));
+    REQUIRE(clock_tree.contains_name("FF_37"));
+    REQUIRE(clock_tree.contains_name("FF_24"));
 
-    REQUIRE(buf0_id != cadd0040::kInvalidNodeId);
-    REQUIRE(buf4_id != cadd0040::kInvalidNodeId);
-    REQUIRE(ff37_id != cadd0040::kInvalidNodeId);
-    REQUIRE(ff24_id != cadd0040::kInvalidNodeId);
-
-    CHECK(clock_tree.node(buf0_id).kind == cadd0040::NodeKind::Buffer);
-    CHECK(clock_tree.node(ff37_id).kind == cadd0040::NodeKind::FlipFlop);
-    CHECK(clock_tree.node(buf0_id).parent_id == clock_tree.root_id());
-    CHECK(clock_tree.node(buf4_id).parent_id == buf0_id);
-    CHECK(clock_tree.node(ff37_id).parent_id == buf4_id);
-    CHECK(clock_tree.node(ff24_id).parent_id == buf0_id);
+    CHECK(clock_tree.node("BUF_0").kind == cadd0040::NodeKind::Buffer);
+    CHECK(clock_tree.node("FF_37").kind == cadd0040::NodeKind::FlipFlop);
+    CHECK(clock_tree.path_from_root("FF_37") ==
+          std::vector<std::string>{"ROOT_CLK", "BUF_0", "BUF_4", "FF_37"});
+    CHECK(clock_tree.path_from_root("FF_24") ==
+          std::vector<std::string>{"ROOT_CLK", "BUF_0", "FF_24"});
 }
 
 TEST_CASE("parse_clock_tree preserves preorder output order and depth") {
@@ -76,13 +71,13 @@ TEST_CASE("parse_clock_tree preserves preorder output order and depth") {
     const auto traversal = clock_tree.preorder_with_depth();
 
     REQUIRE(traversal.size() == 4);
-    CHECK(clock_tree.node(traversal[0].node_id).name == "ROOT_CLK");
+    CHECK(traversal[0].node_name == "ROOT_CLK");
     CHECK(traversal[0].depth == 0);
-    CHECK(clock_tree.node(traversal[1].node_id).name == "BUF_0");
+    CHECK(traversal[1].node_name == "BUF_0");
     CHECK(traversal[1].depth == 1);
-    CHECK(clock_tree.node(traversal[2].node_id).name == "FF_0");
+    CHECK(traversal[2].node_name == "FF_0");
     CHECK(traversal[2].depth == 2);
-    CHECK(clock_tree.node(traversal[3].node_id).name == "BUF_1");
+    CHECK(traversal[3].node_name == "BUF_1");
     CHECK(traversal[3].depth == 1);
 }
 
