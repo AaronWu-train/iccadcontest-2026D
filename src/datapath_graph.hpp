@@ -6,6 +6,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "types.hpp"
@@ -18,23 +19,40 @@ namespace cadd0040 {
 struct DataPathEdge {
     EdgeId id = 0;
     std::string path_name;
-    NodeId launch_flip_flop_id = 0;
-    NodeId capture_flip_flop_id = 0;
-    double ss_delay = 0.0;
-    double ff_delay = 0.0;
+    std::string launch_flip_flop_name;
+    std::string capture_flip_flop_name;
+    CornerDelay data_delay;
 };
 
 class DataPathGraph {
 public:
-    EdgeId add_edge(const std::string& path_name, NodeId launch_flip_flop_id,
-                    NodeId capture_flip_flop_id, double ss_delay, double ff_delay);
-    void set_clock_period(double clock_period);
+    void clear();
 
+    EdgeId add_edge(const std::string& path_name, const std::string& launch_flip_flop_name,
+                    const std::string& capture_flip_flop_name);
+    void set_delay(EdgeId edge_id, Corner corner, double delay);
+    void set_delay(const std::string& path_name, Corner corner, double delay);
+
+    void set_clock_period(double clock_period);
+    double clock_period() const;
+    double setup_time() const;
+    double hold_time() const;
+
+    bool contains_edge(const std::string& path_name) const;
+    const DataPathEdge& edge(EdgeId edge_id) const;
+    const DataPathEdge& edge(const std::string& path_name) const;
     const std::vector<DataPathEdge>& edges() const;
+    std::size_t edge_count() const;
+
+    std::vector<EdgeId> outgoing_edges(const std::string& launch_flip_flop_name) const;
+    std::vector<EdgeId> incoming_edges(const std::string& capture_flip_flop_name) const;
 
 private:
-    double clock_period_ = 0.0;
+    TimingConstraint timing_constraint_;
     std::vector<DataPathEdge> edges_;
+    std::unordered_map<std::string, EdgeId> path_name_to_id_;
+    std::unordered_map<std::string, std::vector<EdgeId>> launch_to_edge_ids_;
+    std::unordered_map<std::string, std::vector<EdgeId>> capture_to_edge_ids_;
 };
 
 }  // namespace cadd0040
