@@ -91,7 +91,7 @@ NodeId ClockTree::add_node(const std::string& node_name, const std::string& cell
         .parent_id = parent_id,
         .child_ids = {},
     });
-    node(parent_id).child_ids.push_back(node_id);
+    mutable_node(parent_id).child_ids.push_back(node_id);
     name_to_id_.emplace(node_name, node_id);
     return node_id;
 }
@@ -132,13 +132,13 @@ NodeId ClockTree::insert_buffer(NodeId parent_id, NodeId child_id, const std::st
     });
     name_to_id_.emplace(buffer_name, buffer_id);
 
-    node(parent_id).child_ids[child_index] = buffer_id;
-    node(child_id).parent_id = buffer_id;
+    mutable_node(parent_id).child_ids[child_index] = buffer_id;
+    mutable_node(child_id).parent_id = buffer_id;
     return buffer_id;
 }
 
 void ClockTree::resize_buffer(NodeId node_id, const std::string& cell_type) {
-    auto& clock_node = node(node_id);
+    auto& clock_node = mutable_node(node_id);
     if (clock_node.kind != NodeKind::Buffer) {
         throw std::invalid_argument("Only buffer nodes can be resized");
     }
@@ -180,7 +180,7 @@ const ClockNode& ClockTree::node(NodeId node_id) const {
     return nodes_[node_id];
 }
 
-ClockNode& ClockTree::node(NodeId node_id) {
+ClockNode& ClockTree::mutable_node(NodeId node_id) {
     if (!contains_node(node_id)) {
         throw std::out_of_range("Clock tree node does not exist");
     }

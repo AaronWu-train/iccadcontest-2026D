@@ -5,6 +5,12 @@
 
 #pragma once
 
+#include <filesystem>
+
+#include "clock_tree.hpp"
+#include "datapath_graph.hpp"
+#include "types.hpp"
+
 namespace cadd0040 {
 // TODO: @liuchengLYC implement this function in parser.cpp to read the clock tree input file and
 // populate the ClockTree data structure.

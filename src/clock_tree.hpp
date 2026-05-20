@@ -78,7 +78,7 @@ public:
     double area(const BufferLibrary& buffer_library) const;
 
 private:
-    ClockNode& node(NodeId node_id);
+    ClockNode& mutable_node(NodeId node_id);
 
     NodeId root_id_ = kInvalidNodeId;
     std::vector<ClockNode> nodes_;

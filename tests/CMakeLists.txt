@@ -1,5 +1,6 @@
 add_executable(cadd0040_tests
     test_app.cpp
+    test_parser.cpp
 )
 
 target_link_libraries(cadd0040_tests
