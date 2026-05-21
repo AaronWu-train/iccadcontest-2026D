@@ -18,6 +18,9 @@ namespace {
 std::filesystem::path write_temp_file(const std::string& filename, const std::string& content) {
     const auto path = std::filesystem::temp_directory_path() / filename;
     std::ofstream output(path);
+    if (!output.is_open()) {
+        FAIL("Failed to open temporary file for writing: " << path.string());
+    }
     output << content;
     return path;
 }
