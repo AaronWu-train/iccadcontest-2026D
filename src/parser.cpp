@@ -78,7 +78,15 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
             throw parse_error(path, line_number, "Invalid clock tree line format");
         }
 
-        const auto depth = static_cast<std::size_t>(std::stoul(match[1].str()));
+        std::size_t depth = 0;
+        try {
+            depth = static_cast<std::size_t>(std::stoul(match[1].str()));
+        } catch (const std::out_of_range&) {
+            throw parse_error(path, line_number, "Clock tree node depth is out of range");
+        } catch (const std::invalid_argument&) {
+            throw parse_error(path, line_number, "Invalid clock tree node depth");
+        }
+
         if (depth == 0) {
             throw parse_error(path, line_number, "Clock tree node depth must be at least 1");
         }
