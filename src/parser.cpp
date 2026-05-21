@@ -5,6 +5,7 @@
 
 #include "parser.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -12,10 +13,21 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace cadd0040 {
 namespace {
+
+constexpr double kClockPeriodTolerance = 1e-12;
+
+std::ifstream open_input_file(const std::filesystem::path& path) {
+    std::ifstream input(path);
+    if (!input) {
+        throw std::runtime_error("Failed to open input file: " + path.string());
+    }
+    return input;
+}
 
 std::string trim(const std::string& value) {
     const auto first = value.find_first_not_of(" \t\r\n");
@@ -51,6 +63,57 @@ std::vector<double> parse_delay_values(const std::filesystem::path& path, std::s
     }
 
     return values;
+}
+
+bool is_delay_report_non_data_line(const std::string& line) {
+    const auto stripped = trim(line);
+    return stripped.empty() || stripped.starts_with("#") || stripped.starts_with("---");
+}
+
+double parse_clock_period_line(const std::string& line, const std::filesystem::path& path,
+                               std::size_t line_number) {
+    static const std::regex clock_period_regex(
+        R"(^\s*Clock\s+Period\s*:\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*$)");
+
+    std::smatch match;
+    if (!std::regex_match(line, match, clock_period_regex)) {
+        throw std::runtime_error("Malformed clock period line in " + path.string() + ":" +
+                                 std::to_string(line_number));
+    }
+
+    return std::stod(match[1].str());
+}
+
+struct DelayRecord {
+    std::string path_name;
+    std::string launch_flip_flop_name;
+    std::string capture_flip_flop_name;
+    double delay = 0.0;
+};
+
+DelayRecord parse_delay_record_line(const std::string& line, const std::filesystem::path& path,
+                                    std::size_t line_number) {
+    static const std::regex delay_record_regex(
+        R"(^\s*(\S+)\s*:\s*(\S+)\s*->\s*(\S+)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*$)");
+
+    std::smatch match;
+    if (!std::regex_match(line, match, delay_record_regex)) {
+        throw std::runtime_error("Malformed data-path delay line in " + path.string() + ":" +
+                                 std::to_string(line_number));
+    }
+
+    return DelayRecord{
+        .path_name = match[1].str(),
+        .launch_flip_flop_name = match[2].str(),
+        .capture_flip_flop_name = match[3].str(),
+        .delay = std::stod(match[4].str()),
+    };
+}
+
+void ensure_matching_clock_period(double expected, double actual, const std::filesystem::path& path) {
+    if (std::fabs(expected - actual) > kClockPeriodTolerance) {
+        throw std::runtime_error("Mismatched clock period in " + path.string());
+    }
 }
 
 }  // namespace
@@ -248,6 +311,91 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
 
     if (in_cell) {
         throw parse_error(path, line_number, "Buffer library file ended before closing cell");
+
+    }
+}
+
+void parse_data_path_graph(const std::filesystem::path& ff_delay_path,
+                           const std::filesystem::path& ss_delay_path,
+                           DataPathGraph& data_path_graph) {
+    data_path_graph.clear();
+
+    auto ss_input = open_input_file(ss_delay_path);
+    std::string line;
+    std::size_t line_number = 0;
+    bool parsed_ss_clock_period = false;
+    std::unordered_set<std::string> ss_paths;
+
+    // Contest inputs are expected to be valid. Malformed files throw immediately so parser bugs
+    // and testcase issues are exposed close to the source instead of being silently skipped.
+    while (std::getline(ss_input, line)) {
+        ++line_number;
+        if (!parsed_ss_clock_period) {
+            if (trim(line).empty()) {
+                continue;
+            }
+
+            data_path_graph.set_clock_period(
+                parse_clock_period_line(line, ss_delay_path, line_number));
+            parsed_ss_clock_period = true;
+            continue;
+        }
+
+        if (is_delay_report_non_data_line(line)) {
+            continue;
+        }
+
+        const auto record = parse_delay_record_line(line, ss_delay_path, line_number);
+        const EdgeId edge_id = data_path_graph.add_edge(
+            record.path_name, record.launch_flip_flop_name, record.capture_flip_flop_name);
+        data_path_graph.set_delay(edge_id, Corner::SS, record.delay);
+        ss_paths.insert(record.path_name);
+    }
+
+    if (!parsed_ss_clock_period) {
+        throw std::runtime_error("SS delay report has no clock period: " + ss_delay_path.string());
+    }
+
+    auto ff_input = open_input_file(ff_delay_path);
+    line_number = 0;
+    bool parsed_ff_clock_period = false;
+    std::unordered_set<std::string> ff_paths;
+
+    while (std::getline(ff_input, line)) {
+        ++line_number;
+        if (!parsed_ff_clock_period) {
+            if (trim(line).empty()) {
+                continue;
+            }
+
+            const double ff_clock_period =
+                parse_clock_period_line(line, ff_delay_path, line_number);
+            ensure_matching_clock_period(data_path_graph.clock_period(), ff_clock_period,
+                                         ff_delay_path);
+            parsed_ff_clock_period = true;
+            continue;
+        }
+
+        if (is_delay_report_non_data_line(line)) {
+            continue;
+        }
+
+        const auto record = parse_delay_record_line(line, ff_delay_path, line_number);
+        const auto& edge = data_path_graph.edge(record.path_name);
+        if (edge.launch_flip_flop_name != record.launch_flip_flop_name ||
+            edge.capture_flip_flop_name != record.capture_flip_flop_name) {
+            throw std::runtime_error("Mismatched FF endpoints for data path " + record.path_name);
+        }
+
+        data_path_graph.set_delay(record.path_name, Corner::FF, record.delay);
+        ff_paths.insert(record.path_name);
+    }
+
+    if (!parsed_ff_clock_period) {
+        throw std::runtime_error("FF delay report has no clock period: " + ff_delay_path.string());
+    }
+    if (ff_paths.size() != ss_paths.size()) {
+        throw std::runtime_error("SS/FF delay reports contain different path sets");
     }
 }
 
