@@ -6,8 +6,10 @@
 #pragma once
 
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace cadd0040 {
 
@@ -17,6 +19,9 @@ namespace cadd0040 {
 
 using NodeId = std::size_t;
 using EdgeId = std::size_t;
+
+// Sentinel value used for missing nodes or nodes without a parent.
+inline constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
 
 enum class Corner {
     SS,
@@ -31,9 +36,11 @@ enum class NodeKind {
 
 struct BufferCell {
     std::string name;
-    double ss_delay = 0.0;
-    double ff_delay = 0.0;
+    double width = 0.0;
+    double height = 0.0;
     double area = 0.0;
+    std::vector<double> ss_delays_by_fanout;
+    std::vector<double> ff_delays_by_fanout;
 };
 
 using BufferLibrary = std::unordered_map<std::string, BufferCell>;

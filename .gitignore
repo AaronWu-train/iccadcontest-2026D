@@ -70,3 +70,6 @@ vcpkg_installed/
 Testing/
 .cache/
 .vscode/
+
+# If you are mac user, you should know
+*.DS_Store
