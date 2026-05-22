@@ -7,7 +7,7 @@
 #include "app.hpp"
 
 TEST_CASE("make_config derives testcase input paths") {
-    const auto config = cadd0040::make_config(
+    const auto config = cadd0040::AppConfig(
         std::filesystem::path{"testcases/testcase0"},
         std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
 

@@ -19,28 +19,11 @@
 namespace cadd0040 {
 
 /**
- * @brief Parsed input objects used by the solver workflow.
- */
-struct InputData {
-    ClockTree clock_tree;
-    DataPathGraph data_path_graph;
-    BufferLibrary buffer_library;
-};
-
-/**
- * @brief Result of checking whether the generated clock tree is legal.
- */
-struct ValidationResult {
-    bool success = false;
-    std::vector<std::string> errors;
-};
-
-/**
  * @brief Coordinates input loading, optimization, validation, and output writing.
  */
 class Solver {
 public:
-    explicit Solver(AppConfig config);
+    explicit Solver(AppConfig config) : config_(std::move(config)) {}
 
     /**
      * @brief Runs the complete solver flow and returns a process exit code.
@@ -48,13 +31,12 @@ public:
     int run();
 
 private:
-    InputData load_input(const AppConfig& config) const;
-    Metrics evaluate(const ClockTree& clock_tree, const DataPathGraph& data_path_graph,
-                     const BufferLibrary& buffer_library) const;
-    ClockTree optimize(const ClockTree& clock_tree, const DataPathGraph& data_path_graph) const;
-    ValidationResult validate(const ClockTree& clock_tree,
-                              const BufferLibrary& buffer_library) const;
-    void write_output(const ClockTree& clock_tree, const std::filesystem::path& output_path) const;
+    void load_input();
+    void write_output(const ClockTree& clock_tree, const std::filesystem::path& output_path);
+
+    ClockTree clock_tree_;
+    DataPathGraph data_path_graph_;
+    BufferLibrary buffer_library_;
 
     AppConfig config_;
     Evaluator evaluator_;

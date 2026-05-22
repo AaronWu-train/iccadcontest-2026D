@@ -6,8 +6,8 @@
 #include "app.hpp"
 
 #include <CLI/CLI.hpp>
-#include <sstream>
-#include <utility>
+
+#include "solver.hpp"
 
 namespace cadd0040 {
 namespace {
@@ -17,23 +17,14 @@ void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
     app.add_option("testcase_dir", testcase_dir,
                    "Directory containing clk_tree.structure, buf.lib, "
                    "SS_delay.rpt, and FF_delay.rpt")
-        ->required();
+        ->required()
+        ->check(CLI::ExistingDirectory);
+
     app.add_option("output_file", output_file, "Path to write modified_clk_tree.structure")
         ->required();
 }
 
 }  // namespace
-
-AppConfig make_config(std::filesystem::path testcase_dir, std::filesystem::path output_file) {
-    AppConfig config;
-    config.testcase_dir = std::move(testcase_dir);
-    config.output_file = std::move(output_file);
-    config.clk_tree_path = config.testcase_dir / "clk_tree.structure";
-    config.buflib_path = config.testcase_dir / "buf.lib";
-    config.ss_delay_path = config.testcase_dir / "SS_delay.rpt";
-    config.ff_delay_path = config.testcase_dir / "FF_delay.rpt";
-    return config;
-}
 
 AppConfig parse_arguments(const std::vector<std::string>& args) {
     std::filesystem::path testcase_dir;
@@ -45,7 +36,7 @@ AppConfig parse_arguments(const std::vector<std::string>& args) {
     std::vector<std::string> cli_args(args.rbegin(), args.rend());
     app.parse(cli_args);
 
-    return make_config(testcase_dir, output_file);
+    return AppConfig(testcase_dir, output_file);
 }
 
 std::string help_message() {
@@ -57,10 +48,9 @@ std::string help_message() {
 }
 
 int run(const AppConfig& config) {
-    (void)config;  // Placeholder for actual implementation
-    // [TODO]: Implement the logic to read the input files, process the data,
-    // and write the output file.
-    return 0;
+    Solver solver(config);
+    int status = solver.run();
+    return status;
 }
 
 }  // namespace cadd0040
