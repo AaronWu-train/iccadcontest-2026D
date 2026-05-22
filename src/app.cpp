@@ -49,7 +49,7 @@ std::string help_message() {
     std::filesystem::path testcase_dir;
     std::filesystem::path output_file;
     std::string optimizer_name;
-    CLI::App app{"ICCAD Contest 2026 Problem D solver"};
+    CLI::App app{"ICCAD Contest 2026 Problem D solver", "cadd0040"};
     configure_cli_app(app, testcase_dir, output_file, optimizer_name);
     return app.help();
 }
