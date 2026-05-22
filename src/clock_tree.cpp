@@ -28,8 +28,8 @@ double buffer_delay(const BufferCell& buffer_cell, std::size_t fanout, Corner co
         throw std::invalid_argument("Buffer fanout must be greater than zero");
     }
 
-    const auto& delays = corner == Corner::SS ? buffer_cell.ss_delays_by_fanout
-                                              : buffer_cell.ff_delays_by_fanout;
+    const auto& delays =
+        corner == Corner::SS ? buffer_cell.ss_delays_by_fanout : buffer_cell.ff_delays_by_fanout;
     if (fanout > delays.size()) {
         throw std::out_of_range("Buffer fanout exceeds delay table");
     }
@@ -203,13 +203,9 @@ bool ClockTree::resize_buffer(const std::string& node_name, const std::string& c
     return true;
 }
 
-bool ClockTree::empty() const {
-    return nodes_.empty();
-}
+bool ClockTree::empty() const { return nodes_.empty(); }
 
-std::size_t ClockTree::size() const {
-    return nodes_.size();
-}
+std::size_t ClockTree::size() const { return nodes_.size(); }
 
 const std::string& ClockTree::root_name() const {
     if (root_id_ == kInvalidNodeId) {
@@ -218,9 +214,7 @@ const std::string& ClockTree::root_name() const {
     return node(root_id_).name;
 }
 
-bool ClockTree::contains_node(NodeId node_id) const {
-    return node_id < nodes_.size();
-}
+bool ClockTree::contains_node(NodeId node_id) const { return node_id < nodes_.size(); }
 
 bool ClockTree::contains_name(const std::string& node_name) const {
     return name_to_id_.find(node_name) != name_to_id_.end();
@@ -252,17 +246,13 @@ ClockNode& ClockTree::mutable_node(NodeId node_id) {
     return nodes_[node_id];
 }
 
-const std::vector<ClockNode>& ClockTree::nodes() const {
-    return nodes_;
-}
+const std::vector<ClockNode>& ClockTree::nodes() const { return nodes_; }
 
 std::size_t ClockTree::fanout(const std::string& node_name) const {
     return fanout(find_node(node_name));
 }
 
-std::size_t ClockTree::fanout(NodeId node_id) const {
-    return node(node_id).child_ids.size();
-}
+std::size_t ClockTree::fanout(NodeId node_id) const { return node(node_id).child_ids.size(); }
 
 std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
     std::vector<ClockTreeTraversalEntry> traversal;
@@ -377,10 +367,8 @@ void ClockTree::update_clock_times_from(const std::string& node_name,
 
 void ClockTree::update_clock_times_from(NodeId node_id, const BufferLibrary& buffer_library) {
     const auto parent_id = node(node_id).parent_id;
-    const double parent_ss_time =
-        parent_id == kInvalidNodeId ? 0.0 : node(parent_id).ss_clock_time;
-    const double parent_ff_time =
-        parent_id == kInvalidNodeId ? 0.0 : node(parent_id).ff_clock_time;
+    const double parent_ss_time = parent_id == kInvalidNodeId ? 0.0 : node(parent_id).ss_clock_time;
+    const double parent_ff_time = parent_id == kInvalidNodeId ? 0.0 : node(parent_id).ff_clock_time;
 
     std::vector<NodeId> stack{node_id};
     while (!stack.empty()) {
@@ -437,6 +425,48 @@ double ClockTree::area(const BufferLibrary& buffer_library) const {
     }
 
     return total_area;
+}
+
+std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree) {
+    if (clock_tree.root_id_ == kInvalidNodeId) {
+        return os;
+    }
+
+    const auto& root = clock_tree.nodes_[clock_tree.root_id_];
+    os << "Root: " << root.name << '\n';
+
+    std::vector<TraversalStackEntry> stack;
+    for (auto it = root.child_ids.rbegin(); it != root.child_ids.rend(); ++it) {
+        stack.push_back(TraversalStackEntry{
+            .node_id = *it,
+            .depth = 1,
+        });
+    }
+
+    while (!stack.empty()) {
+        const auto current = stack.back();
+        stack.pop_back();
+
+        const auto& current_node = clock_tree.nodes_[current.node_id];
+        for (std::size_t depth = 0; depth < current.depth; ++depth) {
+            os << '\t';
+        }
+        os << '[' << current.depth << "] " << current_node.name << " (" << current_node.cell_type
+           << ')';
+        if (current_node.kind == NodeKind::FlipFlop) {
+            os << " (SINK)";
+        }
+        os << '\n';
+
+        for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
+            stack.push_back(TraversalStackEntry{
+                .node_id = *it,
+                .depth = current.depth + 1,
+            });
+        }
+    }
+
+    return os;
 }
 
 }  // namespace cadd0040

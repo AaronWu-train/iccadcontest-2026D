@@ -28,6 +28,7 @@
 #pragma once
 
 #include <cstddef>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -158,6 +159,8 @@ public:
                        Corner corner) const;
     // Time: O(N), plus average O(1) buffer-library lookup per buffer.
     double area(const BufferLibrary& buffer_library) const;
+
+    friend std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree);
 
 private:
     // Time: O(1).
