@@ -17,4 +17,6 @@ target_compile_definitions(cadd0040_tests
 )
 
 include(Catch)
-catch_discover_tests(cadd0040_tests)
+catch_discover_tests(cadd0040_tests
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)

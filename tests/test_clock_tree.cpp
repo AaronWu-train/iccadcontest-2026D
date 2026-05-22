@@ -42,8 +42,8 @@ TEST_CASE("insert_buffer validates buffer cell fanout before mutating") {
     const auto buffer_library = make_buffer_library();
     auto clock_tree = make_clock_tree_with_two_sinks();
 
-    CHECK_FALSE(clock_tree.insert_buffer("BUF_0", "FF_0", "NEW_BAD", "MISSING_CELL",
-                                         buffer_library));
+    CHECK_FALSE(
+        clock_tree.insert_buffer("BUF_0", "FF_0", "NEW_BAD", "MISSING_CELL", buffer_library));
     CHECK_FALSE(clock_tree.contains_name("NEW_BAD"));
     CHECK(clock_tree.node("FF_0").parent_id == clock_tree.node("BUF_0").id);
 
