@@ -69,15 +69,25 @@ struct ClockTreeTraversalEntry {
 
 class ClockTree {
 public:
+    // Complexity notes:
+    // N = number of clock-tree nodes, H = height of a queried root-to-node path,
+    // S = number of nodes in an updated subtree. unordered_map name lookups are average O(1),
+    // but worst-case O(N) under heavy hash collisions or rehashing.
+
     // Empty construction is intentional; parser.cpp populates the tree from input files.
+    // Time: O(1).
     ClockTree() = default;
+    // Time: O(N + total child references) to release owned containers.
     ~ClockTree() = default;
 
+    // Time: average O(1), excluding string copy/hash costs and occasional map/vector rehashing.
     void add_root(const std::string& root_name);
+    // Time: average O(1), excluding string copy/hash costs and occasional map/vector rehashing.
     void add_node(const std::string& node_name, const std::string& cell_type, NodeKind node_kind,
                   const std::string& parent_name);
     /**
      * @brief Inserts a new buffer between an existing parent-child edge.
+     * Time: average O(P), where P is parent_name's fanout, plus average O(1) buffer-library lookup.
      *
      * @return true if the buffer was inserted. Returns false and leaves the tree unchanged if
      * parent_name/child_name are invalid, buffer_name already exists, the parent-child relation is
@@ -90,6 +100,7 @@ public:
 
     /**
      * @brief Changes an existing buffer node to another buffer cell type.
+     * Time: average O(1), excluding string hash costs.
      *
      * @return true if the cell type was changed. Returns false and leaves the node unchanged if
      * node_name is invalid, node_name is not a buffer, cell_type is not in buffer_library, or the
@@ -98,45 +109,72 @@ public:
     bool resize_buffer(const std::string& node_name, const std::string& cell_type,
                        const BufferLibrary& buffer_library);
 
+    // Time: O(1).
     bool empty() const;
+    // Time: O(1).
     std::size_t size() const;
+    // Time: O(1).
     const std::string& root_name() const;
+    // Time: average O(1), excluding string hash cost.
     bool contains_name(const std::string& node_name) const;
+    // Time: average O(1), excluding string hash cost.
     const ClockNode& node(const std::string& node_name) const;
+    // Returns the owned node array by reference; no node data is copied.
+    // Time: O(1).
     const std::vector<ClockNode>& nodes() const;
 
+    // Time: average O(1), excluding string hash cost.
     std::size_t fanout(const std::string& node_name) const;
     // Iterative preorder traversal for clk_tree.structure writing. Prefer this in production
     // because it avoids call-stack overflow on deep testcase trees while preserving child order.
+    // Time: O(N).
     std::vector<ClockTreeTraversalEntry> preorder_with_depth() const;
     // Recursive DFS preorder traversal with the same output order. Keep it for small-tree tests,
     // debugging, and comparison against the iterative implementation.
+    // Time: O(N).
     std::vector<ClockTreeTraversalEntry> preorder_with_depth_recursive() const;
+    // Time: average O(H), excluding string hash cost.
     std::vector<std::string> path_to_root(const std::string& node_name) const;
+    // Time: average O(H), excluding string hash cost.
     std::vector<std::string> path_from_root(const std::string& node_name) const;
 
     // Returns the cached clock arrival time for the requested corner. Call an update_* function
     // after parsing, buffer insertion, or buffer resizing before relying on this cached value.
+    // Time: average O(1), excluding string hash cost.
     double clock_time(const std::string& node_name, Corner corner) const;
     // Recomputes cached SS/FF clock arrival times for the whole tree from the root.
     // Use this after bulk edits or when no smaller dirty subtree is known.
+    // Time: O(N), plus average O(1) buffer-library lookup per buffer.
     void update_clock_times(const BufferLibrary& buffer_library);
     // Recomputes cached SS/FF clock arrival times for node_name and its descendants.
     // Optimizer code can call this for a dirty subtree after local structural or sizing changes.
+    // Time: average O(S), excluding initial string hash cost, plus average O(1) buffer-library
+    // lookup per buffer in the updated subtree.
     void update_clock_times_from(const std::string& node_name, const BufferLibrary& buffer_library);
 
+    // Time: average O(H), excluding initial string hash cost, plus average O(1) buffer-library
+    // lookup per buffer on the root-to-node path.
     double clock_delay(const std::string& node_name, const BufferLibrary& buffer_library,
                        Corner corner) const;
+    // Time: O(N), plus average O(1) buffer-library lookup per buffer.
     double area(const BufferLibrary& buffer_library) const;
 
 private:
+    // Time: O(1).
     bool contains_node(NodeId node_id) const;
+    // Time: average O(1), excluding string hash cost.
     NodeId find_node(const std::string& node_name) const;
+    // Time: O(1).
     const ClockNode& node(NodeId node_id) const;
+    // Time: O(1).
     ClockNode& mutable_node(NodeId node_id);
+    // Time: O(1).
     std::size_t fanout(NodeId node_id) const;
+    // Time: O(H).
     std::vector<NodeId> path_to_root(NodeId node_id) const;
+    // Time: O(H).
     std::vector<NodeId> path_from_root(NodeId node_id) const;
+    // Time: O(S), plus average O(1) buffer-library lookup per buffer in the updated subtree.
     void update_clock_times_from(NodeId node_id, const BufferLibrary& buffer_library);
 
     NodeId root_id_ = kInvalidNodeId;
