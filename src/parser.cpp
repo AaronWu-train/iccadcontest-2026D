@@ -203,8 +203,14 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
             if (saw_size) {
                 throw parse_error(path, line_number, "Duplicate SIZE line");
             }
-            current_cell.width = std::stod(match[1].str());
-            current_cell.height = std::stod(match[2].str());
+            try {
+                current_cell.width = std::stod(match[1].str());
+                current_cell.height = std::stod(match[2].str());
+            } catch (const std::invalid_argument&) {
+                throw parse_error(path, line_number, "Buffer SIZE values must be valid numbers");
+            } catch (const std::out_of_range&) {
+                throw parse_error(path, line_number, "Buffer SIZE values are out of range");
+            }
             if (current_cell.width < 0.0 || current_cell.height < 0.0) {
                 throw parse_error(path, line_number, "Buffer SIZE values must be non-negative");
             }
