@@ -31,6 +31,10 @@ struct DataPathEdge {
 
 class DataPathGraph {
 public:
+    // Empty construction is intentional; parser.cpp populates the graph from SS/FF delay reports.
+    DataPathGraph() = default;
+    ~DataPathGraph() = default;
+
     void clear();
 
     // Adds the FF-to-FF path identity only. Corner-specific delays can be filled later with
