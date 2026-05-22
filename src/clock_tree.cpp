@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -41,6 +42,11 @@ double buffer_area(const BufferCell& buffer_cell) {
         return buffer_cell.area;
     }
     return buffer_cell.width * buffer_cell.height;
+}
+
+bool cell_supports_fanout(const BufferCell& buffer_cell, std::size_t fanout) {
+    return fanout <= buffer_cell.ss_delays_by_fanout.size() &&
+           fanout <= buffer_cell.ff_delays_by_fanout.size();
 }
 
 struct TraversalStackEntry {
@@ -100,30 +106,54 @@ void ClockTree::add_node(const std::string& node_name, const std::string& cell_t
     name_to_id_.emplace(node_name, node_id);
 }
 
-void ClockTree::insert_buffer(const std::string& parent_name, const std::string& child_name,
-                              const std::string& buffer_name, const std::string& cell_type) {
+bool ClockTree::insert_buffer(const std::string& parent_name, const std::string& child_name,
+                              const std::string& buffer_name, const std::string& cell_type,
+                              const BufferLibrary& buffer_library) {
     const NodeId parent_id = find_node(parent_name);
     const NodeId child_id = find_node(child_name);
     if (!contains_node(parent_id)) {
-        throw std::out_of_range("Parent node does not exist");
+        std::cerr << "Failed to insert buffer " << buffer_name
+                  << ": parent node does not exist: " << parent_name << '\n';
+        return false;
     }
     if (!contains_node(child_id)) {
-        throw std::out_of_range("Child node does not exist");
+        std::cerr << "Failed to insert buffer " << buffer_name
+                  << ": child node does not exist: " << child_name << '\n';
+        return false;
     }
     if (contains_name(buffer_name)) {
-        throw std::invalid_argument("Duplicate clock tree node name: " + buffer_name);
+        std::cerr << "Failed to insert buffer " << buffer_name
+                  << ": duplicate clock tree node name\n";
+        return false;
     }
     if (node(child_id).parent_id != parent_id) {
-        throw std::invalid_argument("Child is not driven by the specified parent");
+        std::cerr << "Failed to insert buffer " << buffer_name << ": child " << child_name
+                  << " is not driven by parent " << parent_name << '\n';
+        return false;
     }
     if (node(parent_id).kind == NodeKind::FlipFlop) {
-        throw std::invalid_argument("Flip-flop nodes cannot drive inserted buffers");
+        std::cerr << "Failed to insert buffer " << buffer_name
+                  << ": flip-flop nodes cannot drive inserted buffers\n";
+        return false;
+    }
+    const auto cell_it = buffer_library.find(cell_type);
+    if (cell_it == buffer_library.end()) {
+        std::cerr << "Failed to insert buffer " << buffer_name
+                  << ": unknown buffer cell type: " << cell_type << '\n';
+        return false;
+    }
+    if (!cell_supports_fanout(cell_it->second, 1)) {
+        std::cerr << "Failed to insert buffer " << buffer_name << ": buffer cell " << cell_type
+                  << " does not support fanout 1 in both timing corners\n";
+        return false;
     }
 
     const auto& parent_children = node(parent_id).child_ids;
     const auto child_it = std::find(parent_children.begin(), parent_children.end(), child_id);
     if (child_it == parent_children.end()) {
-        throw std::invalid_argument("Parent does not contain the specified child");
+        std::cerr << "Failed to insert buffer " << buffer_name
+                  << ": parent does not contain the specified child\n";
+        return false;
     }
     const auto child_index = static_cast<std::size_t>(child_it - parent_children.begin());
 
@@ -140,15 +170,37 @@ void ClockTree::insert_buffer(const std::string& parent_name, const std::string&
 
     mutable_node(parent_id).child_ids[child_index] = buffer_id;
     mutable_node(child_id).parent_id = buffer_id;
+    return true;
 }
 
-void ClockTree::resize_buffer(const std::string& node_name, const std::string& cell_type) {
+bool ClockTree::resize_buffer(const std::string& node_name, const std::string& cell_type,
+                              const BufferLibrary& buffer_library) {
     const NodeId node_id = find_node(node_name);
+    if (!contains_node(node_id)) {
+        std::cerr << "Failed to resize buffer " << node_name << ": node does not exist\n";
+        return false;
+    }
+
     auto& clock_node = mutable_node(node_id);
     if (clock_node.kind != NodeKind::Buffer) {
-        throw std::invalid_argument("Only buffer nodes can be resized");
+        std::cerr << "Failed to resize buffer " << node_name << ": node is not a buffer\n";
+        return false;
+    }
+    const auto cell_it = buffer_library.find(cell_type);
+    if (cell_it == buffer_library.end()) {
+        std::cerr << "Failed to resize buffer " << node_name
+                  << ": unknown buffer cell type: " << cell_type << '\n';
+        return false;
+    }
+    const std::size_t current_fanout = fanout(node_id);
+    if (!cell_supports_fanout(cell_it->second, current_fanout)) {
+        std::cerr << "Failed to resize buffer " << node_name << ": buffer cell " << cell_type
+                  << " does not support current fanout " << current_fanout
+                  << " in both timing corners\n";
+        return false;
     }
     clock_node.cell_type = cell_type;
+    return true;
 }
 
 bool ClockTree::empty() const {

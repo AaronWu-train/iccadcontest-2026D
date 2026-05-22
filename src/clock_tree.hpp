@@ -76,10 +76,27 @@ public:
     void add_root(const std::string& root_name);
     void add_node(const std::string& node_name, const std::string& cell_type, NodeKind node_kind,
                   const std::string& parent_name);
-    void insert_buffer(const std::string& parent_name, const std::string& child_name,
-                       const std::string& buffer_name, const std::string& cell_type);
+    /**
+     * @brief Inserts a new buffer between an existing parent-child edge.
+     *
+     * @return true if the buffer was inserted. Returns false and leaves the tree unchanged if
+     * parent_name/child_name are invalid, buffer_name already exists, the parent-child relation is
+     * invalid, parent_name is a flip-flop, cell_type is not in buffer_library, or the inserted
+     * buffer's fanout is unsupported by the cell's SS/FF delay tables.
+     */
+    bool insert_buffer(const std::string& parent_name, const std::string& child_name,
+                       const std::string& buffer_name, const std::string& cell_type,
+                       const BufferLibrary& buffer_library);
 
-    void resize_buffer(const std::string& node_name, const std::string& cell_type);
+    /**
+     * @brief Changes an existing buffer node to another buffer cell type.
+     *
+     * @return true if the cell type was changed. Returns false and leaves the node unchanged if
+     * node_name is invalid, node_name is not a buffer, cell_type is not in buffer_library, or the
+     * replacement cell does not support the node's current fanout in both SS/FF delay tables.
+     */
+    bool resize_buffer(const std::string& node_name, const std::string& cell_type,
+                       const BufferLibrary& buffer_library);
 
     bool empty() const;
     std::size_t size() const;
