@@ -246,7 +246,7 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
     }
 
     if (in_cell) {
-        throw std::runtime_error("Buffer library file ended before closing cell: " + path.string());
+        throw parse_error(path, line_number, "Buffer library file ended before closing cell");
     }
 }
 
