@@ -32,6 +32,7 @@
 *.lai
 *.la
 *.a
+*.lib
 
 # Executables
 *.exe
@@ -72,3 +73,5 @@ Testing/
 
 # If you are mac user, you should know
 *.DS_Store
+
+!testcases/**/buf.lib
