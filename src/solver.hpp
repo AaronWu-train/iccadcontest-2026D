@@ -12,7 +12,7 @@
 #include "app.hpp"
 #include "clock_tree.hpp"
 #include "datapath_graph.hpp"
-#include "evaluator.hpp"
+#include "evaluation.hpp"
 #include "optimization/optimizer.hpp"
 #include "types.hpp"
 
