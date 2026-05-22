@@ -19,6 +19,7 @@
 namespace cadd0040 {
 namespace {
 
+// Allow tiny floating-point parsing differences when comparing SS/FF report clock periods.
 constexpr double kClockPeriodTolerance = 1e-12;
 
 std::ifstream open_input_file(const std::filesystem::path& path) {
@@ -111,6 +112,7 @@ DelayRecord parse_delay_record_line(const std::string& line, const std::filesyst
 }
 
 void ensure_matching_clock_period(double expected, double actual, const std::filesystem::path& path) {
+    // SS_delay.rpt and FF_delay.rpt should describe the same testcase clock period.
     if (std::fabs(expected - actual) > kClockPeriodTolerance) {
         throw std::runtime_error("Mismatched clock period in " + path.string());
     }
@@ -346,9 +348,9 @@ void parse_data_path_graph(const std::filesystem::path& ff_delay_path,
         }
 
         const auto record = parse_delay_record_line(line, ss_delay_path, line_number);
-        const EdgeId edge_id = data_path_graph.add_edge(
-            record.path_name, record.launch_flip_flop_name, record.capture_flip_flop_name);
-        data_path_graph.set_delay(edge_id, Corner::SS, record.delay);
+        data_path_graph.add_edge(record.path_name, record.launch_flip_flop_name,
+                                 record.capture_flip_flop_name);
+        data_path_graph.set_delay(record.path_name, Corner::SS, record.delay);
         ss_paths.insert(record.path_name);
     }
 

@@ -115,7 +115,7 @@ const DataPathEdge& DataPathGraph::edge(const std::string& path_name) const {
     return edge(it->second);
 }
 
-const std::vector<DataPathEdge>& DataPathGraph::edges() const {
+const std::vector<DataPathEdge>& DataPathGraph::all_edges() const {
     return edges_;
 }
 
@@ -123,21 +123,21 @@ std::size_t DataPathGraph::edge_count() const {
     return edges_.size();
 }
 
-std::vector<EdgeId> DataPathGraph::outgoing_edges(
+const std::vector<EdgeId>& DataPathGraph::outgoing_edges(
     const std::string& launch_flip_flop_name) const {
     const auto it = launch_to_edge_ids_.find(launch_flip_flop_name);
     if (it == launch_to_edge_ids_.end()) {
-        return {};
+        return empty_edge_ids_;
     }
 
     return it->second;
 }
 
-std::vector<EdgeId> DataPathGraph::incoming_edges(
+const std::vector<EdgeId>& DataPathGraph::incoming_edges(
     const std::string& capture_flip_flop_name) const {
     const auto it = capture_to_edge_ids_.find(capture_flip_flop_name);
     if (it == capture_to_edge_ids_.end()) {
-        return {};
+        return empty_edge_ids_;
     }
 
     return it->second;

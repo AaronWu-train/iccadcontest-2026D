@@ -32,6 +32,9 @@ struct DataPathEdge {
 class DataPathGraph {
 public:
     // Empty construction is intentional; parser.cpp populates the graph from SS/FF delay reports.
+    // TODO: Consider adding an explicit constructor that accepts expected path/FF counts and
+    // reserves the edge vector and lookup maps before parser insertion to reduce rehash overhead.
+    // Note that in parser.cpp, building data path graph will clear the class first
     DataPathGraph() = default;
     ~DataPathGraph() = default;
 
@@ -41,9 +44,6 @@ public:
     // set_delay(), which matches the separate SS_delay.rpt and FF_delay.rpt input files.
     EdgeId add_edge(const std::string& path_name, const std::string& launch_flip_flop_name,
                     const std::string& capture_flip_flop_name);
-    // edge_id is the id returned by add_edge() or one of the ids returned by incoming/outgoing
-    // lookup APIs. corner selects whether delay updates data_delay.ss or data_delay.ff.
-    void set_delay(EdgeId edge_id, Corner corner, double delay);
     // path_name must be the report path key, not a flip-flop name.
     void set_delay(const std::string& path_name, Corner corner, double delay);
 
@@ -56,18 +56,21 @@ public:
 
     // All path-name APIs use the report path key, e.g. "Path1".
     bool contains_edge(const std::string& path_name) const;
-    const DataPathEdge& edge(EdgeId edge_id) const;
     const DataPathEdge& edge(const std::string& path_name) const;
-    const std::vector<DataPathEdge>& edges() const;
+    const std::vector<DataPathEdge>& all_edges() const;
     std::size_t edge_count() const;
 
     // FF-name lookup APIs use instance names from the report, e.g. "FF_5".
-    std::vector<EdgeId> outgoing_edges(const std::string& launch_flip_flop_name) const;
-    std::vector<EdgeId> incoming_edges(const std::string& capture_flip_flop_name) const;
+    const std::vector<EdgeId>& outgoing_edges(const std::string& launch_flip_flop_name) const;
+    const std::vector<EdgeId>& incoming_edges(const std::string& capture_flip_flop_name) const;
 
 private:
+    void set_delay(EdgeId edge_id, Corner corner, double delay);
+    const DataPathEdge& edge(EdgeId edge_id) const;
+
     TimingConstraint timing_constraint_;
     std::vector<DataPathEdge> edges_;
+    std::vector<EdgeId> empty_edge_ids_;
     std::unordered_map<std::string, EdgeId> path_name_to_id_;
     // TODO: If FF instance names are guaranteed to be "FF_<number>", parse the numeric suffix once
     // and replace these FF-name maps with numeric-keyed maps to reduce string hashing overhead.
