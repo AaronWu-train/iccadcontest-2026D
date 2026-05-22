@@ -62,8 +62,7 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
     }
 
     const std::regex root_pattern{R"(^\s*Root:\s*(\S+)\s*$)"};
-    const std::regex node_pattern{
-        R"(^\s*\[(\d+)\]\s+(\S+)\s+\(([^()]*)\)(?:\s+\(SINK\))?\s*$)"};
+    const std::regex node_pattern{R"(^\s*\[(\d+)\]\s+(\S+)\s+\(([^()]*)\)(?:\s+\(SINK\))?\s*$)"};
 
     std::vector<std::string> node_name_at_depth;
     std::string line;
@@ -139,7 +138,7 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
         throw std::runtime_error("Failed to open buffer library file: " + path.string());
     }
 
-    const std::regex cell_begin_pattern{R"(^\s*cell\s+\(([^()]*)\)\s*\{\s*$)"};
+    const std::regex cell_begin_pattern{R"(^\s*cell\s*\(([^()]*)\)\s*\{\s*$)"};
     const std::regex size_pattern{
         R"(^\s*SIZE\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+BY\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$)"};
     const std::regex ss_delay_pattern{R"(^\s*SS_DELAY\s+(.+?)\s*$)"};
@@ -222,7 +221,8 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
             if (saw_ss_delay) {
                 throw parse_error(path, line_number, "Duplicate SS_DELAY line");
             }
-            current_cell.ss_delays_by_fanout = parse_delay_values(path, line_number, match[1].str());
+            current_cell.ss_delays_by_fanout =
+                parse_delay_values(path, line_number, match[1].str());
             saw_ss_delay = true;
             continue;
         }
@@ -231,7 +231,8 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
             if (saw_ff_delay) {
                 throw parse_error(path, line_number, "Duplicate FF_DELAY line");
             }
-            current_cell.ff_delays_by_fanout = parse_delay_values(path, line_number, match[1].str());
+            current_cell.ff_delays_by_fanout =
+                parse_delay_values(path, line_number, match[1].str());
             saw_ff_delay = true;
             continue;
         }
