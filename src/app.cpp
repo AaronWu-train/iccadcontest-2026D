@@ -25,6 +25,7 @@ void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
         ->required();
 
     app.add_option("--optimizer", optimizer_name, "Optimization strategy")
+        ->default_val(cadd0040::kDefaultOptimizerName)
         ->check(CLI::IsMember(cadd0040::available_optimizers()));
 }
 

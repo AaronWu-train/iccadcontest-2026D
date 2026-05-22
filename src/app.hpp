@@ -26,7 +26,7 @@ struct AppConfig {
     AppConfig() = default;
 
     AppConfig(std::filesystem::path testcase_dir, std::filesystem::path output_file,
-              std::string optimizer_name = "dummy")
+              std::string optimizer_name)
         : testcase_dir(std::move(testcase_dir)),
           output_file(std::move(output_file)),
           optimizer_name(std::move(optimizer_name)),
