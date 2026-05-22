@@ -337,8 +337,11 @@ void parse_data_path_graph(const std::filesystem::path& ff_delay_path,
                 continue;
             }
 
-            data_path_graph.set_clock_period(
-                parse_clock_period_line(line, ss_delay_path, line_number));
+            const double ss_clock_period =
+                parse_clock_period_line(line, ss_delay_path, line_number);
+            // Clock period is part of DataPathGraph's timing constraint; setup/hold times are
+            // derived from it through the contest-defined ratios.
+            data_path_graph.set_clock_period(ss_clock_period);
             parsed_ss_clock_period = true;
             continue;
         }
