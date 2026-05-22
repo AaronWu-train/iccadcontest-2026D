@@ -1,5 +1,5 @@
-#include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -31,14 +31,13 @@ std::filesystem::path write_temp_file(const std::string& filename, const std::st
 TEST_CASE("parse_clock_tree builds a clock tree from level notation") {
     // The parser uses [level] indentation to recover parent-child relationships.
     // SINK nodes become FlipFlop nodes; other entries become Buffer nodes.
-    const auto path = write_temp_file(
-        "cadd0040_clk_tree.structure",
-        "Root: ROOT_CLK\n"
-        "[1] BUF_0 (REALBUF_X8)\n"
-        "[2] BUF_4 (REALBUF_X4)\n"
-        "[3] FF_37 (FIFO) (SINK)\n"
-        "[3] FF_12 (FIFO) (SINK)\n"
-        "[2] FF_24 (FIFO) (SINK)\n");
+    const auto path = write_temp_file("cadd0040_clk_tree.structure",
+                                      "Root: ROOT_CLK\n"
+                                      "[1] BUF_0 (REALBUF_X8)\n"
+                                      "[2] BUF_4 (REALBUF_X4)\n"
+                                      "[3] FF_37 (FIFO) (SINK)\n"
+                                      "[3] FF_12 (FIFO) (SINK)\n"
+                                      "[2] FF_24 (FIFO) (SINK)\n");
 
     cadd0040::ClockTree clock_tree;
     cadd0040::parse_clock_tree(path, clock_tree);
@@ -62,12 +61,11 @@ TEST_CASE("parse_clock_tree builds a clock tree from level notation") {
 TEST_CASE("parse_clock_tree preserves preorder output order and depth") {
     // The output writer will later use preorder_with_depth() to emit
     // modified_clk_tree.structure, so parsing must preserve child order.
-    const auto path = write_temp_file(
-        "cadd0040_clk_tree_preorder.structure",
-        "Root: ROOT_CLK\n"
-        "[1] BUF_0 (REALBUF_X8)\n"
-        "[2] FF_0 (FIFO) (SINK)\n"
-        "[1] BUF_1 (REALBUF_X4)\n");
+    const auto path = write_temp_file("cadd0040_clk_tree_preorder.structure",
+                                      "Root: ROOT_CLK\n"
+                                      "[1] BUF_0 (REALBUF_X8)\n"
+                                      "[2] FF_0 (FIFO) (SINK)\n"
+                                      "[1] BUF_1 (REALBUF_X4)\n");
 
     cadd0040::ClockTree clock_tree;
     cadd0040::parse_clock_tree(path, clock_tree);
@@ -88,10 +86,9 @@ TEST_CASE("parse_clock_tree preserves preorder output order and depth") {
 TEST_CASE("parse_clock_tree rejects missing parent levels") {
     // A [2] line cannot appear before any [1] parent. Rejecting this early
     // prevents the solver from optimizing an invalid or disconnected tree.
-    const auto path = write_temp_file(
-        "cadd0040_bad_clk_tree.structure",
-        "Root: ROOT_CLK\n"
-        "[2] FF_0 (FIFO) (SINK)\n");
+    const auto path = write_temp_file("cadd0040_bad_clk_tree.structure",
+                                      "Root: ROOT_CLK\n"
+                                      "[2] FF_0 (FIFO) (SINK)\n");
 
     cadd0040::ClockTree clock_tree;
 
@@ -99,19 +96,18 @@ TEST_CASE("parse_clock_tree rejects missing parent levels") {
 }
 
 TEST_CASE("parse_buffer_library builds fanout-indexed buffer cells") {
-    const auto path = write_temp_file(
-        "cadd0040_buf.lib",
-        "cell (REALBUF_X2) {\n"
-        "SIZE 0.5 BY 0.5\n"
-        "SS_DELAY 0.051 0.062 0.085 0.108\n"
-        "FF_DELAY 0.020 0.029 0.039 0.05\n"
-        "}\n"
-        "\n"
-        "cell (REALBUF_X8) {\n"
-        "SIZE 2 BY 0.5\n"
-        "SS_DELAY 0.015 0.022 0.032 0.05 0.076\n"
-        "FF_DELAY 0.006 0.0098 0.0152 0.0247 0.0372\n"
-        "}\n");
+    const auto path = write_temp_file("cadd0040_buf.lib",
+                                      "cell (REALBUF_X2) {\n"
+                                      "SIZE 0.5 BY 0.5\n"
+                                      "SS_DELAY 0.051 0.062 0.085 0.108\n"
+                                      "FF_DELAY 0.020 0.029 0.039 0.05\n"
+                                      "}\n"
+                                      "\n"
+                                      "cell(REALBUF_X8) {\n"
+                                      "SIZE 2 BY 0.5\n"
+                                      "SS_DELAY 0.015 0.022 0.032 0.05 0.076\n"
+                                      "FF_DELAY 0.006 0.0098 0.0152 0.0247 0.0372\n"
+                                      "}\n");
 
     cadd0040::BufferLibrary buffer_library;
     cadd0040::parse_buffer_library(path, buffer_library);
@@ -141,12 +137,11 @@ TEST_CASE("parse_buffer_library builds fanout-indexed buffer cells") {
 }
 
 TEST_CASE("parse_buffer_library rejects incomplete cells") {
-    const auto path = write_temp_file(
-        "cadd0040_bad_buf.lib",
-        "cell (REALBUF_X2) {\n"
-        "SIZE 0.5 BY 0.5\n"
-        "SS_DELAY 0.051 0.062\n"
-        "}\n");
+    const auto path = write_temp_file("cadd0040_bad_buf.lib",
+                                      "cell (REALBUF_X2) {\n"
+                                      "SIZE 0.5 BY 0.5\n"
+                                      "SS_DELAY 0.051 0.062\n"
+                                      "}\n");
 
     cadd0040::BufferLibrary buffer_library;
 
