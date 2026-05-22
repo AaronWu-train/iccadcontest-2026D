@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -95,4 +96,59 @@ TEST_CASE("parse_clock_tree rejects missing parent levels") {
     cadd0040::ClockTree clock_tree;
 
     CHECK_THROWS(cadd0040::parse_clock_tree(path, clock_tree));
+}
+
+TEST_CASE("parse_buffer_library builds fanout-indexed buffer cells") {
+    const auto path = write_temp_file(
+        "cadd0040_buf.lib",
+        "cell (REALBUF_X2) {\n"
+        "SIZE 0.5 BY 0.5\n"
+        "SS_DELAY 0.051 0.062 0.085 0.108\n"
+        "FF_DELAY 0.020 0.029 0.039 0.05\n"
+        "}\n"
+        "\n"
+        "cell (REALBUF_X8) {\n"
+        "SIZE 2 BY 0.5\n"
+        "SS_DELAY 0.015 0.022 0.032 0.05 0.076\n"
+        "FF_DELAY 0.006 0.0098 0.0152 0.0247 0.0372\n"
+        "}\n");
+
+    cadd0040::BufferLibrary buffer_library;
+    cadd0040::parse_buffer_library(path, buffer_library);
+
+    REQUIRE(buffer_library.size() == 2);
+    REQUIRE(buffer_library.contains("REALBUF_X2"));
+    REQUIRE(buffer_library.contains("REALBUF_X8"));
+
+    const auto& x2 = buffer_library.at("REALBUF_X2");
+    CHECK(x2.name == "REALBUF_X2");
+    CHECK(x2.width == Catch::Approx(0.5));
+    CHECK(x2.height == Catch::Approx(0.5));
+    CHECK(x2.area == Catch::Approx(0.25));
+    REQUIRE(x2.ss_delays_by_fanout.size() == 4);
+    REQUIRE(x2.ff_delays_by_fanout.size() == 4);
+    CHECK(x2.ss_delays_by_fanout[0] == Catch::Approx(0.051));
+    CHECK(x2.ss_delays_by_fanout[3] == Catch::Approx(0.108));
+    CHECK(x2.ff_delays_by_fanout[0] == Catch::Approx(0.020));
+    CHECK(x2.ff_delays_by_fanout[3] == Catch::Approx(0.05));
+
+    const auto& x8 = buffer_library.at("REALBUF_X8");
+    CHECK(x8.area == Catch::Approx(1.0));
+    REQUIRE(x8.ss_delays_by_fanout.size() == 5);
+    REQUIRE(x8.ff_delays_by_fanout.size() == 5);
+    CHECK(x8.ss_delays_by_fanout[4] == Catch::Approx(0.076));
+    CHECK(x8.ff_delays_by_fanout[4] == Catch::Approx(0.0372));
+}
+
+TEST_CASE("parse_buffer_library rejects incomplete cells") {
+    const auto path = write_temp_file(
+        "cadd0040_bad_buf.lib",
+        "cell (REALBUF_X2) {\n"
+        "SIZE 0.5 BY 0.5\n"
+        "SS_DELAY 0.051 0.062\n"
+        "}\n");
+
+    cadd0040::BufferLibrary buffer_library;
+
+    CHECK_THROWS(cadd0040::parse_buffer_library(path, buffer_library));
 }
