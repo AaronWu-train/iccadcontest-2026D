@@ -34,6 +34,25 @@ std::runtime_error parse_error(const std::filesystem::path& path, std::size_t li
     return std::runtime_error(stream.str());
 }
 
+std::vector<double> parse_delay_values(const std::filesystem::path& path, std::size_t line_number,
+                                       const std::string& values_text) {
+    std::istringstream stream(values_text);
+    std::vector<double> values;
+    double value = 0.0;
+    while (stream >> value) {
+        values.push_back(value);
+    }
+
+    if (!stream.eof()) {
+        throw parse_error(path, line_number, "Invalid delay value");
+    }
+    if (values.empty()) {
+        throw parse_error(path, line_number, "Delay table must contain at least one value");
+    }
+
+    return values;
+}
+
 }  // namespace
 
 void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) {
@@ -111,6 +130,117 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
 
     if (!saw_root) {
         throw std::runtime_error("Clock tree file has no root line: " + path.string());
+    }
+}
+
+void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buffer_library) {
+    std::ifstream input(path);
+    if (!input) {
+        throw std::runtime_error("Failed to open buffer library file: " + path.string());
+    }
+
+    const std::regex cell_begin_pattern{R"(^\s*cell\s+\(([^()]*)\)\s*\{\s*$)"};
+    const std::regex size_pattern{
+        R"(^\s*SIZE\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+BY\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$)"};
+    const std::regex ss_delay_pattern{R"(^\s*SS_DELAY\s+(.+?)\s*$)"};
+    const std::regex ff_delay_pattern{R"(^\s*FF_DELAY\s+(.+?)\s*$)"};
+    const std::regex cell_end_pattern{R"(^\s*\}\s*$)"};
+
+    BufferCell current_cell;
+    bool in_cell = false;
+    bool saw_size = false;
+    bool saw_ss_delay = false;
+    bool saw_ff_delay = false;
+
+    auto finish_cell = [&](std::size_t line_number) {
+        if (!saw_size) {
+            throw parse_error(path, line_number, "Buffer cell missing SIZE");
+        }
+        if (!saw_ss_delay) {
+            throw parse_error(path, line_number, "Buffer cell missing SS_DELAY");
+        }
+        if (!saw_ff_delay) {
+            throw parse_error(path, line_number, "Buffer cell missing FF_DELAY");
+        }
+        if (current_cell.ss_delays_by_fanout.size() != current_cell.ff_delays_by_fanout.size()) {
+            throw parse_error(path, line_number, "SS_DELAY and FF_DELAY table sizes differ");
+        }
+        if (buffer_library.find(current_cell.name) != buffer_library.end()) {
+            throw parse_error(path, line_number, "Duplicate buffer cell: " + current_cell.name);
+        }
+
+        current_cell.area = current_cell.width * current_cell.height;
+        buffer_library.emplace(current_cell.name, current_cell);
+    };
+
+    std::string line;
+    std::size_t line_number = 0;
+    while (std::getline(input, line)) {
+        ++line_number;
+        if (trim(line).empty()) {
+            continue;
+        }
+
+        std::smatch match;
+        if (!in_cell) {
+            if (!std::regex_match(line, match, cell_begin_pattern)) {
+                throw parse_error(path, line_number, "Expected buffer cell declaration");
+            }
+
+            current_cell = BufferCell{};
+            current_cell.name = trim(match[1].str());
+            if (current_cell.name.empty()) {
+                throw parse_error(path, line_number, "Buffer cell name cannot be empty");
+            }
+            in_cell = true;
+            saw_size = false;
+            saw_ss_delay = false;
+            saw_ff_delay = false;
+            continue;
+        }
+
+        if (std::regex_match(line, match, size_pattern)) {
+            if (saw_size) {
+                throw parse_error(path, line_number, "Duplicate SIZE line");
+            }
+            current_cell.width = std::stod(match[1].str());
+            current_cell.height = std::stod(match[2].str());
+            if (current_cell.width < 0.0 || current_cell.height < 0.0) {
+                throw parse_error(path, line_number, "Buffer SIZE values must be non-negative");
+            }
+            saw_size = true;
+            continue;
+        }
+
+        if (std::regex_match(line, match, ss_delay_pattern)) {
+            if (saw_ss_delay) {
+                throw parse_error(path, line_number, "Duplicate SS_DELAY line");
+            }
+            current_cell.ss_delays_by_fanout = parse_delay_values(path, line_number, match[1].str());
+            saw_ss_delay = true;
+            continue;
+        }
+
+        if (std::regex_match(line, match, ff_delay_pattern)) {
+            if (saw_ff_delay) {
+                throw parse_error(path, line_number, "Duplicate FF_DELAY line");
+            }
+            current_cell.ff_delays_by_fanout = parse_delay_values(path, line_number, match[1].str());
+            saw_ff_delay = true;
+            continue;
+        }
+
+        if (std::regex_match(line, cell_end_pattern)) {
+            finish_cell(line_number);
+            in_cell = false;
+            continue;
+        }
+
+        throw parse_error(path, line_number, "Invalid buffer library line format");
+    }
+
+    if (in_cell) {
+        throw std::runtime_error("Buffer library file ended before closing cell: " + path.string());
     }
 }
 
