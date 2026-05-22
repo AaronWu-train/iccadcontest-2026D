@@ -34,13 +34,10 @@ private:
     void load_input();
     void write_output(const ClockTree& clock_tree, const std::filesystem::path& output_path);
 
+    AppConfig config_;
+    BufferLibrary buffer_library_;
     ClockTree clock_tree_;
     DataPathGraph data_path_graph_;
-    BufferLibrary buffer_library_;
-
-    AppConfig config_;
-    Evaluator evaluator_;
-    Optimizer optimizer_;
 };
 
 }  // namespace cadd0040

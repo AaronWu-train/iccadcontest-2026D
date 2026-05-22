@@ -9,6 +9,8 @@
 #include <fstream>
 #include <stdexcept>
 
+#include "optimization/factory.hpp"
+#include "optimization/optimizer.hpp"
 #include "parser.hpp"
 
 namespace cadd0040 {
@@ -34,11 +36,28 @@ void Solver::write_output(const ClockTree& clock_tree, const std::filesystem::pa
 }
 
 int Solver::run() {
-    load_input();
+    try {
+        load_input();
 
-    // TODO: Call optimizer here.
+        baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+        std::cerr << "Initial baseline metrics: " << baseline_metrics << "\n";
+        std::cerr << "Initial Score = " << score(baseline_metrics) << '\n';
 
-    write_output(clock_tree_, config_.output_file);
+        auto optimizer = make_optimizer(config_.optimizer_name);
+        optimizer->run(clock_tree_, data_path_graph_, buffer_library_);
+
+        Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+        std::cerr << "======================================\n";
+        std::cerr << "Final metrics: " << final_metrics << "\n";
+        std::cerr << "Final Score = " << score(final_metrics) << '\n';
+
+        write_output(clock_tree_, config_.output_file);
+
+        return EXIT_SUCCESS;
+    } catch (const std::exception& e) {
+        std::cerr << "Solver failed: " << e.what() << '\n';
+        return EXIT_FAILURE;
+    }
 }
 
 }  // namespace cadd0040

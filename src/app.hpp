@@ -16,6 +16,7 @@ namespace cadd0040 {
 struct AppConfig {
     std::filesystem::path testcase_dir;
     std::filesystem::path output_file;
+    std::string optimizer_name;
 
     std::filesystem::path clk_tree_path;
     std::filesystem::path buflib_path;
@@ -24,9 +25,11 @@ struct AppConfig {
 
     AppConfig() = default;
 
-    AppConfig(std::filesystem::path testcase_dir, std::filesystem::path output_file)
+    AppConfig(std::filesystem::path testcase_dir, std::filesystem::path output_file,
+              std::string optimizer_name = "dummy")
         : testcase_dir(std::move(testcase_dir)),
           output_file(std::move(output_file)),
+          optimizer_name(std::move(optimizer_name)),
           clk_tree_path(this->testcase_dir / "clk_tree.structure"),
           buflib_path(this->testcase_dir / "buf.lib"),
           ss_delay_path(this->testcase_dir / "SS_delay.rpt"),

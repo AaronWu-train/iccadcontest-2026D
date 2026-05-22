@@ -29,6 +29,7 @@ add_library(cadd0040_core
     src/datapath_graph.cpp
     src/evaluation.cpp
     src/parser.cpp
+    src/optimization/factory.cpp
     src/optimization/optimizer.cpp
     src/solver.cpp
 )

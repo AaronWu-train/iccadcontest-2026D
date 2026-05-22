@@ -197,6 +197,12 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
     }
 }
 
+void parse_data_path_graph(const std::filesystem::path& ff_delay_path,
+                           const std::filesystem::path& ss_delay_path,
+                           DataPathGraph& data_path_graph) {
+    // TODO: IMPLEMENT THIS
+}
+
 void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buffer_library) {
     std::ifstream input(path);
     if (!input) {
