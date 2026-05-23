@@ -22,6 +22,7 @@ using EdgeId = std::size_t;
 
 // Sentinel value used for missing nodes or nodes without a parent.
 inline constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
+inline constexpr EdgeId kInvalidEdgeId = std::numeric_limits<EdgeId>::max();
 
 enum class Corner {
     SS,
@@ -32,6 +33,20 @@ enum class NodeKind {
     ClockSource,
     Buffer,
     FlipFlop,
+};
+
+struct CornerDelay {
+    double ss = 0.0;
+    double ff = 0.0;
+};
+
+struct TimingConstraint {
+    double clock_period = 0.0;
+    double setup_ratio = 0.08;
+    double hold_ratio = 0.05;
+
+    double setup_time() const { return setup_ratio * clock_period; }
+    double hold_time() const { return hold_ratio * clock_period; }
 };
 
 struct BufferCell {
