@@ -28,7 +28,7 @@
 #pragma once
 
 #include <cstddef>
-#include <iostream>
+#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
