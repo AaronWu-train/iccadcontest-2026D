@@ -10,15 +10,6 @@
 
 namespace cadd0040 {
 
-std::unique_ptr<Optimizer> make_optimizer(OptimizerType type) {
-    switch (type) {
-        case OptimizerType::Dummy:
-            return std::make_unique<DummyOptimizer>();
-    }
-
-    throw std::runtime_error("Unknown optimizer type");
-}
-
 void DummyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                          const BufferLibrary& buffer_library, const Metrics& baseline_metrics) {
     (void)clock_tree;
