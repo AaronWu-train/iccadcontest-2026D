@@ -27,7 +27,7 @@ std::ostream& operator<<(std::ostream& os, const Metrics& metrics) {
     return os;
 }
 
-Metrics evaluate(const ClockTree& clock_tree, const DataPathGraph& data_path_graph,
+Metrics evaluate(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                  const BufferLibrary& buffer_library) {
     Metrics metrics;
     metrics.area = clock_tree.area(buffer_library);

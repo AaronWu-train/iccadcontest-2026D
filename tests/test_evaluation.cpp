@@ -55,9 +55,9 @@ cadd0040::DataPathGraph make_eval_data_path_graph() {
 
 }  // namespace
 
-TEST_CASE("evaluate computes setup and hold metrics without cached clock times") {
+TEST_CASE("evaluate uses lazy cached clock arrivals for setup and hold metrics") {
     const auto buffer_library = make_eval_buffer_library();
-    const auto clock_tree = make_eval_clock_tree();
+    auto clock_tree = make_eval_clock_tree();
     const auto graph = make_eval_data_path_graph();
 
     const auto metrics = cadd0040::evaluate(clock_tree, graph, buffer_library);

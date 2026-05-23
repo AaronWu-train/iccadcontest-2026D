@@ -50,10 +50,11 @@ struct ClockNode {
     NodeKind kind = NodeKind::Buffer;
     NodeId parent_id = kInvalidNodeId;
     std::vector<NodeId> child_ids;
-    // Cached clock arrival times from root to this node. Dirty/lazy policy should live outside
-    // ClockTree; call update_clock_times() or update_clock_times_from() to refresh cached values.
-    double ss_clock_time = 0.0;
-    double ff_clock_time = 0.0;
+    // Cached clock arrival times from root to this node. SS/FF here are timing corners, not
+    // flip-flop or data-path reports. ClockTree owns the dirty/lazy policy for these values.
+    double ss_clock_arrival = 0.0;
+    double ff_clock_arrival = 0.0;
+    bool clock_arrival_dirty = true;
 };
 
 /**
@@ -139,30 +140,29 @@ public:
     // Time: average O(H), excluding string hash cost.
     std::vector<std::string> path_from_root(const std::string& node_name) const;
 
-    // Returns the cached clock arrival time for the requested corner. Call an update_* function
-    // after parsing, buffer insertion, or buffer resizing before relying on this cached value.
-    // Time: average O(1), excluding string hash cost.
-    double clock_time(const std::string& node_name, Corner corner) const;
-    // Recomputes cached SS/FF clock arrival times for the whole tree from the root.
-    // Use this after bulk edits or when no smaller dirty subtree is known.
+    // Recomputes cached SS/FF clock arrival times for the whole tree from the root and clears all
+    // per-node dirty flags.
     // Time: O(N), plus average O(1) buffer-library lookup per buffer.
     void update_clock_times(const BufferLibrary& buffer_library);
-    // Recomputes cached SS/FF clock arrival times for node_name and its descendants.
-    // Optimizer code can call this for a dirty subtree after local structural or sizing changes.
-    // Time: average O(S), excluding initial string hash cost, plus average O(1) buffer-library
-    // lookup per buffer in the updated subtree.
+    // Recomputes cached SS/FF clock arrival times for node_name and its descendants, first ensuring
+    // the parent path is current. Optimizer code can call this to eagerly clean a local subtree.
+    // Time: average O(H + S), excluding initial string hash cost, plus average O(1)
+    // buffer-library lookup per buffer in the updated subtree.
     void update_clock_times_from(const std::string& node_name, const BufferLibrary& buffer_library);
 
-    // Time: average O(H), excluding initial string hash cost, plus average O(1) buffer-library
-    // lookup per buffer on the root-to-node path.
+    // Lazily refreshes cached clock arrivals if needed, then returns the requested node's clock
+    // arrival. After a local edit this recomputes only dirty nodes on the queried root-to-node
+    // path. Time: average O(H), plus O(N) if switching to a different BufferLibrary object.
     double clock_delay(const std::string& node_name, const BufferLibrary& buffer_library,
-                       Corner corner) const;
+                       Corner corner);
 
-    // Returns capture clock delay minus launch clock delay for two flip-flop endpoints.
-    // Time: average O(H_launch + H_capture), excluding string hash and buffer-library lookup costs.
+    // Lazily refreshes cached clock arrivals if needed, then returns capture minus launch clock
+    // arrival for two flip-flop endpoints. After a local edit this recomputes only dirty nodes on
+    // the two queried root-to-endpoint paths.
+    // Time: average O(H_launch + H_capture), plus O(N) if switching BufferLibrary objects.
     double clock_skew(const std::string& launch_flip_flop_name,
                       const std::string& capture_flip_flop_name,
-                      const BufferLibrary& buffer_library, Corner corner) const;
+                      const BufferLibrary& buffer_library, Corner corner);
 
     // Time: O(N), plus average O(1) buffer-library lookup per buffer.
     double area(const BufferLibrary& buffer_library) const;
@@ -184,12 +184,23 @@ private:
     std::vector<NodeId> path_to_root(NodeId node_id) const;
     // Time: O(H).
     std::vector<NodeId> path_from_root(NodeId node_id) const;
+    // Time: O(1).
+    double cached_clock_arrival(NodeId node_id, Corner corner) const;
+    // Time: O(1), plus average O(1) buffer-library lookup for buffer nodes.
+    void update_clock_arrival(NodeId node_id, const BufferLibrary& buffer_library);
     // Time: O(S), plus average O(1) buffer-library lookup per buffer in the updated subtree.
-    void update_clock_times_from(NodeId node_id, const BufferLibrary& buffer_library);
+    void update_clock_arrival_subtree(NodeId node_id, const BufferLibrary& buffer_library);
+    // Time: O(S).
+    void mark_clock_arrivals_dirty_from(NodeId node_id);
+    // Time: O(H), plus O(N) if switching BufferLibrary objects.
+    void ensure_clock_arrival(NodeId node_id, const BufferLibrary& buffer_library);
+    // Time: O(N) if switching BufferLibrary objects; otherwise O(1).
+    void use_clock_arrival_library(const BufferLibrary& buffer_library);
 
     NodeId root_id_ = kInvalidNodeId;
     std::vector<ClockNode> nodes_;
     std::unordered_map<std::string, NodeId> name_to_id_;
+    const BufferLibrary* clock_arrival_buffer_library_ = nullptr;
 };
 
 }  // namespace cadd0040

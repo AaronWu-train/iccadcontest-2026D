@@ -23,7 +23,7 @@ struct Metrics {
 
 std::ostream& operator<<(std::ostream& os, const Metrics& metrics);
 
-Metrics evaluate(const ClockTree& clock_tree, const DataPathGraph& data_path_graph,
+Metrics evaluate(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                  const BufferLibrary& buffer_library);
 
 double score(const Metrics& metrics, const Metrics& baseline);
