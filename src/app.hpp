@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace cadd0040 {
 
@@ -35,9 +34,7 @@ struct AppConfig {
           ff_delay_path(this->testcase_dir / "FF_delay.rpt") {}
 };
 
-AppConfig parse_arguments(const std::vector<std::string>& args);
-
-std::string help_message();
+AppConfig parse_arguments(int argc, char** argv);
 
 int run(const AppConfig& config);
 

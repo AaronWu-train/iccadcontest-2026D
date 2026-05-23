@@ -1,4 +1,3 @@
-#include <CLI/CLI.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <string>
@@ -7,7 +6,22 @@
 #include "app.hpp"
 #include "optimization/factory.hpp"
 
-TEST_CASE("make_config derives testcase input paths") {
+namespace {
+
+cadd0040::AppConfig parse_arguments(std::vector<std::string> args) {
+    std::vector<char*> argv;
+    argv.reserve(args.size());
+
+    for (auto& arg : args) {
+        argv.push_back(arg.data());
+    }
+
+    return cadd0040::parse_arguments(static_cast<int>(argv.size()), argv.data());
+}
+
+}  // namespace
+
+TEST_CASE("AppConfig derives testcase input paths") {
     const auto config = cadd0040::AppConfig(
         std::filesystem::path{"testcases/testcase0"},
         std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"},
@@ -16,6 +30,7 @@ TEST_CASE("make_config derives testcase input paths") {
     CHECK(config.testcase_dir == std::filesystem::path{"testcases/testcase0"});
     CHECK(config.output_file ==
           std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
+    CHECK(config.optimizer_name == cadd0040::kDefaultOptimizerName);
     CHECK(config.clk_tree_path == std::filesystem::path{"testcases/testcase0/clk_tree.structure"});
     CHECK(config.buflib_path == std::filesystem::path{"testcases/testcase0/buf.lib"});
     CHECK(config.ss_delay_path == std::filesystem::path{"testcases/testcase0/SS_delay.rpt"});
@@ -23,12 +38,11 @@ TEST_CASE("make_config derives testcase input paths") {
 }
 
 TEST_CASE("parse_arguments accepts the required positional arguments") {
-    const std::vector<std::string> args{
+    const auto config = parse_arguments({
+        "cadd0040",
         "testcases/testcase0",
         "testcases/testcase0/modified_clk_tree.structure",
-    };
-
-    const auto config = cadd0040::parse_arguments(args);
+    });
 
     CHECK(config.testcase_dir == std::filesystem::path{"testcases/testcase0"});
     CHECK(config.output_file ==
@@ -37,28 +51,28 @@ TEST_CASE("parse_arguments accepts the required positional arguments") {
 }
 
 TEST_CASE("parse_arguments accepts an explicit optimizer") {
-    const std::vector<std::string> args{
+    const auto config = parse_arguments({
+        "cadd0040",
         "testcases/testcase0",
         "testcases/testcase0/modified_clk_tree.structure",
         "--optimizer",
         std::string{cadd0040::kDefaultOptimizerName},
-    };
+    });
 
-    const auto config = cadd0040::parse_arguments(args);
-
+    CHECK(config.testcase_dir == std::filesystem::path{"testcases/testcase0"});
+    CHECK(config.output_file ==
+          std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
     CHECK(config.optimizer_name == cadd0040::kDefaultOptimizerName);
 }
 
-TEST_CASE("parse_arguments rejects missing positional arguments") {
-    const std::vector<std::string> args{"testcases/testcase0"};
+TEST_CASE("parse_arguments uses argv[0] only as the program name") {
+    const auto config = parse_arguments({
+        "cadd0040-alpha",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+    });
 
-    CHECK_THROWS_AS(cadd0040::parse_arguments(args), CLI::ParseError);
-}
-
-TEST_CASE("parse_arguments handles help without running the application") {
-    const std::vector<std::string> args{"--help"};
-
-    CHECK_THROWS_AS(cadd0040::parse_arguments(args), CLI::CallForHelp);
-    CHECK(cadd0040::help_message().find("testcase_dir") != std::string::npos);
-    CHECK(cadd0040::help_message().find("output_file") != std::string::npos);
+    CHECK(config.testcase_dir == std::filesystem::path{"testcases/testcase0"});
+    CHECK(config.output_file ==
+          std::filesystem::path{"testcases/testcase0/modified_clk_tree.structure"});
 }
