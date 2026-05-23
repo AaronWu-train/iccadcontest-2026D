@@ -43,7 +43,7 @@ std::vector<std::string> available_optimizers() {
         for (const auto& [name, _] : optimizer_registry()) {
             names.push_back(name);
         }
-    };
+    }
 
     return names;
 }
