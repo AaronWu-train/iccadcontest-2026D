@@ -5,6 +5,7 @@ project(cadd0040 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
@@ -26,8 +27,9 @@ add_library(cadd0040_core
     src/app.cpp
     src/clock_tree.cpp
     src/datapath_graph.cpp
-    src/evaluator.cpp
+    src/evaluation.cpp
     src/parser.cpp
+    src/optimization/factory.cpp
     src/optimization/optimizer.cpp
     src/solver.cpp
 )

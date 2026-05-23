@@ -60,12 +60,4 @@ struct BufferCell {
 
 using BufferLibrary = std::unordered_map<std::string, BufferCell>;
 
-struct Metrics {
-    double setup_tns = 0.0;
-    double setup_wns = 0.0;
-    double hold_tns = 0.0;
-    double hold_wns = 0.0;
-    double area = 0.0;
-};
-
 }  // namespace cadd0040

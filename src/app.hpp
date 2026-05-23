@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace cadd0040 {
@@ -14,13 +15,25 @@ namespace cadd0040 {
 struct AppConfig {
     std::filesystem::path testcase_dir;
     std::filesystem::path output_file;
+    std::string optimizer_name;
+
     std::filesystem::path clk_tree_path;
     std::filesystem::path buflib_path;
     std::filesystem::path ss_delay_path;
     std::filesystem::path ff_delay_path;
-};
 
-AppConfig make_config(std::filesystem::path testcase_dir, std::filesystem::path output_file);
+    AppConfig() = default;
+
+    AppConfig(std::filesystem::path testcase_dir, std::filesystem::path output_file,
+              std::string optimizer_name)
+        : testcase_dir(std::move(testcase_dir)),
+          output_file(std::move(output_file)),
+          optimizer_name(std::move(optimizer_name)),
+          clk_tree_path(this->testcase_dir / "clk_tree.structure"),
+          buflib_path(this->testcase_dir / "buf.lib"),
+          ss_delay_path(this->testcase_dir / "SS_delay.rpt"),
+          ff_delay_path(this->testcase_dir / "FF_delay.rpt") {}
+};
 
 AppConfig parse_arguments(const std::vector<std::string>& args);
 

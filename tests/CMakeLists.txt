@@ -1,6 +1,7 @@
 add_executable(cadd0040_tests
     test_app.cpp
     test_clock_tree.cpp
+    test_evaluation.cpp
     test_parser.cpp
     test_datapath_parser.cpp
 )
@@ -17,4 +18,6 @@ target_compile_definitions(cadd0040_tests
 )
 
 include(Catch)
-catch_discover_tests(cadd0040_tests)
+catch_discover_tests(cadd0040_tests
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)

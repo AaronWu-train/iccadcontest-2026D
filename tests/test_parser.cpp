@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -81,6 +82,26 @@ TEST_CASE("parse_clock_tree preserves preorder output order and depth") {
     CHECK(traversal[2].depth == 2);
     CHECK(traversal[3].node_name == "BUF_1");
     CHECK(traversal[3].depth == 1);
+}
+
+TEST_CASE("parse_clock_tree output matches its original structure file") {
+    const std::string original_structure =
+        "Root: ROOT_CLK\n"
+        "\t[1] BUF_0 (REALBUF_X8)\n"
+        "\t\t[2] BUF_4 (REALBUF_X4)\n"
+        "\t\t\t[3] FF_37 (FIFO) (SINK)\n"
+        "\t\t\t[3] FF_12 (FIFO) (SINK)\n"
+        "\t\t[2] FF_24 (FIFO) (SINK)\n"
+        "\t[1] BUF_1 (REALBUF_X2)\n";
+    const auto path = write_temp_file("cadd0040_clk_tree_round_trip.structure", original_structure);
+
+    cadd0040::ClockTree clock_tree;
+    cadd0040::parse_clock_tree(path, clock_tree);
+
+    std::ostringstream output;
+    output << clock_tree;
+
+    CHECK(output.str() == original_structure);
 }
 
 TEST_CASE("parse_clock_tree rejects missing parent levels") {
