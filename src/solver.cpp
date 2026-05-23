@@ -7,6 +7,8 @@
 
 #include <filesystem>
 #include <fstream>
+#include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 
 #include "optimization/factory.hpp"
