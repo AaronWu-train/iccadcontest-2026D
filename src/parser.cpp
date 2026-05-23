@@ -111,7 +111,8 @@ DelayRecord parse_delay_record_line(const std::string& line, const std::filesyst
     };
 }
 
-void ensure_matching_clock_period(double expected, double actual, const std::filesystem::path& path) {
+void ensure_matching_clock_period(double expected, double actual,
+                                  const std::filesystem::path& path) {
     // SS_delay.rpt and FF_delay.rpt should describe the same testcase clock period.
     if (std::fabs(expected - actual) > kClockPeriodTolerance) {
         throw std::runtime_error("Mismatched clock period in " + path.string());
@@ -195,12 +196,6 @@ void parse_clock_tree(const std::filesystem::path& path, ClockTree& clock_tree) 
     if (!saw_root) {
         throw std::runtime_error("Clock tree file has no root line: " + path.string());
     }
-}
-
-void parse_data_path_graph(const std::filesystem::path& ff_delay_path,
-                           const std::filesystem::path& ss_delay_path,
-                           DataPathGraph& data_path_graph) {
-    // TODO: IMPLEMENT THIS
 }
 
 void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buffer_library) {
@@ -319,7 +314,6 @@ void parse_buffer_library(const std::filesystem::path& path, BufferLibrary& buff
 
     if (in_cell) {
         throw parse_error(path, line_number, "Buffer library file ended before closing cell");
-
     }
 }
 
