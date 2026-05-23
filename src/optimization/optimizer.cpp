@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 namespace cadd0040 {
 
