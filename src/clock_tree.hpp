@@ -157,6 +157,13 @@ public:
     // lookup per buffer on the root-to-node path.
     double clock_delay(const std::string& node_name, const BufferLibrary& buffer_library,
                        Corner corner) const;
+
+    // Returns capture clock delay minus launch clock delay for two flip-flop endpoints.
+    // Time: average O(H_launch + H_capture), excluding string hash and buffer-library lookup costs.
+    double clock_skew(const std::string& launch_flip_flop_name,
+                      const std::string& capture_flip_flop_name,
+                      const BufferLibrary& buffer_library, Corner corner) const;
+
     // Time: O(N), plus average O(1) buffer-library lookup per buffer.
     double area(const BufferLibrary& buffer_library) const;
 

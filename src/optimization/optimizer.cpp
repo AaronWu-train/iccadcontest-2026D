@@ -20,7 +20,12 @@ std::unique_ptr<Optimizer> make_optimizer(OptimizerType type) {
 }
 
 void DummyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
-                         const BufferLibrary& buffer_library) {
+                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics) {
+    (void)clock_tree;
+    (void)data_path_graph;
+    (void)buffer_library;
+    (void)baseline_metrics;
+
     std::cerr << "DummyOptimizer: No optimization performed. This is a no-op optimizer for testing."
               << std::endl;
     // No-op optimizer for testing and benchmarking infrastructure.

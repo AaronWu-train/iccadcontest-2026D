@@ -1,4 +1,6 @@
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <stdexcept>
 
 #include "clock_tree.hpp"
 
@@ -64,4 +66,21 @@ TEST_CASE("resize_buffer validates replacement cell fanout before mutating") {
 
     CHECK(clock_tree.resize_buffer("BUF_0", "BUF_X4", buffer_library));
     CHECK(clock_tree.node("BUF_0").cell_type == "BUF_X4");
+}
+
+TEST_CASE("clock_skew computes capture minus launch clock delay for flip-flops") {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree_with_two_sinks();
+
+    CHECK(clock_tree.clock_skew("FF_1", "FF_0", buffer_library, cadd0040::Corner::SS) ==
+          Catch::Approx(0.0));
+
+    REQUIRE(clock_tree.insert_buffer("BUF_0", "FF_0", "NEW_BUF_0", "BUF_X1", buffer_library));
+
+    CHECK(clock_tree.clock_skew("FF_1", "FF_0", buffer_library, cadd0040::Corner::SS) ==
+          Catch::Approx(0.10));
+    CHECK(clock_tree.clock_skew("FF_1", "FF_0", buffer_library, cadd0040::Corner::FF) ==
+          Catch::Approx(0.05));
+    CHECK_THROWS_AS(clock_tree.clock_skew("BUF_0", "FF_0", buffer_library, cadd0040::Corner::SS),
+                    std::invalid_argument);
 }

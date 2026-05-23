@@ -39,17 +39,17 @@ int Solver::run() {
     try {
         load_input();
 
-        baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+        const Metrics baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
         std::cerr << "Initial baseline metrics: " << baseline_metrics << "\n";
-        std::cerr << "Initial Score = " << score(baseline_metrics) << '\n';
+        std::cerr << "Initial Score = " << score(baseline_metrics, baseline_metrics) << '\n';
 
         auto optimizer = make_optimizer(config_.optimizer_name);
-        optimizer->run(clock_tree_, data_path_graph_, buffer_library_);
+        optimizer->run(clock_tree_, data_path_graph_, buffer_library_, baseline_metrics);
 
         Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
         std::cerr << "======================================\n";
         std::cerr << "Final metrics: " << final_metrics << "\n";
-        std::cerr << "Final Score = " << score(final_metrics) << '\n';
+        std::cerr << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
 
         write_output(clock_tree_, config_.output_file);
 

@@ -49,6 +49,13 @@ bool cell_supports_fanout(const BufferCell& buffer_cell, std::size_t fanout) {
            fanout <= buffer_cell.ff_delays_by_fanout.size();
 }
 
+void require_flip_flop_endpoint(const ClockNode& clock_node, const char* role) {
+    if (clock_node.kind != NodeKind::FlipFlop) {
+        throw std::invalid_argument(std::string("Clock skew ") + role +
+                                    " endpoint is not a flip-flop: " + clock_node.name);
+    }
+}
+
 struct TraversalStackEntry {
     NodeId node_id = kInvalidNodeId;
     std::size_t depth = 0;
@@ -411,6 +418,29 @@ double ClockTree::clock_delay(const std::string& node_name, const BufferLibrary&
     }
 
     return total_delay;
+}
+
+double ClockTree::clock_skew(const std::string& launch_flip_flop_name,
+                             const std::string& capture_flip_flop_name,
+                             const BufferLibrary& buffer_library, Corner corner) const {
+    const NodeId launch_id = find_node(launch_flip_flop_name);
+    if (!contains_node(launch_id)) {
+        throw std::invalid_argument("Clock skew launch endpoint does not exist: " +
+                                    launch_flip_flop_name);
+    }
+
+    const NodeId capture_id = find_node(capture_flip_flop_name);
+    if (!contains_node(capture_id)) {
+        throw std::invalid_argument("Clock skew capture endpoint does not exist: " +
+                                    capture_flip_flop_name);
+    }
+
+    require_flip_flop_endpoint(node(launch_id), "launch");
+    require_flip_flop_endpoint(node(capture_id), "capture");
+
+    const double launch_delay = clock_delay(launch_flip_flop_name, buffer_library, corner);
+    const double capture_delay = clock_delay(capture_flip_flop_name, buffer_library, corner);
+    return capture_delay - launch_delay;
 }
 
 double ClockTree::area(const BufferLibrary& buffer_library) const {

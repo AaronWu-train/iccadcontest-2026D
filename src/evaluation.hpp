@@ -21,19 +21,11 @@ struct Metrics {
     double area = 0.0;
 };
 
-static Metrics baseline_metrics = {
-    .tns_ss = -100.0,
-    .wns_ss = -0.1,
-    .tns_ff = -100.0,
-    .wns_ff = -0.1,
-    .area = 10000.0,
-};
-
 std::ostream& operator<<(std::ostream& os, const Metrics& metrics);
 
 Metrics evaluate(const ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                  const BufferLibrary& buffer_library);
 
-double score(const Metrics& metrics, const Metrics& baseline = baseline_metrics);
+double score(const Metrics& metrics, const Metrics& baseline);
 
 }  // namespace cadd0040
