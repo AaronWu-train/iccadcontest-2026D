@@ -25,7 +25,7 @@ double score(const Metrics& metrics, const Metrics& baseline) {
     double ss_corner_score =
         (1 - (metrics.tns_ss / baseline.tns_ss)) + (1 - (metrics.wns_ss / baseline.wns_ss));
     double ff_corner_score =
-        (1 - (metrics.tns_ff / baseline.tns_ff)) * (1 + (metrics.wns_ff / baseline.wns_ff));
+        (1 - (metrics.tns_ff / baseline.tns_ff)) + (1 - (metrics.wns_ff / baseline.wns_ff));
     double area_score = 1 - (metrics.area / baseline.area);
 
     // Combine the corner scores and area score into a single score.
