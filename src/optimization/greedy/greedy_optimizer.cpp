@@ -18,7 +18,7 @@ namespace {
 constexpr std::chrono::seconds kGreedyTimeBudget{60};
 constexpr std::size_t kMaxGreedySteps = 4096;
 constexpr std::size_t kMaxResizePolishSteps = 64;
-constexpr std::size_t kMaxResizeNodesPerStep = 2048;
+constexpr std::size_t kMaxResizeNodesPerStep = 8192;
 constexpr std::size_t kMaxPolishPhases = 3;
 
 std::chrono::seconds greedy_time_budget() {
