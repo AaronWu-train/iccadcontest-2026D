@@ -16,7 +16,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
+BUILD_DIR="${BUILD_DIR:-${ROOT}/build}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
 OPTIMIZER="${OPTIMIZER:-anneal}"
