@@ -81,6 +81,7 @@ for testcase_path in "${TESTCASES[@]}"; do
     run_env=(CADD0040_SA_SECONDS="${SA_SECONDS}")
     if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
         run_env+=(CADD0040_DEBUG_PROGRESS=1 "CADD0040_DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}")
+        echo ">>> ${testcase_name}" >&2
     fi
 
     set +e
@@ -88,8 +89,8 @@ for testcase_path in "${TESTCASES[@]}"; do
         --optimizer "${OPTIMIZER}" \
         "${testcase_path}" \
         "${output_file}" \
-        >"${log_file}" 2>&1
-    exit_code=$?
+        2>&1 | tee "${log_file}"
+    exit_code="${PIPESTATUS[0]}"
     set -e
 
     end_ns="$(date +%s)"
