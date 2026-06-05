@@ -22,6 +22,7 @@ constexpr std::chrono::seconds kMilpTimeBudget{60};
 constexpr std::size_t kMaxRounds = 4096;
 constexpr std::size_t kViolationWindow = 96;
 constexpr std::size_t kCandidateLimit = 4096;
+constexpr std::size_t kResizeNodeLimit = 4096;
 
 struct Violation {
     std::size_t path_idx = 0;
@@ -180,6 +181,32 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
                           },
                           before_score, best);
             ++candidates;
+        }
+    }
+
+    std::size_t resize_nodes = 0;
+    for (std::size_t node_idx = 0; node_idx < model.node_count() && candidates < kCandidateLimit;
+         ++node_idx) {
+        const int old_cell_idx = model.cell_indices()[node_idx];
+        if (old_cell_idx < 0) {
+            continue;
+        }
+        ++resize_nodes;
+        for (int cell_idx = 0; cell_idx < static_cast<int>(model.cell_count()); ++cell_idx) {
+            consider_move(model, baseline_metrics,
+                          SkewMove{
+                              .kind = SkewMoveKind::Resize,
+                              .node_idx = node_idx,
+                              .cell_idx = cell_idx,
+                              .old_cell_idx = old_cell_idx,
+                          },
+                          before_score, best);
+            if (++candidates >= kCandidateLimit) {
+                break;
+            }
+        }
+        if (resize_nodes >= kResizeNodeLimit) {
+            break;
         }
     }
 
