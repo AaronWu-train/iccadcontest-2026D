@@ -1,0 +1,61 @@
+========================================
+cadd0040 batch run
+  binary   : /Users/yuchengliu/NTU/114-2/IEDA/iccadcontest-2026D/build-release/cadd0040
+  optimizer: anneal
+  SA budget: 10s
+  progress : off
+  cases    : 5
+========================================
+
+TESTCASE        INITIAL      FINAL      TIME(s) STATUS
+--------        -------      -----      ------- ------
+Initial baseline metrics: tns_ss: -1134.16, wns_ss: -0.5286, tns_ff: -2.988, wns_ff: -0.1065, area: 6997.01
+Initial Score = 0
+AnnealingOptimizer: baseline score = 0
+AnnealingOptimizer: after warmup score = 0.322317
+AnnealingOptimizer: iterations = 74939, accepted = 72135, rejected = 618, restarts = 49, greedy_polish = 363, best score = 0.674759, restored score = 0.674759
+======================================
+Final metrics: tns_ss: -444.712, wns_ss: -0.2184, tns_ff: -0.123, wns_ff: -0.0231, area: 10604.6
+Final Score = 0.674759
+testcase0             0   0.674759           12 OK
+Initial baseline metrics: tns_ss: -252.448, wns_ss: -0.4023, tns_ff: -0.4121, wns_ff: -0.0788, area: 1653.16
+Initial Score = 0
+AnnealingOptimizer: baseline score = 0
+AnnealingOptimizer: after warmup score = 0.583234
+AnnealingOptimizer: iterations = 422300, accepted = 400402, rejected = 9727, restarts = 316, greedy_polish = 1753, best score = 0.946802, restored score = 0.946802
+======================================
+Final metrics: tns_ss: -38.7138, wns_ss: -0.1083, tns_ff: 0, wns_ff: 0, area: 2175.69
+Final Score = 0.946802
+testcase1             0   0.946802           11 OK
+Initial baseline metrics: tns_ss: -98.6976, wns_ss: -0.302, tns_ff: -0.1034, wns_ff: -0.0298, area: 980.414
+Initial Score = 0
+AnnealingOptimizer: baseline score = 0
+AnnealingOptimizer: after warmup score = 0.893889
+AnnealingOptimizer: iterations = 878664, accepted = 785149, rejected = 68582, restarts = 2632, greedy_polish = 3578, best score = 1.17693, restored score = 1.17693
+======================================
+Final metrics: tns_ss: -2.4643, wns_ss: -0.0286, tns_ff: 0, wns_ff: 0, area: 948.97
+Final Score = 1.17693
+testcase2             0    1.17693           10 OK
+Initial baseline metrics: tns_ss: -374.233, wns_ss: -0.4594, tns_ff: -1.0243, wns_ff: -0.1078, area: 2784.19
+Initial Score = 0
+AnnealingOptimizer: baseline score = 0
+AnnealingOptimizer: after warmup score = 0.673331
+AnnealingOptimizer: iterations = 219893, accepted = 210404, rejected = 3170, restarts = 103, greedy_polish = 943, best score = 0.821194, restored score = 0.821194
+======================================
+Final metrics: tns_ss: -137.493, wns_ss: -0.2001, tns_ff: 0, wns_ff: 0, area: 3744.15
+Final Score = 0.821194
+testcase3             0   0.821194           11 OK
+Initial baseline metrics: tns_ss: -2277.69, wns_ss: -0.5938, tns_ff: -6.9904, wns_ff: -0.1217, area: 10539.5
+Initial Score = 0
+AnnealingOptimizer: baseline score = 0
+AnnealingOptimizer: after warmup score = 0.27868
+AnnealingOptimizer: iterations = 39464, accepted = 38033, rejected = 293, restarts = 35, greedy_polish = 221, best score = 0.499008, restored score = 0.499008
+======================================
+Final metrics: tns_ss: -1422.75, wns_ss: -0.2769, tns_ff: -1.8856, wns_ff: -0.0822, area: 12914.8
+Final Score = 0.499008
+testcase4             0   0.499008           14 OK
+
+========================================
+Summary: 5 passed, 0 failed
+Total wall time: 58s
+========================================

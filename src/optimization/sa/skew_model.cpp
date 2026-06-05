@@ -775,36 +775,34 @@ bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
         }
     }
 
-    if (violating_paths.empty()) {
-        std::size_t removal_candidates = 0;
-        for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-            const auto& inserted_cells = edges_[edge_idx].inserted_cell_indices;
-            if (inserted_cells.empty()) {
-                continue;
-            }
-            ++removal_candidates;
-            const int insert_position = static_cast<int>(inserted_cells.size() - 1);
-            const int cell_idx = inserted_cells.back();
-            const double before = score(baseline_metrics);
-            SkewMove move{
-                .kind = SkewMoveKind::Remove,
-                .edge_idx = edge_idx,
-                .cell_idx = cell_idx,
-                .insert_position = insert_position,
-            };
-            if (!try_move(move)) {
-                continue;
-            }
-            const double after = score(baseline_metrics);
-            const double delta = after - before;
-            if (delta > best_candidate.score_delta) {
-                best_candidate.move = move;
-                best_candidate.score_delta = delta;
-            }
-            undo_move(move);
-            if (removal_candidates >= 512) {
-                break;
-            }
+    std::size_t removal_candidates = 0;
+    for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+        const auto& inserted_cells = edges_[edge_idx].inserted_cell_indices;
+        if (inserted_cells.empty()) {
+            continue;
+        }
+        ++removal_candidates;
+        const int insert_position = static_cast<int>(inserted_cells.size() - 1);
+        const int cell_idx = inserted_cells.back();
+        const double before = score(baseline_metrics);
+        SkewMove move{
+            .kind = SkewMoveKind::Remove,
+            .edge_idx = edge_idx,
+            .cell_idx = cell_idx,
+            .insert_position = insert_position,
+        };
+        if (!try_move(move)) {
+            continue;
+        }
+        const double after = score(baseline_metrics);
+        const double delta = after - before;
+        if (delta > best_candidate.score_delta) {
+            best_candidate.move = move;
+            best_candidate.score_delta = delta;
+        }
+        undo_move(move);
+        if (removal_candidates >= 512) {
+            break;
         }
     }
 
