@@ -17,12 +17,58 @@ namespace {
 
 constexpr std::chrono::seconds kGreedyTimeBudget{60};
 constexpr std::size_t kMaxGreedySteps = 4096;
+constexpr std::size_t kMaxResizePolishSteps = 64;
+constexpr std::size_t kMaxResizeNodesPerStep = 2048;
 
 std::chrono::seconds greedy_time_budget() {
     if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
         return std::chrono::seconds(std::stoll(env_seconds));
     }
     return kGreedyTimeBudget;
+}
+
+bool apply_one_resize_polish_step(SkewModel& model, const Metrics& baseline_metrics) {
+    SkewMove best_move{
+        .kind = SkewMoveKind::Resize,
+    };
+    double best_delta = 0.0;
+    const double before = model.score(baseline_metrics);
+
+    std::size_t tested_nodes = 0;
+    for (std::size_t node_idx = 0; node_idx < model.node_count(); ++node_idx) {
+        if (model.cell_indices()[node_idx] < 0) {
+            continue;
+        }
+        ++tested_nodes;
+
+        for (int cell_idx = 0; cell_idx < static_cast<int>(model.cell_count()); ++cell_idx) {
+            SkewMove move{
+                .kind = SkewMoveKind::Resize,
+                .node_idx = node_idx,
+                .cell_idx = cell_idx,
+                .old_cell_idx = model.cell_indices()[node_idx],
+            };
+            if (!model.try_move(move)) {
+                continue;
+            }
+
+            const double delta = model.score(baseline_metrics) - before;
+            if (delta > best_delta) {
+                best_delta = delta;
+                best_move = move;
+            }
+            model.undo_move(move);
+        }
+
+        if (tested_nodes >= kMaxResizeNodesPerStep) {
+            break;
+        }
+    }
+
+    if (best_delta <= 0.0) {
+        return false;
+    }
+    return model.try_move(best_move);
 }
 
 }  // namespace
@@ -56,10 +102,21 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
                                              current_score);
     }
 
+    std::size_t resize_steps = 0;
+    while (resize_steps < kMaxResizePolishSteps && std::chrono::steady_clock::now() < deadline) {
+        if (!apply_one_resize_polish_step(model, baseline_metrics)) {
+            break;
+        }
+        ++resize_steps;
+        sa::maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                              best_metrics);
+    }
+
     sa::materialize(clock_tree, best_state, model, buffer_library);
     model.restore(best_state);
 
-    std::cerr << "GreedyOptimizer: steps = " << greedy_steps << ", best score = " << best_score
+    std::cerr << "GreedyOptimizer: steps = " << greedy_steps
+              << ", resize_steps = " << resize_steps << ", best score = " << best_score
               << ", restored score = " << model.score(baseline_metrics) << '\n';
 }
 
