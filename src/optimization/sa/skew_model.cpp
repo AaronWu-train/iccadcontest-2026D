@@ -526,7 +526,9 @@ void SkewModel::restore(const SkewModelState& state) {
     arrival_ff_ = state.arrival_ff;
     ss_slack_ = state.ss_slack;
     ff_slack_ = state.ff_slack;
-    metrics_ = state.metrics;
+    metrics_ = SkewModelMetrics{
+        .area = state.metrics.area,
+    };
 
     negative_ss_slacks_.clear();
     negative_ff_slacks_.clear();
