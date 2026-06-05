@@ -10,7 +10,8 @@
 #   BUILD_DIR                        Path to CMake build directory (default: build-release)
 #   CADD0040_SA_SECONDS              SA time budget in seconds (default: 540, contest limit)
 #   OPTIMIZER                        --optimizer value (default: anneal)
-#   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval in seconds (default: 15; always enabled)
+#   CADD0040_DEBUG_PROGRESS            Set to 0 to disable periodic best-score progress (default: on)
+#   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval in seconds (default: 15)
 
 set -euo pipefail
 
@@ -20,6 +21,7 @@ BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
 OPTIMIZER="${OPTIMIZER:-anneal}"
 SA_SECONDS="${CADD0040_SA_SECONDS:-540}"
+DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-1}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-15}"
 
 if [[ ! -x "${BINARY}" ]]; then
@@ -44,7 +46,11 @@ echo "cadd0040 batch run"
 echo "  binary   : ${BINARY}"
 echo "  optimizer: ${OPTIMIZER}"
 echo "  SA budget: ${SA_SECONDS}s"
-echo "  progress : every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
+if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
+    echo "  progress : every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
+else
+    echo "  progress : off"
+fi
 echo "  cases    : ${#TESTCASES[@]}"
 echo "========================================"
 echo
@@ -72,11 +78,13 @@ for testcase_path in "${TESTCASES[@]}"; do
     log_file="$(mktemp)"
     start_ns="$(date +%s)"
 
+    run_env=(CADD0040_SA_SECONDS="${SA_SECONDS}")
+    if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
+        run_env+=(CADD0040_DEBUG_PROGRESS=1 "CADD0040_DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}")
+    fi
+
     set +e
-    CADD0040_SA_SECONDS="${SA_SECONDS}" \
-    CADD0040_DEBUG_PROGRESS=1 \
-    CADD0040_DEBUG_PROGRESS_INTERVAL="${DEBUG_PROGRESS_INTERVAL}" \
-    "${BINARY}" \
+    env "${run_env[@]}" "${BINARY}" \
         --optimizer "${OPTIMIZER}" \
         "${testcase_path}" \
         "${output_file}" \

@@ -52,7 +52,7 @@ Example:
 ./build/cadd0040 ./testcases/testcase0 ./testcases/testcase0/modified_clk_tree.structure
 ```
 
-Or use the Makefile shortcut:
+Or run every testcase with progress reporting (uses the debug build in `build/`):
 
 ```sh
 make run
@@ -78,8 +78,8 @@ CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 ./testcases/testcase0 ./testcases/tes
 # Custom interval
 CADD0040_DEBUG_PROGRESS=1 CADD0040_DEBUG_PROGRESS_INTERVAL=15 ./build/cadd0040 ...
 
-# Makefile shortcut (debug progress enabled, default 30s interval)
-make run-debug
+# Makefile shortcut (all testcases, debug progress every 15s)
+make run
 ```
 
 Progress lines use the `Progress` prefix so they do not interfere with the
@@ -88,12 +88,12 @@ Progress lines use the `Progress` prefix so they do not interfere with the
 ### Batch run all testcases
 
 `scripts/run_all_testcases.sh` runs every `testcases/testcase*/` directory,
-prints a score table, and **always** enables debug progress every 15 seconds
-(best score lines go to each testcase log; failed runs dump the full log).
-
-Build a release binary first:
+prints a score table, and enables debug progress every 15 seconds by default.
 
 ```sh
+make run          # debug build, all testcases, progress on
+
+# Or use a release binary directly:
 make release
 ./scripts/run_all_testcases.sh
 ```
@@ -110,7 +110,8 @@ BUILD_DIR=build ./scripts/run_all_testcases.sh
 # Change optimizer (must be registered in the factory)
 OPTIMIZER=dummy ./scripts/run_all_testcases.sh
 
-# Change progress interval (still enabled)
+# Disable progress or change the interval
+CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
 CADD0040_DEBUG_PROGRESS_INTERVAL=30 ./scripts/run_all_testcases.sh
 ```
 
@@ -121,7 +122,8 @@ Environment variables:
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
 | `OPTIMIZER` | `anneal` | Value passed to `--optimizer` |
 | `CADD0040_SA_SECONDS` | `540` | SA time budget in seconds (contest limit) |
-| `CADD0040_DEBUG_PROGRESS_INTERVAL` | `15` | Seconds between `Progress` best-score lines |
+| `CADD0040_DEBUG_PROGRESS` | `1` | Set to `0` to disable periodic best-score progress |
+| `CADD0040_DEBUG_PROGRESS_INTERVAL` | `15` | Seconds between `Progress` lines |
 
 ## Unit Test
 

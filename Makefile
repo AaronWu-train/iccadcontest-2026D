@@ -1,12 +1,10 @@
-.PHONY: all configure build release test run run-debug format clean
+.PHONY: all configure build release test run format clean
 
 all: build
 
 BUILD_DIR := build
 RELEASE_DIR := build-release
 TARGET := cadd0040
-TESTCASE := ./testcases/testcase0
-OUTPUT := $(TESTCASE)/modified_clk_tree.structure
 
 ifeq ($(shell command -v ninja >/dev/null 2>&1 && echo yes),yes)
 CMAKE_GENERATOR := -G Ninja
@@ -29,10 +27,7 @@ test: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
 run: build
-	./$(BUILD_DIR)/$(TARGET) $(TESTCASE) $(OUTPUT)
-
-run-debug: build
-	CADD0040_DEBUG_PROGRESS=1 CADD0040_DEBUG_PROGRESS_INTERVAL=15 ./$(BUILD_DIR)/$(TARGET) $(TESTCASE) $(OUTPUT)
+	BUILD_DIR=$(BUILD_DIR) ./scripts/run_all_testcases.sh
 
 format:
 	clang-format -i src/*.cpp src/*.hpp tests/*.cpp
