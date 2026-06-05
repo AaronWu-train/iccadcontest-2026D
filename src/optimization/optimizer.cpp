@@ -18,8 +18,9 @@ void DummyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_g
     (void)buffer_library;
     (void)context;
 
-    std::cerr << "DummyOptimizer: No optimization performed. This is a no-op optimizer for testing."
-              << std::endl;
+    context.debug_progress.log([](std::ostream& os) {
+        os << "DummyOptimizer: No optimization performed. This is a no-op optimizer for testing.\n";
+    });
     // No-op optimizer for testing and benchmarking infrastructure.
 }
 

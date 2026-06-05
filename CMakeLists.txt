@@ -55,6 +55,10 @@ target_compile_options(cadd0040_core PRIVATE
     -Wpedantic
 )
 
+target_compile_definitions(cadd0040_core PRIVATE
+    $<$<CONFIG:Release>:NDEBUG>
+)
+
 add_executable(cadd0040
     src/main.cpp
 )

@@ -42,20 +42,25 @@ int Solver::run() {
     try {
         load_input();
 
-        const Metrics baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
-        std::cerr << "Initial baseline metrics: " << baseline_metrics << "\n";
-        std::cerr << "Initial Score = " << score(baseline_metrics, baseline_metrics) << '\n';
-
         DebugProgress debug_progress = DebugProgress::from_environment();
+        const Metrics baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+
+        debug_progress.log([&](std::ostream& os) {
+            os << "Initial baseline metrics: " << baseline_metrics << '\n';
+            os << "Initial Score = " << score(baseline_metrics, baseline_metrics) << '\n';
+        });
+
         OptimizerContext optimizer_context{baseline_metrics, debug_progress};
 
         auto optimizer = make_optimizer(config_.optimizer_name);
         optimizer->run(clock_tree_, data_path_graph_, buffer_library_, optimizer_context);
 
-        Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
-        std::cerr << "======================================\n";
-        std::cerr << "Final metrics: " << final_metrics << "\n";
-        std::cerr << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
+        const Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+        debug_progress.log([&](std::ostream& os) {
+            os << "======================================\n";
+            os << "Final metrics: " << final_metrics << '\n';
+            os << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
+        });
 
         write_output(clock_tree_, config_.output_file);
 
