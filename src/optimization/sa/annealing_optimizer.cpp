@@ -3,7 +3,7 @@
  * @brief Simulated-annealing optimizer implementation.
  */
 
-#include "optimization/annealing_optimizer.hpp"
+#include "optimization/sa/annealing_optimizer.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -11,7 +11,7 @@
 #include <iostream>
 #include <random>
 
-#include "optimization/skew_model.hpp"
+#include "optimization/sa/skew_model.hpp"
 
 namespace cadd0040 {
 namespace {

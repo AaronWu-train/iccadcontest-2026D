@@ -7,8 +7,8 @@
 #include <string_view>
 #include <vector>
 
-#include "optimization/annealing_optimizer.hpp"
 #include "optimization/optimizer.hpp"
+#include "optimization/sa/annealing_optimizer.hpp"
 
 namespace cadd0040 {
 namespace {

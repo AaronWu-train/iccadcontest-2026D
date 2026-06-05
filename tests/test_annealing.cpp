@@ -6,8 +6,8 @@
 #endif
 
 #include "evaluation.hpp"
-#include "optimization/annealing_optimizer.hpp"
-#include "optimization/skew_model.hpp"
+#include "optimization/sa/annealing_optimizer.hpp"
+#include "optimization/sa/skew_model.hpp"
 
 namespace {
 
