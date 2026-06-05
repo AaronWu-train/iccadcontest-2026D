@@ -1,6 +1,7 @@
 add_executable(cadd0040_tests
     test_app.cpp
     test_clock_tree.cpp
+    test_debug_progress.cpp
     test_evaluation.cpp
     test_parser.cpp
     test_datapath_parser.cpp

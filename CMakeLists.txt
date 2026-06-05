@@ -27,6 +27,7 @@ add_library(cadd0040_core
     src/app.cpp
     src/clock_tree.cpp
     src/datapath_graph.cpp
+    src/debug_progress.cpp
     src/evaluation.cpp
     src/parser.cpp
     src/optimization/factory.cpp

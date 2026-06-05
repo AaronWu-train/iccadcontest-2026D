@@ -1,4 +1,4 @@
-.PHONY: all configure build release test run format clean
+.PHONY: all configure build release test run run-debug format clean
 
 all: build
 
@@ -30,6 +30,9 @@ test: build
 
 run: build
 	./$(BUILD_DIR)/$(TARGET) $(TESTCASE) $(OUTPUT)
+
+run-debug: build
+	CADD0040_DEBUG_PROGRESS=1 CADD0040_DEBUG_PROGRESS_INTERVAL=15 ./$(BUILD_DIR)/$(TARGET) $(TESTCASE) $(OUTPUT)
 
 format:
 	clang-format -i src/*.cpp src/*.hpp tests/*.cpp

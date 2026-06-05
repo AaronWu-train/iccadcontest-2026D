@@ -7,9 +7,10 @@
 #   BUILD_DIR=build ./scripts/run_all_testcases.sh
 #
 # Environment:
-#   BUILD_DIR            Path to CMake build directory (default: build-release)
-#   CADD0040_SA_SECONDS  SA time budget in seconds (default: 540, contest limit)
-#   OPTIMIZER            --optimizer value (default: anneal)
+#   BUILD_DIR                        Path to CMake build directory (default: build-release)
+#   CADD0040_SA_SECONDS              SA time budget in seconds (default: 540, contest limit)
+#   OPTIMIZER                        --optimizer value (default: anneal)
+#   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval in seconds (default: 15; always enabled)
 
 set -euo pipefail
 
@@ -19,6 +20,7 @@ BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
 OPTIMIZER="${OPTIMIZER:-anneal}"
 SA_SECONDS="${CADD0040_SA_SECONDS:-540}"
+DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-15}"
 
 if [[ ! -x "${BINARY}" ]]; then
     echo "Binary not found: ${BINARY}" >&2
@@ -42,6 +44,7 @@ echo "cadd0040 batch run"
 echo "  binary   : ${BINARY}"
 echo "  optimizer: ${OPTIMIZER}"
 echo "  SA budget: ${SA_SECONDS}s"
+echo "  progress : every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
 echo "  cases    : ${#TESTCASES[@]}"
 echo "========================================"
 echo
@@ -70,7 +73,10 @@ for testcase_path in "${TESTCASES[@]}"; do
     start_ns="$(date +%s)"
 
     set +e
-    CADD0040_SA_SECONDS="${SA_SECONDS}" "${BINARY}" \
+    CADD0040_SA_SECONDS="${SA_SECONDS}" \
+    CADD0040_DEBUG_PROGRESS=1 \
+    CADD0040_DEBUG_PROGRESS_INTERVAL="${DEBUG_PROGRESS_INTERVAL}" \
+    "${BINARY}" \
         --optimizer "${OPTIMIZER}" \
         "${testcase_path}" \
         "${output_file}" \
