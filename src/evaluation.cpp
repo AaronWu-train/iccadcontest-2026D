@@ -11,9 +11,9 @@
 namespace cadd0040 {
 namespace {
 
-constexpr double kScoreAlpha = 1.0;
-constexpr double kScoreBeta = 1.0;
-constexpr double kScoreGamma = 1.0;
+constexpr double kScoreAlpha = 0.3;
+constexpr double kScoreBeta = 0.3;
+constexpr double kScoreGamma = 0.4;
 constexpr double kZeroTolerance = 1e-12;
 
 }  // namespace
