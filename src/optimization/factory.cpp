@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "optimization/annealing_optimizer.hpp"
 #include "optimization/optimizer.hpp"
 
 namespace cadd0040 {
@@ -17,7 +18,8 @@ using OptimizerCreator = std::function<std::unique_ptr<Optimizer>()>;
 const std::map<std::string, OptimizerCreator>& optimizer_registry() {
     static const std::map<std::string, OptimizerCreator> registry = {
         {"dummy", [] { return std::make_unique<DummyOptimizer>(); }},
-        // 之後要加新的 optimizer，只要加在這裡就好，不需要改其他地方
+        {"anneal", [] { return std::make_unique<AnnealingOptimizer>(); }},
+        {"sa", [] { return std::make_unique<AnnealingOptimizer>(); }},
     };
 
     return registry;

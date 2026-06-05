@@ -30,8 +30,10 @@ add_library(cadd0040_core
     src/debug_progress.cpp
     src/evaluation.cpp
     src/parser.cpp
+    src/optimization/annealing_optimizer.cpp
     src/optimization/factory.cpp
     src/optimization/optimizer.cpp
+    src/optimization/skew_model.cpp
     src/solver.cpp
 )
 
