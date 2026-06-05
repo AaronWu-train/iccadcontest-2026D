@@ -9,7 +9,7 @@
 
 namespace cadd0040 {
 
-inline constexpr std::string_view kDefaultOptimizerName = "anneal";
+inline constexpr std::string_view kDefaultOptimizerName = "isa";
 
 std::unique_ptr<Optimizer> make_optimizer(std::string_view name);
 

@@ -7,6 +7,7 @@
 
 #include "evaluation.hpp"
 #include "optimization/sa/annealing_optimizer.hpp"
+#include "optimization/sa/iterated_sa_optimizer.hpp"
 #include "optimization/sa/skew_model.hpp"
 
 namespace {
@@ -149,6 +150,35 @@ TEST_CASE("AnnealingOptimizer improves or preserves score on tiny testcase", "[a
     cadd0040::OptimizerContext context{baseline, debug_progress};
 
     cadd0040::AnnealingOptimizer optimizer;
+    optimizer.run(clock_tree, data_path_graph, buffer_library, context);
+
+    const cadd0040::Metrics final_metrics =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    const double final_score = cadd0040::score(final_metrics, baseline);
+
+    CHECK(final_score >= baseline_score - 1e-9);
+    CHECK(clock_tree.contains_name("ROOT_CLK"));
+    CHECK(clock_tree.contains_name("FF_L"));
+    CHECK(clock_tree.contains_name("FF_C"));
+}
+
+TEST_CASE("IteratedSaOptimizer improves or preserves score on tiny testcase", "[annealing]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "2", 1);
+#endif
+
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree();
+    const auto data_path_graph = make_data_path_graph();
+
+    const cadd0040::Metrics baseline =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    const double baseline_score = cadd0040::score(baseline, baseline);
+
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::OptimizerContext context{baseline, debug_progress};
+
+    cadd0040::IteratedSaOptimizer optimizer;
     optimizer.run(clock_tree, data_path_graph, buffer_library, context);
 
     const cadd0040::Metrics final_metrics =

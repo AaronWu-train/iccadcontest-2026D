@@ -9,6 +9,7 @@
 
 #include "optimization/optimizer.hpp"
 #include "optimization/sa/annealing_optimizer.hpp"
+#include "optimization/sa/iterated_sa_optimizer.hpp"
 
 namespace cadd0040 {
 namespace {
@@ -20,6 +21,8 @@ const std::map<std::string, OptimizerCreator>& optimizer_registry() {
         {"dummy", [] { return std::make_unique<DummyOptimizer>(); }},
         {"anneal", [] { return std::make_unique<AnnealingOptimizer>(); }},
         {"sa", [] { return std::make_unique<AnnealingOptimizer>(); }},
+        {"isa", [] { return std::make_unique<IteratedSaOptimizer>(); }},
+        {"sa2", [] { return std::make_unique<IteratedSaOptimizer>(); }},
     };
 
     return registry;
