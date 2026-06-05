@@ -17,9 +17,9 @@ namespace {
 
 constexpr std::chrono::seconds kGreedyTimeBudget{60};
 constexpr std::size_t kMaxGreedySteps = 4096;
-constexpr std::size_t kMaxResizePolishSteps = 64;
+constexpr std::size_t kMaxResizePolishSteps = 96;
 constexpr std::size_t kMaxResizeNodesPerStep = 8192;
-constexpr std::size_t kMaxPolishPhases = 3;
+constexpr std::size_t kMaxPolishPhases = 5;
 
 std::chrono::seconds greedy_time_budget() {
     if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
