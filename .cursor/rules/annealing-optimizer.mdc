@@ -1,0 +1,34 @@
+---
+description: ICCAD Problem D annealing optimizer architecture and conventions
+globs: src/optimization/**/*
+alwaysApply: false
+---
+
+# Annealing Optimizer
+
+## Class hierarchy
+
+- `AnnealingOptimizer : public Optimizer` — override `run(ClockTree&, const DataPathGraph&, const BufferLibrary&, const Metrics&)`.
+- Register in `factory.cpp` as `"anneal"` / `"sa"`. Default: `"anneal"`.
+
+## Do not confuse these roles
+
+- **`DataPathGraph`**: read-only input (paths, fixed data delays, clock period). Never mutate during SA.
+- **`SkewModel`**: mutable in-memory sandbox for fast incremental timing during SA. Uses `DataPathGraph` + initial `ClockTree` at construction.
+- **`ClockTree`**: only modified at the end via `materialize()` (`resize_buffer`, then `insert_buffer` with `NEW_BUF_X` names).
+- **`evaluate()`**: full O(paths) ground-truth scoring; too slow per SA step.
+
+## SkewModel invariants
+
+- `affected_path_epoch_.size()` must equal **path count** (`launch_idx_.size()`), not node count.
+- Inserted buffers use fanout=1 delay table entry; resize must pass `cell_supports_fanout` for current fanout.
+- Moves must be reversible via `undo_move()` for Metropolis rejection.
+
+## Tuning knobs
+
+- `CADD0040_SA_SECONDS` env var overrides default 540s SA budget.
+- Batch run: `./scripts/run_all_testcases.sh`
+
+## Full architecture
+
+See `docs/annealing-optimizer.md`.
