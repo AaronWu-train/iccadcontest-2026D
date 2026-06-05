@@ -19,6 +19,7 @@ constexpr std::chrono::seconds kGreedyTimeBudget{60};
 constexpr std::size_t kMaxGreedySteps = 4096;
 constexpr std::size_t kMaxResizePolishSteps = 64;
 constexpr std::size_t kMaxResizeNodesPerStep = 2048;
+constexpr std::size_t kMaxPolishPhases = 3;
 
 std::chrono::seconds greedy_time_budget() {
     if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
@@ -88,34 +89,49 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
     const auto deadline = start_time + greedy_time_budget();
 
     std::size_t greedy_steps = 0;
-    while (greedy_steps < kMaxGreedySteps && std::chrono::steady_clock::now() < deadline) {
-        if (!model.apply_one_greedy_step(baseline_metrics)) {
-            break;
-        }
-        ++greedy_steps;
-        sa::maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
-                              best_metrics);
-
-        const double elapsed =
-            std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
-        context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
-                                             current_score);
-    }
-
     std::size_t resize_steps = 0;
-    while (resize_steps < kMaxResizePolishSteps && std::chrono::steady_clock::now() < deadline) {
-        if (!apply_one_resize_polish_step(model, baseline_metrics)) {
+    std::size_t phases = 0;
+    for (; phases < kMaxPolishPhases && std::chrono::steady_clock::now() < deadline; ++phases) {
+        bool phase_changed = false;
+
+        while (greedy_steps < kMaxGreedySteps && std::chrono::steady_clock::now() < deadline) {
+            if (!model.apply_one_greedy_step(baseline_metrics)) {
+                break;
+            }
+            phase_changed = true;
+            ++greedy_steps;
+            sa::maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                                  best_metrics);
+
+            const double elapsed =
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time)
+                    .count();
+            context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
+                                                 current_score);
+        }
+
+        std::size_t phase_resize_steps = 0;
+        while (phase_resize_steps < kMaxResizePolishSteps &&
+               std::chrono::steady_clock::now() < deadline) {
+            if (!apply_one_resize_polish_step(model, baseline_metrics)) {
+                break;
+            }
+            phase_changed = true;
+            ++phase_resize_steps;
+            ++resize_steps;
+            sa::maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                                  best_metrics);
+        }
+
+        if (!phase_changed) {
             break;
         }
-        ++resize_steps;
-        sa::maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
-                              best_metrics);
     }
 
     sa::materialize(clock_tree, best_state, model, buffer_library);
     model.restore(best_state);
 
-    std::cerr << "GreedyOptimizer: steps = " << greedy_steps
+    std::cerr << "GreedyOptimizer: phases = " << phases << ", steps = " << greedy_steps
               << ", resize_steps = " << resize_steps << ", best score = " << best_score
               << ", restored score = " << model.score(baseline_metrics) << '\n';
 }
