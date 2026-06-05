@@ -32,6 +32,7 @@ add_library(cadd0040_core
     src/parser.cpp
     src/optimization/factory.cpp
     src/optimization/greedy/greedy_optimizer.cpp
+    src/optimization/milp/milp_optimizer.cpp
     src/optimization/optimizer.cpp
     src/optimization/sa/annealing_optimizer.cpp
     src/optimization/sa/iterated_sa_optimizer.cpp
