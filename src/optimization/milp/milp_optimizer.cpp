@@ -163,22 +163,24 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
         }
     }
 
-    for (std::size_t edge_idx = 0; edge_idx < model.edge_count() && candidates < kCandidateLimit;
-         ++edge_idx) {
-        const auto& inserted_cells = model.tree_edges()[edge_idx].inserted_cell_indices;
-        if (inserted_cells.empty()) {
-            continue;
+    if (violations.empty()) {
+        for (std::size_t edge_idx = 0;
+             edge_idx < model.edge_count() && candidates < kCandidateLimit; ++edge_idx) {
+            const auto& inserted_cells = model.tree_edges()[edge_idx].inserted_cell_indices;
+            if (inserted_cells.empty()) {
+                continue;
+            }
+            const int insert_position = static_cast<int>(inserted_cells.size() - 1);
+            consider_move(model, baseline_metrics,
+                          SkewMove{
+                              .kind = SkewMoveKind::Remove,
+                              .edge_idx = edge_idx,
+                              .cell_idx = inserted_cells.back(),
+                              .insert_position = insert_position,
+                          },
+                          before_score, best);
+            ++candidates;
         }
-        const int insert_position = static_cast<int>(inserted_cells.size() - 1);
-        consider_move(model, baseline_metrics,
-                      SkewMove{
-                          .kind = SkewMoveKind::Remove,
-                          .edge_idx = edge_idx,
-                          .cell_idx = inserted_cells.back(),
-                          .insert_position = insert_position,
-                      },
-                      before_score, best);
-        ++candidates;
     }
 
     if (best.delta <= 0.0) {
