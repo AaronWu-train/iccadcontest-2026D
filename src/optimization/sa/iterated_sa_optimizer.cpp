@@ -35,20 +35,28 @@ using sa::random_move;
 using sa::restart_from_best;
 using sa::rng;
 
-void run_greedy_batch(SkewModel& model, const Metrics& baseline_metrics, double& current_score,
-                      double& best_score, SkewModelState& best_state, Metrics& best_metrics,
-                      std::size_t max_steps, std::size_t& greedy_steps) {
+std::size_t run_greedy_batch(SkewModel& model, const Metrics& baseline_metrics,
+                             double& current_score, double& best_score, SkewModelState& best_state,
+                             Metrics& best_metrics, std::size_t max_steps,
+                             std::size_t& greedy_steps) {
+    const double score_before = best_score;
     model.restore(best_state);
     current_score = best_score;
 
+    std::size_t batch_steps = 0;
     for (std::size_t step = 0; step < max_steps; ++step) {
         if (!model.apply_one_greedy_step(baseline_metrics)) {
             break;
         }
+        ++batch_steps;
         ++greedy_steps;
         maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
                           best_metrics);
     }
+
+    std::cerr << "IteratedSaOptimizer: greedy batch done, steps=" << batch_steps << ", score "
+              << score_before << " -> " << best_score << '\n';
+    return batch_steps;
 }
 
 std::size_t run_sa_phase(SkewModel& model, const Metrics& baseline_metrics,
@@ -147,6 +155,7 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
     Metrics best_metrics = metrics_from_skew(best_state.metrics);
 
     std::cerr << "IteratedSaOptimizer: after warmup score = " << current_score << '\n';
+    std::cerr << "IteratedSaOptimizer: mode -> multi_round (" << kNumSaRounds << " rounds)\n";
 
     std::chrono::seconds time_budget = kAnnealingTimeBudget;
     if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
@@ -172,32 +181,55 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
         const auto round_budget =
             remaining / static_cast<std::chrono::seconds::rep>(kNumSaRounds - round);
         const auto round_deadline = now + round_budget;
+        const double round_budget_seconds = std::chrono::duration<double>(round_budget).count();
+        const double elapsed = std::chrono::duration<double>(now - start_time).count();
+        const double progress = std::min(1.0, elapsed / static_cast<double>(time_budget.count()));
+        const double temperature =
+            std::max(kMinTemperature, kInitialTemperature * std::pow(kCoolingFactor, progress));
 
         std::cerr << "IteratedSaOptimizer: round " << (round + 1) << "/" << kNumSaRounds
-                  << " starting, best_score = " << best_score << '\n';
+                  << " mode -> SA"
+                  << " (budget=" << round_budget_seconds << "s"
+                  << ", temperature=" << temperature << ", best_score=" << best_score << ")\n";
 
-        total_iterations += run_sa_phase(
+        const std::size_t round_iterations = run_sa_phase(
             model, baseline_metrics, context, current_score, best_score, best_state, best_metrics,
             start_time, round_deadline, time_budget, accepted_moves, rejected_moves, restarts);
+        total_iterations += round_iterations;
+
+        std::cerr << "IteratedSaOptimizer: round " << (round + 1) << " SA done"
+                  << ", iterations=" << round_iterations << ", best_score=" << best_score
+                  << ", current_score=" << current_score << '\n';
 
         if (std::chrono::steady_clock::now() >= deadline) {
             break;
         }
 
+        std::cerr << "IteratedSaOptimizer: round " << (round + 1) << " mode -> greedy_batch"
+                  << " (max_steps=" << kGreedyRoundIterations << ", best_score=" << best_score
+                  << ")\n";
         run_greedy_batch(model, baseline_metrics, current_score, best_score, best_state,
                          best_metrics, kGreedyRoundIterations, greedy_steps);
     }
 
+    std::cerr << "IteratedSaOptimizer: mode -> final_greedy_polish"
+              << " (max_steps=" << kFinalGreedyPolishIterations << ", best_score=" << best_score
+              << ")\n";
     model.restore(best_state);
     current_score = best_score;
+    const double polish_score_before = best_score;
+    std::size_t polish_steps = 0;
     for (std::size_t polish = 0; polish < kFinalGreedyPolishIterations; ++polish) {
         if (!model.apply_one_greedy_step(baseline_metrics)) {
             break;
         }
+        ++polish_steps;
         ++greedy_steps;
         maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
                           best_metrics);
     }
+    std::cerr << "IteratedSaOptimizer: final polish done, steps=" << polish_steps << ", score "
+              << polish_score_before << " -> " << best_score << '\n';
 
     materialize(clock_tree, best_state, model, buffer_library);
 
