@@ -1,0 +1,66 @@
+/**
+ * @file greedy_optimizer.cpp
+ * @brief Deterministic greedy optimizer implementation.
+ */
+
+#include "optimization/greedy/greedy_optimizer.hpp"
+
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
+
+#include "optimization/sa/sa_common.hpp"
+#include "optimization/sa/skew_model.hpp"
+
+namespace cadd0040 {
+namespace {
+
+constexpr std::chrono::seconds kGreedyTimeBudget{60};
+constexpr std::size_t kMaxGreedySteps = 4096;
+
+std::chrono::seconds greedy_time_budget() {
+    if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
+        return std::chrono::seconds(std::stoll(env_seconds));
+    }
+    return kGreedyTimeBudget;
+}
+
+}  // namespace
+
+void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
+                          const BufferLibrary& buffer_library,
+                          const OptimizerContext& context) {
+    const Metrics& baseline_metrics = context.baseline_metrics;
+    SkewModel model(clock_tree, data_path_graph, buffer_library);
+
+    double current_score = model.score(baseline_metrics);
+    double best_score = current_score;
+    SkewModelState best_state = model.snapshot();
+    Metrics best_metrics = sa::metrics_from_skew(best_state.metrics);
+
+    const auto start_time = std::chrono::steady_clock::now();
+    const auto deadline = start_time + greedy_time_budget();
+
+    std::size_t greedy_steps = 0;
+    while (greedy_steps < kMaxGreedySteps && std::chrono::steady_clock::now() < deadline) {
+        if (!model.apply_one_greedy_step(baseline_metrics)) {
+            break;
+        }
+        ++greedy_steps;
+        sa::maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                              best_metrics);
+
+        const double elapsed =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
+        context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
+                                             current_score);
+    }
+
+    sa::materialize(clock_tree, best_state, model, buffer_library);
+    model.restore(best_state);
+
+    std::cerr << "GreedyOptimizer: steps = " << greedy_steps << ", best score = " << best_score
+              << ", restored score = " << model.score(baseline_metrics) << '\n';
+}
+
+}  // namespace cadd0040
