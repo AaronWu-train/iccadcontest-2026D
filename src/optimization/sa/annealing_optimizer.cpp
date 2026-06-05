@@ -154,6 +154,7 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
 
     materialize(clock_tree, best_state, model, buffer_library);
 
+    model.restore(best_state);
     const double final_score = model.score(baseline_metrics);
     std::cerr << "AnnealingOptimizer: iterations = " << iteration
               << ", accepted = " << accepted_moves << ", rejected = " << rejected_moves

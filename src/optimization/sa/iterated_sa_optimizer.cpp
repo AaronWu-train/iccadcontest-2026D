@@ -233,6 +233,7 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
 
     materialize(clock_tree, best_state, model, buffer_library);
 
+    model.restore(best_state);
     const double final_score = model.score(baseline_metrics);
     std::cerr << "IteratedSaOptimizer: iterations = " << total_iterations
               << ", accepted = " << accepted_moves << ", rejected = " << rejected_moves
