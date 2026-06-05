@@ -8,8 +8,11 @@ alwaysApply: false
 
 ## Class hierarchy
 
-- `AnnealingOptimizer : public Optimizer` — override `run(ClockTree&, const DataPathGraph&, const BufferLibrary&, const Metrics&)`.
-- Register in `factory.cpp` as `"anneal"` / `"sa"`. Default: `"anneal"`.
+- `AnnealingOptimizer : public Optimizer` — single-round SA in `src/optimization/sa/`.
+- `IteratedSaOptimizer : public Optimizer` — multi-round SA+Greedy in `src/optimization/sa/`.
+- Register in `factory.cpp`:
+  - `"isa"` / `"sa2"` → `IteratedSaOptimizer` (default)
+  - `"anneal"` / `"sa"` → `AnnealingOptimizer`
 
 ## Do not confuse these roles
 

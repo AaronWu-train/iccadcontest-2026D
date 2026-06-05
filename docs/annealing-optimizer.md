@@ -17,6 +17,20 @@
 - **Corner**：SS → setup check；FF → hold check。
 - **時限**：單一 testcase 10 分鐘（含 I/O）。
 
+## 目錄結構
+
+SA 相關程式集中在 `src/optimization/sa/`，與其他協作者的 optimizer 隔離：
+
+```
+src/optimization/
+├── optimizer.hpp / factory.hpp / factory.cpp
+└── sa/
+    ├── skew_model.hpp / .cpp
+    ├── sa_common.hpp / .cpp
+    ├── annealing_optimizer.hpp / .cpp   # 單輪 SA（舊版）
+    └── iterated_sa_optimizer.hpp / .cpp # 多輪 SA+Greedy（預設）
+```
+
 ## 模組分工（重要）
 
 | 模組 | 檔案 | 職責 | SA 中是否可變 |
@@ -24,20 +38,37 @@
 | `DataPathGraph` | `src/datapath_graph.hpp` | 輸入：FF→FF path、固定 data delay、Tclk/setup/hold | 否（唯讀） |
 | `ClockTree` | `src/clock_tree.hpp` | 可修改的 clock tree；`insert_buffer` / `resize_buffer` | 最後才寫回 |
 | `evaluate()` | `src/evaluation.cpp` | 完整時序評分（ground truth） | — |
-| `SkewModel` | `src/optimization/skew_model.*` | SA 內部增量計時沙盒 | 是（記憶體內試算） |
-| `AnnealingOptimizer` | `src/optimization/annealing_optimizer.*` | 繼承 `Optimizer`，跑暖啟動 + SA | — |
+| `SkewModel` | `src/optimization/sa/skew_model.*` | SA 內部增量計時沙盒 | 是（記憶體內試算） |
+| `sa_common` | `src/optimization/sa/sa_common.*` | 共用 move / materialize / best-state helpers | — |
+| `AnnealingOptimizer` | `src/optimization/sa/annealing_optimizer.*` | 單輪：warmup + SA + final polish | — |
+| `IteratedSaOptimizer` | `src/optimization/sa/iterated_sa_optimizer.*` | 多輪：warmup + (SA ↔ greedy batch) × N + final polish | — |
 
 **`SkewModel` 不是取代 `DataPathGraph`**。它啟動時讀取 `DataPathGraph` + `ClockTree`，在 SA 迴圈內用增量 `apply_delta` 快速試算；結束後才把 best state **materialize** 回 `ClockTree`。
 
 ## 資料流
 
+### AnnealingOptimizer（`--optimizer anneal`）
+
 ```
 AnnealingOptimizer::run
   → SkewModel(clock_tree, data_path_graph, buffer_library)
-  → greedy warmup（針對違規 path 嘗試 insert）
+  → greedy warmup（256 次）
   → SA 迴圈（insert / remove / resize，Metropolis 接受）
+  → final greedy polish（64 次）
   → snapshot best state → restore → materialize 到 ClockTree
-  → solver 用 evaluate() 驗證並輸出 modified_clk_tree.structure
+```
+
+### IteratedSaOptimizer（`--optimizer isa`，預設）
+
+```
+IteratedSaOptimizer::run
+  → SkewModel(...)
+  → greedy warmup（512 次）
+  → for round in 1..5:
+      → SA phase（剩餘時間均分）
+      → greedy batch（最多 48 步，從 best_state 出發）
+  → final greedy polish（64 次）
+  → materialize 到 ClockTree
 ```
 
 ## SkewModel 重點
@@ -47,11 +78,18 @@ AnnealingOptimizer::run
 - **三種 move**：`Insert`（edge 上 fanout=1 buffer）、`Remove`（移除自插入 buffer）、`Resize`（換 cell，fanout 不變）。
 - **已知 bug 修正**：`affected_path_epoch_` 大小必須是 **path 數**（`launch_idx_.size()`），不是 node 數；否則大 testcase 會 crash。
 
-## AnnealingOptimizer 參數
+## Optimizer 註冊
+
+| 別名 | Class | 說明 |
+|------|-------|------|
+| `isa` / `sa2` | `IteratedSaOptimizer` | **預設**，多輪 SA+Greedy |
+| `anneal` / `sa` | `AnnealingOptimizer` | 單輪 SA（舊版，保留） |
+
+## 參數
 
 - 預設 SA 時間：**540 秒**（`kAnnealingTimeBudget`）。
 - 環境變數 **`CADD0040_SA_SECONDS`** 可覆寫（測試用）。
-- 預設 optimizer：**`anneal`**（factory 別名 `sa`）。
+- 預設 optimizer：**`isa`**（factory 別名 `sa2`）。
 - RNG seed 固定（可重現）。
 
 ## 執行方式
@@ -59,6 +97,7 @@ AnnealingOptimizer::run
 ```sh
 make release
 ./build-release/cadd0040 ./testcases/testcase0 ./testcases/testcase0/modified_clk_tree.structure
+./build-release/cadd0040 --optimizer isa ./testcases/testcase0 ./output.structure
 ./build-release/cadd0040 --optimizer anneal ./testcases/testcase0 ./output.structure
 
 # 批次跑全部 testcase
@@ -68,7 +107,7 @@ CADD0040_SA_SECONDS=30 ./scripts/run_all_testcases.sh
 
 ## 測試
 
-- `tests/test_annealing.cpp`：SkewModel 與 `evaluate()` 一致、optimizer 分數不劣於 baseline。
+- `tests/test_annealing.cpp`：SkewModel 與 `evaluate()` 一致、兩個 optimizer 分數不劣於 baseline。
 - 單元測試會 `setenv("CADD0040_SA_SECONDS", "2")` 縮短 SA 時間。
 
 ## 已知限制與改進方向
@@ -81,12 +120,16 @@ CADD0040_SA_SECONDS=30 ./scripts/run_all_testcases.sh
 ## 檔案清單
 
 ```
-src/optimization/skew_model.hpp
-src/optimization/skew_model.cpp
-src/optimization/annealing_optimizer.hpp
-src/optimization/annealing_optimizer.cpp
-src/optimization/factory.cpp      # 註冊 anneal / sa
-src/optimization/factory.hpp      # kDefaultOptimizerName = "anneal"
+src/optimization/sa/skew_model.hpp
+src/optimization/sa/skew_model.cpp
+src/optimization/sa/sa_common.hpp
+src/optimization/sa/sa_common.cpp
+src/optimization/sa/annealing_optimizer.hpp
+src/optimization/sa/annealing_optimizer.cpp
+src/optimization/sa/iterated_sa_optimizer.hpp
+src/optimization/sa/iterated_sa_optimizer.cpp
+src/optimization/factory.cpp      # 註冊 isa / sa2 / anneal / sa
+src/optimization/factory.hpp      # kDefaultOptimizerName = "isa"
 scripts/run_all_testcases.sh
 tests/test_annealing.cpp
 ```
