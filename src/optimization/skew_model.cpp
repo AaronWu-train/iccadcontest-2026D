@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <unordered_map>
@@ -606,6 +607,80 @@ std::size_t SkewModel::random_edge_with_inserts() const {
     return candidates[dist(rng)];
 }
 
+std::size_t SkewModel::random_guided_insert_edge() const {
+    static thread_local std::mt19937 rng(47);
+
+    std::vector<std::size_t> violating_paths;
+    violating_paths.reserve(launch_idx_.size());
+    for (std::size_t path_idx = 0; path_idx < launch_idx_.size(); ++path_idx) {
+        if (ss_slack_[path_idx] < 0.0 || ff_slack_[path_idx] < 0.0) {
+            violating_paths.push_back(path_idx);
+        }
+    }
+    if (violating_paths.empty()) {
+        return random_edge_index();
+    }
+
+    std::uniform_int_distribution<std::size_t> path_dist(0, violating_paths.size() - 1);
+    const std::size_t path_idx = violating_paths[path_dist(rng)];
+    const std::size_t launch = launch_idx_[path_idx];
+    const std::size_t capture = capture_idx_[path_idx];
+
+    std::vector<std::size_t> target_edges;
+    if (ss_slack_[path_idx] < 0.0) {
+        for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+            if (edges_[edge_idx].child_idx == capture) {
+                target_edges.push_back(edge_idx);
+            }
+        }
+    }
+    if (ff_slack_[path_idx] < 0.0) {
+        for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+            if (edges_[edge_idx].child_idx == launch) {
+                target_edges.push_back(edge_idx);
+            }
+        }
+    }
+    if (target_edges.empty()) {
+        return random_edge_index();
+    }
+
+    std::uniform_int_distribution<std::size_t> edge_dist(0, target_edges.size() - 1);
+    return target_edges[edge_dist(rng)];
+}
+
+int SkewModel::smallest_fanout1_cell_index() const {
+    int best_idx = -1;
+    double best_area = std::numeric_limits<double>::infinity();
+    for (int cell_idx = 0; cell_idx < static_cast<int>(cells_.size()); ++cell_idx) {
+        if (!cell_supports_fanout(cell_idx, 1)) {
+            continue;
+        }
+        const double area = cells_[static_cast<std::size_t>(cell_idx)].area;
+        if (area < best_area) {
+            best_area = area;
+            best_idx = cell_idx;
+        }
+    }
+    return best_idx;
+}
+
+int SkewModel::random_fanout1_cell_index() const {
+    static thread_local std::mt19937 rng(48);
+    std::vector<int> valid_cells;
+    valid_cells.reserve(cells_.size());
+    for (int cell_idx = 0; cell_idx < static_cast<int>(cells_.size()); ++cell_idx) {
+        if (cell_supports_fanout(cell_idx, 1)) {
+            valid_cells.push_back(cell_idx);
+        }
+    }
+    if (valid_cells.empty()) {
+        return -1;
+    }
+    std::uniform_int_distribution<std::size_t> dist(0, valid_cells.size() - 1);
+    return valid_cells[dist(rng)];
+}
+
 std::size_t SkewModel::descendant_ff_count(std::size_t node_idx) const {
     if (node_idx >= ff_descendant_counts_.size()) {
         return 0;
@@ -613,88 +688,104 @@ std::size_t SkewModel::descendant_ff_count(std::size_t node_idx) const {
     return ff_descendant_counts_[node_idx];
 }
 
-void SkewModel::apply_greedy_warmup(const Metrics& baseline_metrics, std::size_t max_iterations) {
+bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
     struct Candidate {
         SkewMove move;
         double score_delta = 0.0;
     };
 
+    Candidate best_candidate;
+    best_candidate.score_delta = 0.0;
+
+    const std::size_t path_count = launch_idx_.size();
+    std::vector<std::size_t> violating_paths;
+    violating_paths.reserve(path_count);
+    for (std::size_t path_idx = 0; path_idx < path_count; ++path_idx) {
+        if (ss_slack_[path_idx] < 0.0 || ff_slack_[path_idx] < 0.0) {
+            violating_paths.push_back(path_idx);
+        }
+    }
+    if (violating_paths.empty()) {
+        return false;
+    }
+
+    std::sort(violating_paths.begin(), violating_paths.end(),
+              [&](std::size_t lhs, std::size_t rhs) {
+                  const double lhs_violation =
+                      std::min(ss_slack_[lhs], 0.0) + std::min(ff_slack_[lhs], 0.0);
+                  const double rhs_violation =
+                      std::min(ss_slack_[rhs], 0.0) + std::min(ff_slack_[rhs], 0.0);
+                  return lhs_violation < rhs_violation;
+              });
+
+    std::vector<int> fanout1_cells;
+    fanout1_cells.reserve(cells_.size());
+    for (int cell_idx = 0; cell_idx < static_cast<int>(cells_.size()); ++cell_idx) {
+        if (cell_supports_fanout(cell_idx, 1)) {
+            fanout1_cells.push_back(cell_idx);
+        }
+    }
+    std::sort(fanout1_cells.begin(), fanout1_cells.end(), [&](int lhs, int rhs) {
+        return cells_[static_cast<std::size_t>(lhs)].area <
+               cells_[static_cast<std::size_t>(rhs)].area;
+    });
+
+    const std::size_t sample_count = std::min<std::size_t>(violating_paths.size(), 32);
+    for (std::size_t sample = 0; sample < sample_count; ++sample) {
+        const std::size_t path_idx = violating_paths[sample];
+        const std::size_t launch = launch_idx_[path_idx];
+        const std::size_t capture = capture_idx_[path_idx];
+
+        std::vector<std::size_t> target_edges;
+        if (ss_slack_[path_idx] < 0.0) {
+            for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+                if (edges_[edge_idx].child_idx == capture) {
+                    target_edges.push_back(edge_idx);
+                }
+            }
+        }
+        if (ff_slack_[path_idx] < 0.0) {
+            for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+                if (edges_[edge_idx].child_idx == launch) {
+                    target_edges.push_back(edge_idx);
+                }
+            }
+        }
+
+        for (const std::size_t edge_idx : target_edges) {
+            for (const int cell_idx : fanout1_cells) {
+                const double before = score(baseline_metrics);
+                SkewMove move{
+                    .kind = SkewMoveKind::Insert,
+                    .edge_idx = edge_idx,
+                    .cell_idx = cell_idx,
+                };
+                if (!try_move(move)) {
+                    continue;
+                }
+                const double after = score(baseline_metrics);
+                const double delta = after - before;
+                if (delta > best_candidate.score_delta) {
+                    best_candidate.move = move;
+                    best_candidate.score_delta = delta;
+                }
+                undo_move(move);
+            }
+        }
+    }
+
+    if (best_candidate.score_delta <= 0.0) {
+        return false;
+    }
+    try_move(best_candidate.move);
+    return true;
+}
+
+void SkewModel::apply_greedy_warmup(const Metrics& baseline_metrics, std::size_t max_iterations) {
     for (std::size_t iter = 0; iter < max_iterations; ++iter) {
-        Candidate best_candidate;
-        best_candidate.score_delta = 0.0;
-
-        const std::size_t path_count = launch_idx_.size();
-        std::vector<std::size_t> violating_paths;
-        violating_paths.reserve(path_count);
-        for (std::size_t path_idx = 0; path_idx < path_count; ++path_idx) {
-            if (ss_slack_[path_idx] < 0.0 || ff_slack_[path_idx] < 0.0) {
-                violating_paths.push_back(path_idx);
-            }
-        }
-        if (violating_paths.empty()) {
+        if (!apply_one_greedy_step(baseline_metrics)) {
             break;
         }
-
-        std::sort(violating_paths.begin(), violating_paths.end(),
-                  [&](std::size_t lhs, std::size_t rhs) {
-                      const double lhs_violation =
-                          std::min(ss_slack_[lhs], 0.0) + std::min(ff_slack_[lhs], 0.0);
-                      const double rhs_violation =
-                          std::min(ss_slack_[rhs], 0.0) + std::min(ff_slack_[rhs], 0.0);
-                      return lhs_violation < rhs_violation;
-                  });
-
-        const std::size_t sample_count = std::min<std::size_t>(violating_paths.size(), 32);
-        for (std::size_t sample = 0; sample < sample_count; ++sample) {
-            const std::size_t path_idx = violating_paths[sample];
-            const std::size_t launch = launch_idx_[path_idx];
-            const std::size_t capture = capture_idx_[path_idx];
-
-            std::vector<std::size_t> target_edges;
-            if (ss_slack_[path_idx] < 0.0) {
-                for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-                    if (edges_[edge_idx].child_idx == capture) {
-                        target_edges.push_back(edge_idx);
-                    }
-                }
-            }
-            if (ff_slack_[path_idx] < 0.0) {
-                for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-                    if (edges_[edge_idx].child_idx == launch) {
-                        target_edges.push_back(edge_idx);
-                    }
-                }
-            }
-
-            for (const std::size_t edge_idx : target_edges) {
-                for (int cell_idx = 0; cell_idx < static_cast<int>(cells_.size()); ++cell_idx) {
-                    if (!cell_supports_fanout(cell_idx, 1)) {
-                        continue;
-                    }
-                    const double before = score(baseline_metrics);
-                    SkewMove move{
-                        .kind = SkewMoveKind::Insert,
-                        .edge_idx = edge_idx,
-                        .cell_idx = cell_idx,
-                    };
-                    if (!try_move(move)) {
-                        continue;
-                    }
-                    const double after = score(baseline_metrics);
-                    const double delta = after - before;
-                    if (delta > best_candidate.score_delta) {
-                        best_candidate.move = move;
-                        best_candidate.score_delta = delta;
-                    }
-                    undo_move(move);
-                }
-            }
-        }
-
-        if (best_candidate.score_delta <= 0.0) {
-            break;
-        }
-        try_move(best_candidate.move);
     }
 }
 

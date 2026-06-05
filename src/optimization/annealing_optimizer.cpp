@@ -17,27 +17,50 @@ namespace cadd0040 {
 namespace {
 
 constexpr std::chrono::seconds kAnnealingTimeBudget{540};
-constexpr double kInitialTemperature = 0.05;
+constexpr double kInitialTemperature = 0.08;
 constexpr double kMinTemperature = 1e-6;
-constexpr std::size_t kGreedyWarmupIterations = 64;
+constexpr double kCoolingFactor = 0.01;
+constexpr std::size_t kGreedyWarmupIterations = 256;
+constexpr std::size_t kFinalGreedyPolishIterations = 64;
+constexpr std::size_t kRestartStaleIterations = 2500;
+constexpr double kRestartScoreGap = 0.05;
+constexpr std::size_t kGreedyPolishInterval = 250;
 
 std::mt19937& rng() {
     static thread_local std::mt19937 engine(2026);
     return engine;
 }
 
+int pick_insert_cell(SkewModel& model) {
+    static std::uniform_real_distribution<double> cell_dist(0.0, 1.0);
+    if (cell_dist(rng()) < 0.75) {
+        const int smallest = model.smallest_fanout1_cell_index();
+        if (smallest >= 0) {
+            return smallest;
+        }
+    }
+    return model.random_fanout1_cell_index();
+}
+
 SkewMove random_move(SkewModel& model) {
     static std::uniform_real_distribution<double> kind_dist(0.0, 1.0);
     const double roll = kind_dist(rng());
 
-    if (roll < 0.35) {
+    if (roll < 0.50) {
+        return SkewMove{
+            .kind = SkewMoveKind::Insert,
+            .edge_idx = model.random_guided_insert_edge(),
+            .cell_idx = pick_insert_cell(model),
+        };
+    }
+    if (roll < 0.60) {
         return SkewMove{
             .kind = SkewMoveKind::Insert,
             .edge_idx = model.random_edge_index(),
-            .cell_idx = model.random_cell_index(),
+            .cell_idx = pick_insert_cell(model),
         };
     }
-    if (roll < 0.55) {
+    if (roll < 0.70) {
         return SkewMove{
             .kind = SkewMoveKind::Remove,
             .edge_idx = model.random_edge_with_inserts(),
@@ -120,6 +143,22 @@ Metrics metrics_from_skew(const SkewModelMetrics& model_metrics) {
     };
 }
 
+void maybe_update_best(SkewModel& model, const Metrics& baseline_metrics, double& current_score,
+                       double& best_score, SkewModelState& best_state, Metrics& best_metrics) {
+    current_score = model.score(baseline_metrics);
+    if (current_score > best_score) {
+        best_score = current_score;
+        best_state = model.snapshot();
+        best_metrics = metrics_from_skew(best_state.metrics);
+    }
+}
+
+void restart_from_best(SkewModel& model, double& current_score, double best_score,
+                       const SkewModelState& best_state) {
+    model.restore(best_state);
+    current_score = best_score;
+}
+
 }  // namespace
 
 void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
@@ -151,6 +190,9 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     std::size_t accepted_moves = 0;
     std::size_t rejected_moves = 0;
     std::size_t iteration = 0;
+    std::size_t iterations_since_best = 0;
+    std::size_t restarts = 0;
+    std::size_t greedy_polish_steps = 0;
 
     while (std::chrono::steady_clock::now() < deadline) {
         const auto now = std::chrono::steady_clock::now();
@@ -158,7 +200,16 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
         const double budget = static_cast<double>(time_budget.count());
         const double progress = std::min(1.0, elapsed / budget);
         const double temperature =
-            std::max(kMinTemperature, kInitialTemperature * std::pow(0.001, progress));
+            std::max(kMinTemperature, kInitialTemperature * std::pow(kCoolingFactor, progress));
+
+        if (iteration > 0 && iteration % kGreedyPolishInterval == 0) {
+            if (model.apply_one_greedy_step(baseline_metrics)) {
+                ++greedy_polish_steps;
+                maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                                  best_metrics);
+                iterations_since_best = 0;
+            }
+        }
 
         SkewMove move = random_move(model);
         if (move.kind == SkewMoveKind::Resize && move.cell_idx < 0) {
@@ -192,10 +243,21 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
                 best_score = new_score;
                 best_state = model.snapshot();
                 best_metrics = metrics_from_skew(best_state.metrics);
+                iterations_since_best = 0;
+            } else {
+                ++iterations_since_best;
             }
         } else {
             model.undo_move(move);
             ++rejected_moves;
+            ++iterations_since_best;
+        }
+
+        if (iterations_since_best >= kRestartStaleIterations ||
+            current_score < best_score - kRestartScoreGap) {
+            restart_from_best(model, current_score, best_score, best_state);
+            iterations_since_best = 0;
+            ++restarts;
         }
 
         context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
@@ -205,11 +267,22 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     }
 
     model.restore(best_state);
+    current_score = best_score;
+    for (std::size_t polish = 0; polish < kFinalGreedyPolishIterations; ++polish) {
+        if (!model.apply_one_greedy_step(baseline_metrics)) {
+            break;
+        }
+        ++greedy_polish_steps;
+        maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                          best_metrics);
+    }
+
     materialize(clock_tree, best_state, model, buffer_library);
 
     const double final_score = model.score(baseline_metrics);
     std::cerr << "AnnealingOptimizer: iterations = " << iteration
               << ", accepted = " << accepted_moves << ", rejected = " << rejected_moves
+              << ", restarts = " << restarts << ", greedy_polish = " << greedy_polish_steps
               << ", best score = " << best_score << ", restored score = " << final_score << '\n';
 }
 

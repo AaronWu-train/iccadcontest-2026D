@@ -97,10 +97,14 @@ public:
     int random_cell_index() const;
     int random_valid_cell_for_buffer(std::size_t node_idx) const;
     std::size_t random_edge_with_inserts() const;
+    std::size_t random_guided_insert_edge() const;
+    int smallest_fanout1_cell_index() const;
+    int random_fanout1_cell_index() const;
 
     std::size_t descendant_ff_count(std::size_t node_idx) const;
 
     void apply_greedy_warmup(const Metrics& baseline_metrics, std::size_t max_iterations);
+    bool apply_one_greedy_step(const Metrics& baseline_metrics);
 
 private:
     void build_from_clock_tree(const ClockTree& clock_tree);
