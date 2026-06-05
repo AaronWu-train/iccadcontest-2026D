@@ -110,10 +110,22 @@ void materialize(ClockTree& clock_tree, const SkewModelState& state, const SkewM
     }
 }
 
+Metrics metrics_from_skew(const SkewModelMetrics& model_metrics) {
+    return Metrics{
+        .tns_ss = model_metrics.tns_ss,
+        .wns_ss = model_metrics.wns_ss,
+        .tns_ff = model_metrics.tns_ff,
+        .wns_ff = model_metrics.wns_ff,
+        .area = model_metrics.area,
+    };
+}
+
 }  // namespace
 
 void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
-                             const BufferLibrary& buffer_library, const Metrics& baseline_metrics) {
+                             const BufferLibrary& buffer_library, const OptimizerContext& context) {
+    const Metrics& baseline_metrics = context.baseline_metrics;
+
     SkewModel model(clock_tree, data_path_graph, buffer_library);
 
     const double baseline_score = model.score(baseline_metrics);
@@ -124,6 +136,7 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     double current_score = model.score(baseline_metrics);
     SkewModelState best_state = model.snapshot();
     double best_score = current_score;
+    Metrics best_metrics = metrics_from_skew(best_state.metrics);
 
     std::cerr << "AnnealingOptimizer: after warmup score = " << current_score << '\n';
 
@@ -178,11 +191,15 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
             if (new_score > best_score) {
                 best_score = new_score;
                 best_state = model.snapshot();
+                best_metrics = metrics_from_skew(best_state.metrics);
             }
         } else {
             model.undo_move(move);
             ++rejected_moves;
         }
+
+        context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
+                                             current_score);
 
         ++iteration;
     }

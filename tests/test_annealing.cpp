@@ -145,8 +145,11 @@ TEST_CASE("AnnealingOptimizer improves or preserves score on tiny testcase", "[a
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
     const double baseline_score = cadd0040::score(baseline, baseline);
 
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::OptimizerContext context{baseline, debug_progress};
+
     cadd0040::AnnealingOptimizer optimizer;
-    optimizer.run(clock_tree, data_path_graph, buffer_library, baseline);
+    optimizer.run(clock_tree, data_path_graph, buffer_library, context);
 
     const cadd0040::Metrics final_metrics =
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
