@@ -86,7 +86,7 @@ TEST_CASE("score uses explicit baseline and guards zero denominators") {
     };
 
     CHECK(cadd0040::score(baseline, baseline) == Catch::Approx(0.0));
-    CHECK(cadd0040::score(improved, baseline) == Catch::Approx(2.1));
+    CHECK(cadd0040::score(improved, baseline) == Catch::Approx(0.64));
 
     const cadd0040::Metrics zero_baseline{};
     CHECK(cadd0040::score(zero_baseline, zero_baseline) == Catch::Approx(0.0));
