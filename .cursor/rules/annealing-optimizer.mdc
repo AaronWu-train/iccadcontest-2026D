@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Annealing Optimizer
 
+> Codex mirror: `docs/rules/annealing-optimizer.md` — keep both in sync.
+
 ## Class hierarchy
 
 - `AnnealingOptimizer : public Optimizer` — single-round SA in `src/optimization/sa/`.
@@ -31,6 +33,10 @@ alwaysApply: false
 
 - `CADD0040_SA_SECONDS` env var overrides default 540s SA budget.
 - Batch run: `./scripts/run_all_testcases.sh`
+
+## Debug output
+
+All optimizer algorithm telemetry must use `DebugProgress` via `context.debug_progress` — never direct `std::cerr`. See `.cursor/rules/debug-progress.mdc` and `AGENTS.md`.
 
 ## Full architecture
 
