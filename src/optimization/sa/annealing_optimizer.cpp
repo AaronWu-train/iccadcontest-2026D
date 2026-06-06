@@ -8,7 +8,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <iostream>
 #include <random>
 
 #include "optimization/sa/sa_common.hpp"
@@ -39,11 +38,13 @@ using sa::rng;
 void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                              const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
+    DebugProgress& debug = context.debug_progress;
 
     SkewModel model(clock_tree, data_path_graph, buffer_library);
 
-    const double baseline_score = model.score(baseline_metrics);
-    std::cerr << "AnnealingOptimizer: baseline score = " << baseline_score << '\n';
+    debug.log([&](std::ostream& os) {
+        os << "AnnealingOptimizer: baseline score = " << model.score(baseline_metrics) << '\n';
+    });
 
     model.apply_greedy_warmup(baseline_metrics, kGreedyWarmupIterations);
 
@@ -52,7 +53,9 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     double best_score = current_score;
     Metrics best_metrics = metrics_from_skew(best_state.metrics);
 
-    std::cerr << "AnnealingOptimizer: after warmup score = " << current_score << '\n';
+    debug.log([&](std::ostream& os) {
+        os << "AnnealingOptimizer: after warmup score = " << current_score << '\n';
+    });
 
     std::chrono::seconds time_budget = kAnnealingTimeBudget;
     if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
@@ -135,8 +138,7 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
             ++restarts;
         }
 
-        context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
-                                             current_score);
+        debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
 
         ++iteration;
     }
@@ -155,11 +157,14 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     materialize(clock_tree, best_state, model, buffer_library);
 
     model.restore(best_state);
-    const double final_score = model.score(baseline_metrics);
-    std::cerr << "AnnealingOptimizer: iterations = " << iteration
-              << ", accepted = " << accepted_moves << ", rejected = " << rejected_moves
-              << ", restarts = " << restarts << ", greedy_polish = " << greedy_polish_steps
-              << ", best score = " << best_score << ", restored score = " << final_score << '\n';
+
+    debug.log([&](std::ostream& os) {
+        const double final_score = model.score(baseline_metrics);
+        os << "AnnealingOptimizer: iterations = " << iteration << ", accepted = " << accepted_moves
+           << ", rejected = " << rejected_moves << ", restarts = " << restarts
+           << ", greedy_polish = " << greedy_polish_steps << ", best score = " << best_score
+           << ", restored score = " << final_score << '\n';
+    });
 }
 
 }  // namespace cadd0040

@@ -5,7 +5,6 @@
 
 #include "optimization/sa/sa_common.hpp"
 
-#include <iostream>
 #include <string>
 
 namespace cadd0040 {
@@ -117,7 +116,6 @@ void materialize(ClockTree& clock_tree, const SkewModelState& state, const SkewM
             const std::string& cell_name = cells[static_cast<std::size_t>(cell_idx)].name;
             if (!clock_tree.insert_buffer(parent_name, downstream_name, buffer_name, cell_name,
                                           buffer_library)) {
-                std::cerr << "SA optimizer: failed to materialize " << buffer_name << '\n';
                 continue;
             }
             downstream_name = buffer_name;
