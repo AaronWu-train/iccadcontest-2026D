@@ -12,16 +12,18 @@ else
 CMAKE_GENERATOR :=
 endif
 
+JOBS ?= $(shell nproc)
+
 configure:
 	cmake -S . -B $(BUILD_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Debug
 
 build:
 	cmake -S . -B $(BUILD_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Debug
-	cmake --build $(BUILD_DIR)
+	cmake --build $(BUILD_DIR) --parallel $(JOBS)
 
 release:
 	cmake -S . -B $(RELEASE_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Release
-	cmake --build $(RELEASE_DIR)
+	cmake --build $(RELEASE_DIR) --parallel $(JOBS)
 
 test: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
