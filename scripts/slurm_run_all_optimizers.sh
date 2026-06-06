@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # Submit Slurm array jobs: every canonical optimizer × every testcase.
-# Each job writes its own log; the launcher waits and prints an aggregate summary.
+# Submits in the background like normal sbatch usage; aggregate when jobs finish.
 #
 # Usage:
 #   ./scripts/slurm_run_all_optimizers.sh
-#   OUTPUT_DIR=/path/to/run ./scripts/slurm_run_all_optimizers.sh
-#   CADD0040_SA_SECONDS=60 ./scripts/slurm_run_all_optimizers.sh
-#   ./scripts/slurm_run_all_optimizers.sh --local          # no Slurm, run sequentially
-#   ./scripts/slurm_run_all_optimizers.sh --aggregate-only # re-summarize existing OUTPUT_DIR
+#   SLURM_PARTITION=GPU ./scripts/slurm_run_all_optimizers.sh
+#   ./scripts/slurm_run_all_optimizers.sh --wait   # block until done, then aggregate
+#   ./scripts/slurm_run_all_optimizers.sh --local  # no Slurm, run sequentially
+#   OUTPUT_DIR=slurm_runs/20260606_120000 ./scripts/slurm_run_all_optimizers.sh --aggregate-only
 #
-# Output layout (after completion):
+# Typical Slurm workflow:
+#   1. ./scripts/slurm_run_all_optimizers.sh
+#   2. squeue -j <job_id>          # check progress (job_id printed on submit)
+#   3. OUTPUT_DIR=... ./scripts/slurm_run_all_optimizers.sh --aggregate-only
+#
+# Output layout (after aggregation):
 #   logs/<optimizer>/<testcase>.log
 #   outputs/<optimizer>/<testcase>/modified_clk_tree.structure
 #   summary.txt
@@ -45,15 +50,46 @@ SLURM_CPUS="${SLURM_CPUS:-1}"
 OPTIMIZERS="${OPTIMIZERS:-dummy greedy milp anneal isa}"
 
 RUN_MODE="slurm"
-if [[ "${1:-}" == "--local" ]]; then
-    RUN_MODE="local"
-    shift
-elif [[ "${1:-}" == "--aggregate-only" ]]; then
-    RUN_MODE="aggregate-only"
-    shift
-elif [[ "${1:-}" == "--worker" ]]; then
-    RUN_MODE="worker"
-    shift
+SLURM_WAIT=0
+AGGREGATE_FORCE=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --local)
+            RUN_MODE="local"
+            shift
+            ;;
+        --aggregate-only)
+            RUN_MODE="aggregate-only"
+            shift
+            ;;
+        --worker)
+            RUN_MODE="worker"
+            shift
+            ;;
+        --wait)
+            SLURM_WAIT=1
+            shift
+            ;;
+        --force)
+            AGGREGATE_FORCE=1
+            shift
+            ;;
+        -h | --help)
+            sed -n '2,35p' "$0" | sed 's/^# \?//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1 (try --help)" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "${RUN_MODE}" == "aggregate-only" && -z "${OUTPUT_DIR:-}" ]]; then
+    echo "OUTPUT_DIR is required for --aggregate-only" >&2
+    echo "Example: OUTPUT_DIR=slurm_runs/20260606_120000 $0 --aggregate-only" >&2
+    exit 1
 fi
 
 timestamp="$(date +%Y%m%d_%H%M%S)"
@@ -63,6 +99,7 @@ OUTPUTS_DIR="${OUTPUT_DIR}/outputs"
 META_DIR="${OUTPUT_DIR}/meta"
 MANIFEST="${OUTPUT_DIR}/.manifest"
 RUN_ENV="${OUTPUT_DIR}/.run.env"
+JOB_ID_FILE="${OUTPUT_DIR}/.job_id"
 SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
 
 read -r -a OPTIMIZER_LIST <<< "${OPTIMIZERS}"
@@ -173,8 +210,60 @@ run_one_job() {
 }
 
 cleanup_run_state() {
-    rm -f "${MANIFEST}" "${RUN_ENV}"
+    rm -f "${MANIFEST}" "${RUN_ENV}" "${JOB_ID_FILE}"
     rm -rf "${META_DIR}"
+}
+
+slurm_job_running() {
+    local job_id="$1"
+    squeue -h -j "${job_id}" 2>/dev/null | grep -q .
+}
+
+wait_for_slurm_job() {
+    local job_id="$1"
+    echo "Waiting for job array ${job_id}..."
+    while slurm_job_running "${job_id}"; do
+        sleep 10
+    done
+}
+
+print_submit_instructions() {
+    local job_id="$1"
+    local num_tasks="$2"
+
+    echo
+    echo "Submitted ${num_tasks} array tasks as job ${job_id}."
+    echo "Launcher exiting; jobs run on compute nodes."
+    echo
+    echo "  output dir : ${OUTPUT_DIR}"
+    echo "  job id     : ${job_id}"
+    echo
+    echo "Check status:"
+    echo "  squeue -j ${job_id}"
+    echo "  sacct -j ${job_id} --format=JobID,State,Elapsed,ExitCode"
+    echo
+    echo "When all tasks finish, aggregate:"
+    echo "  OUTPUT_DIR=${OUTPUT_DIR} $0 --aggregate-only"
+    echo
+}
+
+ensure_jobs_finished() {
+    if [[ ! -f "${JOB_ID_FILE}" ]]; then
+        return 0
+    fi
+
+    local job_id
+    job_id="$(cat "${JOB_ID_FILE}")"
+    if slurm_job_running "${job_id}"; then
+        if [[ "${AGGREGATE_FORCE}" == "1" ]]; then
+            echo "Warning: job ${job_id} still running; aggregating partial results (--force)." >&2
+            return 0
+        fi
+        echo "Job ${job_id} is still running." >&2
+        echo "Wait for completion, or pass --force for a partial summary." >&2
+        echo "  squeue -j ${job_id}" >&2
+        exit 1
+    fi
 }
 
 worker_main() {
@@ -335,18 +424,20 @@ submit_slurm_jobs() {
 
     local job_id
     job_id="$(sbatch --parsable "${sbatch_args[@]}" "${BASH_SOURCE[0]}" --worker)"
+    echo "${job_id}" > "${JOB_ID_FILE}"
     echo "Submitted job array: ${job_id}"
-    echo "Waiting for completion..."
 
-    while squeue -h -j "${job_id}" 2>/dev/null | grep -q .; do
-        sleep 10
-    done
+    if [[ "${SLURM_WAIT}" == "1" ]]; then
+        wait_for_slurm_job "${job_id}"
+        echo
+        echo "All array tasks finished. Aggregating..."
+        echo
+        aggregate_results
+        cleanup_run_state
+        return
+    fi
 
-    echo
-    echo "All array tasks finished. Aggregating..."
-    echo
-    aggregate_results
-    cleanup_run_state
+    print_submit_instructions "${job_id}" "${num_tasks}"
 }
 
 run_local() {
@@ -376,13 +467,19 @@ case "${RUN_MODE}" in
         run_local
         ;;
     aggregate-only)
-        if [[ -z "${OUTPUT_DIR}" || ! -d "${META_DIR}" ]]; then
-            echo "Set OUTPUT_DIR to an existing run directory with meta/ for --aggregate-only" >&2
+        if [[ ! -d "${OUTPUT_DIR}" ]]; then
+            echo "Output directory not found: ${OUTPUT_DIR}" >&2
             exit 1
         fi
         if [[ -f "${RUN_ENV}" ]]; then
             # shellcheck disable=SC1091
             source "${RUN_ENV}"
+        fi
+        ensure_jobs_finished
+        if [[ ! -d "${META_DIR}" ]]; then
+            echo "Meta directory not found: ${META_DIR}" >&2
+            echo "Jobs may still be starting, or this run was already aggregated." >&2
+            exit 1
         fi
         aggregate_results
         cleanup_run_state
