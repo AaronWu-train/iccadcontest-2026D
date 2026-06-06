@@ -135,8 +135,8 @@ Tests are written with Catch2 v3 and registered with CTest.
 
 ## Development
 
-Agent and maintainer notes: [`AGENTS.md`](AGENTS.md) (Codex), [`docs/rules/`](docs/rules/)
-(shared rules), [`docs/annealing-optimizer.md`](docs/annealing-optimizer.md).
+Agent instructions: [`AGENTS.md`](AGENTS.md). Optimizer architecture:
+[`docs/annealing-optimizer.md`](docs/annealing-optimizer.md).
 
 Install the formatting hook once per checkout:
 

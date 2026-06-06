@@ -85,32 +85,9 @@ IteratedSaOptimizer::run
 | `isa` / `sa2` | `IteratedSaOptimizer` | **預設**，多輪 SA+Greedy |
 | `anneal` / `sa` | `AnnealingOptimizer` | 單輪 SA（舊版，保留） |
 
-## DebugProgress（演算法輸出規範）
+## DebugProgress
 
-所有 optimizer 與 `Solver` 的**演算法 telemetry** 必須經 `DebugProgress`（`src/debug_progress.hpp`），不可直接 `std::cerr`。
-
-| API | 用途 |
-|-----|------|
-| `debug.log([&](std::ostream& os) { ... })` | phase 切換、baseline / warmup / final summary |
-| `debug.report_if_due(elapsed, best_metrics, baseline, current)` | 長迴圈內週期性 best score（stderr prefix：`Progress`） |
-
-```cpp
-DebugProgress& debug = context.debug_progress;
-
-debug.log([&](std::ostream& os) {
-    os << "AnnealingOptimizer: baseline score = " << model.score(baseline_metrics) << '\n';
-});
-
-debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
-```
-
-- `Solver` 以 `DebugProgress::from_environment()` 建立後傳入 `OptimizerContext`。
-- **Release**（`NDEBUG`）：永遠不輸出。
-- **Debug**：`CADD0040_DEBUG_PROGRESS=1` 才啟用；`CADD0040_DEBUG_PROGRESS_INTERVAL` 控制間隔（預設 30s）。
-
-允許直接 `std::cerr` 的例外：`main` / `Solver` 的 exception 訊息、`debug_progress.cpp` 本身。新增 checkpoint 請對照 `annealing_optimizer.cpp`、`greedy_optimizer.cpp`、`milp_optimizer.cpp`。
-
-更完整說明見根目錄 `AGENTS.md` 與 `.cursor/rules/debug-progress.mdc`。
+演算法輸出規範見 [`AGENTS.md`](../AGENTS.md) § DebugProgress。
 
 ## 參數
 

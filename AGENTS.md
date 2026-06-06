@@ -1,21 +1,45 @@
 # Agent Guide (ICCAD 2026 Problem D)
 
-本文件供 **Codex** 自動載入。Cursor 使用 `.cursor/rules/*.mdc`；兩邊內容以 `docs/rules/` 為共同來源。
+Canonical instructions for Codex, Cursor, and other coding agents.  
+`.cursor/rules/*.mdc` files are thin, scoped wrappers that point here.
 
-## 規則文件對照
+## Project
 
-| 主題 | Codex / 人類可讀 | Cursor rule |
-|------|------------------|-------------|
-| DebugProgress 輸出 | `docs/rules/debug-progress.md` | `.cursor/rules/debug-progress.mdc` |
-| SA optimizer 慣例 | `docs/rules/annealing-optimizer.md` | `.cursor/rules/annealing-optimizer.mdc` |
-| SA 完整架構 | `docs/annealing-optimizer.md` | — |
-| 編輯 optimizer 時 | `src/optimization/AGENTS.md`（就近覆寫） | — |
+C++20 CMake project for ICCAD Contest 2026 Problem D (clock tree optimization).  
+Catch2 v3 tests, CLI11 CLI, clang-format via pre-commit.
 
-修改規則時請**同步更新** `docs/rules/` 與 `.cursor/rules/` 兩份。
+## Build and test
 
-## 演算法輸出：一律使用 DebugProgress
+```sh
+make build          # debug build in build/
+make release        # optimized build in build-release/
+make test           # Catch2 via CTest
+./scripts/run_all_testcases.sh
+```
 
-**所有 optimizer / solver 的演算法 telemetry**（phase 切換、baseline、warmup、summary、週期性 best score）必須經 `DebugProgress`，**禁止**在 optimizer 內直接 `std::cerr`。
+Single testcase:
+
+```sh
+./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>]
+CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
+```
+
+| Variable | Purpose |
+|----------|---------|
+| `CADD0040_SA_SECONDS` | SA time budget (default 540) |
+| `CADD0040_DEBUG_PROGRESS` | `1` enables debug telemetry (debug builds) |
+| `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between `Progress` lines (default 30) |
+
+## Code layout and style
+
+- Keep `.hpp` next to `.cpp` under `src/`.
+- `src/main.cpp` is CLI entry only; logic lives in `cadd0040_core`.
+- Add new `.cpp` to `cadd0040_core` in `CMakeLists.txt`; new tests to `cadd0040_tests` in `tests/CMakeLists.txt`.
+- Pre-commit runs `clang-format` on staged C/C++ (`pre-commit install`).
+
+## DebugProgress (algorithm output)
+
+All optimizer and solver **algorithm telemetry** (phases, baseline, warmup, summaries, periodic best score) must use `DebugProgress`. **Do not** use direct `std::cerr` in optimizers.
 
 ```cpp
 DebugProgress& debug = context.debug_progress;
@@ -27,41 +51,64 @@ debug.log([&](std::ostream& os) {
 debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
 ```
 
-- `Solver` 以 `DebugProgress::from_environment()` 建立，再傳入 `OptimizerContext`。
-- **Release build**（`NDEBUG`）永遠靜默。
-- **Debug build** 需 `CADD0040_DEBUG_PROGRESS=1` 才輸出；間隔用 `CADD0040_DEBUG_PROGRESS_INTERVAL`（預設 30s）。
-- `report_if_due` 輸出 prefix 為 `Progress`；`log` 用於 phase / summary 等一次性訊息。
+- `Solver` creates `DebugProgress::from_environment()` and passes it via `OptimizerContext`.
+- **Release** (`NDEBUG`): always silent.
+- **Debug**: requires `CADD0040_DEBUG_PROGRESS=1`; interval via `CADD0040_DEBUG_PROGRESS_INTERVAL`.
+- `debug.log` — one-off lines (phases, summaries). `report_if_due` — periodic loops (stderr prefix `Progress`).
 
-### 允許直接 stderr 的例外
+Allowed direct `std::cerr`: `main.cpp` / `Solver::run()` exceptions; `debug_progress.cpp` internals. Do not add algorithm telemetry in low-level helpers (e.g. `ClockTree::insert_buffer`).
 
-- `main.cpp`、`Solver::run()` 的 exception 錯誤訊息。
-- `src/debug_progress.cpp` 內部實作。
+Reference: `annealing_optimizer.cpp`, `iterated_sa_optimizer.cpp`, `greedy_optimizer.cpp`, `milp_optimizer.cpp`, `solver.cpp`.
 
-新增 optimizer checkpoint 時，請對照既有實作：`annealing_optimizer.cpp`、`greedy_optimizer.cpp`、`milp_optimizer.cpp`。
+## Optimization module
 
-## 目錄與模組
+Applies when editing `src/optimization/`.
+
+### Layout
 
 ```
 src/optimization/
-├── optimizer.hpp          # OptimizerContext { baseline_metrics, debug_progress }
-├── factory.cpp            # 註冊 optimizer 別名
-├── sa/                    # Simulated annealing
-├── greedy/                # Greedy optimizer
-└── milp/                  # MILP-inspired optimizer
+├── optimizer.hpp       # OptimizerContext { baseline_metrics, debug_progress }
+├── factory.cpp         # register optimizer aliases
+├── sa/                 # simulated annealing
+├── greedy/
+└── milp/
 ```
 
-- `DataPathGraph`：唯讀輸入，optimizer 執行中不可改。
-- `ClockTree`：optimizer 結束後才 materialize 寫回。
-- `SkewModel`：SA / greedy / MILP 共用的增量試算沙盒（見 `sa/skew_model.*`）。
+### Module roles
 
-## 開發與驗證
+| Module | Role | Mutable during optimization? |
+|--------|------|------------------------------|
+| `DataPathGraph` | read-only paths and fixed data delays | No |
+| `SkewModel` | in-memory incremental timing sandbox | Yes |
+| `ClockTree` | real tree; written only at end via `materialize()` | End only |
+| `evaluate()` | ground-truth scoring; too slow per step | — |
 
-```sh
-make build && make test
-./scripts/run_all_testcases.sh
-CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
-```
+### Optimizer registration (`factory.cpp`)
 
-- 新 C++ 檔加入 `CMakeLists.txt` 的 `cadd0040_core`。
-- 新 optimizer 在 `factory.cpp` 註冊，並遵守 DebugProgress 輸出規範。
-- Commit 前會跑 `clang-format`（pre-commit）。
+Default CLI value: `isa` (`kDefaultOptimizerName` in `factory.hpp`).
+
+| Alias | Class |
+|-------|-------|
+| `isa` / `sa2` | `IteratedSaOptimizer` |
+| `anneal` / `sa` | `AnnealingOptimizer` |
+| `greedy` / `detgreedy` | `GreedyOptimizer` |
+| `milp` / `ip` | `MilpOptimizer` |
+| `dummy` | `DummyOptimizer` (no-op, testing) |
+
+Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose names via `available_optimizers()`.
+
+### SkewModel invariants
+
+- `affected_path_epoch_.size()` must equal **path count** (`launch_idx_.size()`), not node count.
+- Inserted buffers use fanout=1 delay entry; resize must pass `cell_supports_fanout`.
+- Moves must be reversible via `undo_move()` for Metropolis rejection.
+
+### Tuning
+
+- `CADD0040_SA_SECONDS` overrides default 540s SA budget.
+- Batch run: `./scripts/run_all_testcases.sh`
+
+### Deep architecture
+
+See `docs/annealing-optimizer.md` for data flows, scoring formula, tests, and file list.

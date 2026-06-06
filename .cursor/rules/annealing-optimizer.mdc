@@ -1,43 +1,11 @@
 ---
-description: ICCAD Problem D annealing optimizer architecture and conventions
+description: ICCAD Problem D optimization module conventions
 globs: src/optimization/**/*
 alwaysApply: false
 ---
 
-# Annealing Optimizer
+# Optimization module
 
-> Codex mirror: `docs/rules/annealing-optimizer.md` — keep both in sync.
+Follow [`AGENTS.md`](../../AGENTS.md): **DebugProgress** and **Optimization module** sections.
 
-## Class hierarchy
-
-- `AnnealingOptimizer : public Optimizer` — single-round SA in `src/optimization/sa/`.
-- `IteratedSaOptimizer : public Optimizer` — multi-round SA+Greedy in `src/optimization/sa/`.
-- Register in `factory.cpp`:
-  - `"isa"` / `"sa2"` → `IteratedSaOptimizer` (default)
-  - `"anneal"` / `"sa"` → `AnnealingOptimizer`
-
-## Do not confuse these roles
-
-- **`DataPathGraph`**: read-only input (paths, fixed data delays, clock period). Never mutate during SA.
-- **`SkewModel`**: mutable in-memory sandbox for fast incremental timing during SA. Uses `DataPathGraph` + initial `ClockTree` at construction.
-- **`ClockTree`**: only modified at the end via `materialize()` (`resize_buffer`, then `insert_buffer` with `NEW_BUF_X` names).
-- **`evaluate()`**: full O(paths) ground-truth scoring; too slow per SA step.
-
-## SkewModel invariants
-
-- `affected_path_epoch_.size()` must equal **path count** (`launch_idx_.size()`), not node count.
-- Inserted buffers use fanout=1 delay table entry; resize must pass `cell_supports_fanout` for current fanout.
-- Moves must be reversible via `undo_move()` for Metropolis rejection.
-
-## Tuning knobs
-
-- `CADD0040_SA_SECONDS` env var overrides default 540s SA budget.
-- Batch run: `./scripts/run_all_testcases.sh`
-
-## Debug output
-
-All optimizer algorithm telemetry must use `DebugProgress` via `context.debug_progress` — never direct `std::cerr`. See `.cursor/rules/debug-progress.mdc` and `AGENTS.md`.
-
-## Full architecture
-
-See `docs/annealing-optimizer.md`.
+For architecture, data flows, and scoring details, read [`docs/annealing-optimizer.md`](../../docs/annealing-optimizer.md).

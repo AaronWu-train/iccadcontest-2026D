@@ -1,49 +1,9 @@
 ---
-description: Route all optimizer algorithm telemetry through DebugProgress
+description: Route optimizer algorithm telemetry through DebugProgress
 globs: src/optimization/**/*,src/solver.cpp
 alwaysApply: false
 ---
 
-# DebugProgress for Algorithm Output
+# DebugProgress
 
-> Codex mirror: `docs/rules/debug-progress.md` — keep both in sync.
-
-All optimizer and solver **algorithm telemetry** must go through `DebugProgress`, not direct `std::cerr`.
-
-## Required pattern
-
-Obtain the reporter from `OptimizerContext` (or `DebugProgress::from_environment()` in `Solver`):
-
-```cpp
-DebugProgress& debug = context.debug_progress;
-
-debug.log([&](std::ostream& os) {
-    os << "MyOptimizer: baseline score = " << score << '\n';
-});
-
-debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
-```
-
-## Do not
-
-```cpp
-// ❌ Direct stderr for algorithm progress/summary
-std::cerr << "MyOptimizer: best score = " << best_score << '\n';
-```
-
-## When to use each API
-
-- **`debug.log(...)`** — phase transitions, baseline/warmup/final summaries, batch completion lines.
-- **`debug.report_if_due(...)`** — periodic progress during long loops (prefix `Progress` on stderr).
-
-## Gating behavior
-
-- **Release** (`NDEBUG`): always silent.
-- **Debug**: enabled only when `CADD0040_DEBUG_PROGRESS=1`; interval via `CADD0040_DEBUG_PROGRESS_INTERVAL` (default 30s).
-
-## Allowed direct `std::cerr`
-
-- Fatal/user-facing errors in `main.cpp` or `Solver::run()` catch blocks.
-- Implementation inside `debug_progress.cpp` itself.
-
-Low-level library failures (e.g. `ClockTree::insert_buffer`) should not add new algorithm telemetry; follow existing call-site conventions.
+Follow the **DebugProgress (algorithm output)** section in [`AGENTS.md`](../../AGENTS.md).
