@@ -250,6 +250,8 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
 
     materialize(clock_tree, best_state, model, buffer_library);
 
+    model.restore(best_state);
+
     debug.log([&](std::ostream& os) {
         const double final_score = model.score(baseline_metrics);
         os << "IteratedSaOptimizer: iterations = " << total_iterations

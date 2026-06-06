@@ -35,7 +35,10 @@ if [[ ! -d "${TESTCASES_DIR}" ]]; then
     exit 1
 fi
 
-mapfile -t TESTCASES < <(find "${TESTCASES_DIR}" -mindepth 1 -maxdepth 1 -type d -name 'testcase*' | sort)
+TESTCASES=()
+while IFS= read -r testcase; do
+    TESTCASES+=("${testcase}")
+done < <(find "${TESTCASES_DIR}" -mindepth 1 -maxdepth 1 -type d -name 'testcase*' | sort)
 if [[ ${#TESTCASES[@]} -eq 0 ]]; then
     echo "No testcase* directories under ${TESTCASES_DIR}" >&2
     exit 1

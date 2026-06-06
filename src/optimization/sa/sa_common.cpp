@@ -30,25 +30,32 @@ SkewMove random_move(SkewModel& model) {
     static std::uniform_real_distribution<double> kind_dist(0.0, 1.0);
     const double roll = kind_dist(rng());
 
-    if (roll < 0.50) {
+    if (roll < 0.45) {
         return SkewMove{
             .kind = SkewMoveKind::Insert,
             .edge_idx = model.random_guided_insert_edge(),
             .cell_idx = pick_insert_cell(model),
         };
     }
-    if (roll < 0.60) {
+    if (roll < 0.55) {
         return SkewMove{
             .kind = SkewMoveKind::Insert,
             .edge_idx = model.random_edge_index(),
             .cell_idx = pick_insert_cell(model),
         };
     }
-    if (roll < 0.70) {
+    if (roll < 0.80) {
+        const std::size_t edge_idx = model.random_edge_with_inserts();
+        const auto& inserted_cells = model.tree_edges()[edge_idx].inserted_cell_indices;
+        const int insert_position =
+            inserted_cells.empty() ? -1 : static_cast<int>(inserted_cells.size() - 1);
+        const int cell_idx =
+            insert_position < 0 ? -1 : inserted_cells[static_cast<std::size_t>(insert_position)];
         return SkewMove{
             .kind = SkewMoveKind::Remove,
-            .edge_idx = model.random_edge_with_inserts(),
-            .insert_position = -1,
+            .edge_idx = edge_idx,
+            .cell_idx = cell_idx,
+            .insert_position = insert_position,
         };
     }
 

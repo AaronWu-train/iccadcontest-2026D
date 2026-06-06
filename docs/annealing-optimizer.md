@@ -85,6 +85,10 @@ IteratedSaOptimizer::run
 | `isa` / `sa2` | `IteratedSaOptimizer` | **預設**，多輪 SA+Greedy |
 | `anneal` / `sa` | `AnnealingOptimizer` | 單輪 SA（舊版，保留） |
 
+## DebugProgress
+
+演算法輸出規範見 [`AGENTS.md`](../AGENTS.md) § DebugProgress。
+
 ## 參數
 
 - 預設 SA 時間：**540 秒**（`kAnnealingTimeBudget`）。

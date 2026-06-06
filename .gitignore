@@ -71,6 +71,9 @@ Testing/
 .cache/
 .vscode/
 
+# Slurm batch runs (scripts/slurm_run_all_optimizers.sh)
+slurm_runs/
+
 # If you are mac user, you should know
 *.DS_Store
 

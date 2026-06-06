@@ -526,7 +526,9 @@ void SkewModel::restore(const SkewModelState& state) {
     arrival_ff_ = state.arrival_ff;
     ss_slack_ = state.ss_slack;
     ff_slack_ = state.ff_slack;
-    metrics_ = state.metrics;
+    metrics_ = SkewModelMetrics{
+        .area = state.metrics.area,
+    };
 
     negative_ss_slacks_.clear();
     negative_ff_slacks_.clear();
@@ -705,18 +707,6 @@ bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
             violating_paths.push_back(path_idx);
         }
     }
-    if (violating_paths.empty()) {
-        return false;
-    }
-
-    std::sort(violating_paths.begin(), violating_paths.end(),
-              [&](std::size_t lhs, std::size_t rhs) {
-                  const double lhs_violation =
-                      std::min(ss_slack_[lhs], 0.0) + std::min(ff_slack_[lhs], 0.0);
-                  const double rhs_violation =
-                      std::min(ss_slack_[rhs], 0.0) + std::min(ff_slack_[rhs], 0.0);
-                  return lhs_violation < rhs_violation;
-              });
 
     std::vector<int> fanout1_cells;
     fanout1_cells.reserve(cells_.size());
@@ -730,47 +720,89 @@ bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
                cells_[static_cast<std::size_t>(rhs)].area;
     });
 
-    const std::size_t sample_count = std::min<std::size_t>(violating_paths.size(), 32);
-    for (std::size_t sample = 0; sample < sample_count; ++sample) {
-        const std::size_t path_idx = violating_paths[sample];
-        const std::size_t launch = launch_idx_[path_idx];
-        const std::size_t capture = capture_idx_[path_idx];
+    if (!violating_paths.empty()) {
+        std::sort(violating_paths.begin(), violating_paths.end(),
+                  [&](std::size_t lhs, std::size_t rhs) {
+                      const double lhs_violation =
+                          std::min(ss_slack_[lhs], 0.0) + std::min(ff_slack_[lhs], 0.0);
+                      const double rhs_violation =
+                          std::min(ss_slack_[rhs], 0.0) + std::min(ff_slack_[rhs], 0.0);
+                      return lhs_violation < rhs_violation;
+                  });
 
-        std::vector<std::size_t> target_edges;
-        if (ss_slack_[path_idx] < 0.0) {
-            for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-                if (edges_[edge_idx].child_idx == capture) {
-                    target_edges.push_back(edge_idx);
+        const std::size_t sample_count = std::min<std::size_t>(violating_paths.size(), 32);
+        for (std::size_t sample = 0; sample < sample_count; ++sample) {
+            const std::size_t path_idx = violating_paths[sample];
+            const std::size_t launch = launch_idx_[path_idx];
+            const std::size_t capture = capture_idx_[path_idx];
+
+            std::vector<std::size_t> target_edges;
+            if (ss_slack_[path_idx] < 0.0) {
+                for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+                    if (edges_[edge_idx].child_idx == capture) {
+                        target_edges.push_back(edge_idx);
+                    }
+                }
+            }
+            if (ff_slack_[path_idx] < 0.0) {
+                for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+                    if (edges_[edge_idx].child_idx == launch) {
+                        target_edges.push_back(edge_idx);
+                    }
+                }
+            }
+
+            for (const std::size_t edge_idx : target_edges) {
+                for (const int cell_idx : fanout1_cells) {
+                    const double before = score(baseline_metrics);
+                    SkewMove move{
+                        .kind = SkewMoveKind::Insert,
+                        .edge_idx = edge_idx,
+                        .cell_idx = cell_idx,
+                    };
+                    if (!try_move(move)) {
+                        continue;
+                    }
+                    const double after = score(baseline_metrics);
+                    const double delta = after - before;
+                    if (delta > best_candidate.score_delta) {
+                        best_candidate.move = move;
+                        best_candidate.score_delta = delta;
+                    }
+                    undo_move(move);
                 }
             }
         }
-        if (ff_slack_[path_idx] < 0.0) {
-            for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-                if (edges_[edge_idx].child_idx == launch) {
-                    target_edges.push_back(edge_idx);
-                }
-            }
-        }
+    }
 
-        for (const std::size_t edge_idx : target_edges) {
-            for (const int cell_idx : fanout1_cells) {
-                const double before = score(baseline_metrics);
-                SkewMove move{
-                    .kind = SkewMoveKind::Insert,
-                    .edge_idx = edge_idx,
-                    .cell_idx = cell_idx,
-                };
-                if (!try_move(move)) {
-                    continue;
-                }
-                const double after = score(baseline_metrics);
-                const double delta = after - before;
-                if (delta > best_candidate.score_delta) {
-                    best_candidate.move = move;
-                    best_candidate.score_delta = delta;
-                }
-                undo_move(move);
-            }
+    std::size_t removal_candidates = 0;
+    for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
+        const auto& inserted_cells = edges_[edge_idx].inserted_cell_indices;
+        if (inserted_cells.empty()) {
+            continue;
+        }
+        ++removal_candidates;
+        const int insert_position = static_cast<int>(inserted_cells.size() - 1);
+        const int cell_idx = inserted_cells.back();
+        const double before = score(baseline_metrics);
+        SkewMove move{
+            .kind = SkewMoveKind::Remove,
+            .edge_idx = edge_idx,
+            .cell_idx = cell_idx,
+            .insert_position = insert_position,
+        };
+        if (!try_move(move)) {
+            continue;
+        }
+        const double after = score(baseline_metrics);
+        const double delta = after - before;
+        if (delta > best_candidate.score_delta) {
+            best_candidate.move = move;
+            best_candidate.score_delta = delta;
+        }
+        undo_move(move);
+        if (removal_candidates >= 512) {
+            break;
         }
     }
 

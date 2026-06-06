@@ -91,6 +91,8 @@ public:
 
     const std::vector<double>& ss_slack() const { return ss_slack_; }
     const std::vector<double>& ff_slack() const { return ff_slack_; }
+    std::size_t launch_node_index(std::size_t path_idx) const { return launch_idx_[path_idx]; }
+    std::size_t capture_node_index(std::size_t path_idx) const { return capture_idx_[path_idx]; }
 
     std::size_t random_edge_index() const;
     std::size_t random_buffer_node_index() const;

@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "optimization/optimizer.hpp"
+#include "optimization/greedy/greedy_optimizer.hpp"
+#include "optimization/milp/milp_optimizer.hpp"
 #include "optimization/sa/annealing_optimizer.hpp"
 #include "optimization/sa/iterated_sa_optimizer.hpp"
 
@@ -19,6 +21,10 @@ using OptimizerCreator = std::function<std::unique_ptr<Optimizer>()>;
 const std::map<std::string, OptimizerCreator>& optimizer_registry() {
     static const std::map<std::string, OptimizerCreator> registry = {
         {"dummy", [] { return std::make_unique<DummyOptimizer>(); }},
+        {"greedy", [] { return std::make_unique<GreedyOptimizer>(); }},
+        {"detgreedy", [] { return std::make_unique<GreedyOptimizer>(); }},
+        {"milp", [] { return std::make_unique<MilpOptimizer>(); }},
+        {"ip", [] { return std::make_unique<MilpOptimizer>(); }},
         {"anneal", [] { return std::make_unique<AnnealingOptimizer>(); }},
         {"sa", [] { return std::make_unique<AnnealingOptimizer>(); }},
         {"isa", [] { return std::make_unique<IteratedSaOptimizer>(); }},

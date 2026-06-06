@@ -133,6 +133,44 @@ TEST_CASE("SkewModel insert move updates metrics consistently", "[annealing]") {
     CHECK(modeled.area == Catch::Approx(evaluated.area));
 }
 
+TEST_CASE("SkewModel restore preserves snapshot metrics", "[annealing]") {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree();
+    const auto data_path_graph = make_data_path_graph();
+
+    cadd0040::SkewModel model(clock_tree, data_path_graph, buffer_library);
+
+    std::size_t capture_edge_idx = model.edge_count();
+    for (std::size_t edge_idx = 0; edge_idx < model.edge_count(); ++edge_idx) {
+        const auto& edge = model.tree_edges()[edge_idx];
+        if (model.node_names()[edge.child_idx] == "FF_C") {
+            capture_edge_idx = edge_idx;
+            break;
+        }
+    }
+    REQUIRE(capture_edge_idx < model.edge_count());
+
+    const int small_cell_idx = cell_index_by_name(model, "SMALL");
+    REQUIRE(small_cell_idx >= 0);
+
+    cadd0040::SkewMove move{
+        .kind = cadd0040::SkewMoveKind::Insert,
+        .edge_idx = capture_edge_idx,
+        .cell_idx = small_cell_idx,
+    };
+    REQUIRE(model.try_move(move));
+
+    const cadd0040::SkewModelState snapshot = model.snapshot();
+    model.restore(snapshot);
+    const cadd0040::Metrics restored = metrics_from_model(model);
+
+    CHECK(restored.tns_ss == Catch::Approx(snapshot.metrics.tns_ss));
+    CHECK(restored.wns_ss == Catch::Approx(snapshot.metrics.wns_ss));
+    CHECK(restored.tns_ff == Catch::Approx(snapshot.metrics.tns_ff));
+    CHECK(restored.wns_ff == Catch::Approx(snapshot.metrics.wns_ff));
+    CHECK(restored.area == Catch::Approx(snapshot.metrics.area));
+}
+
 TEST_CASE("AnnealingOptimizer improves or preserves score on tiny testcase", "[annealing]") {
 #ifndef _WIN32
     setenv("CADD0040_SA_SECONDS", "2", 1);
