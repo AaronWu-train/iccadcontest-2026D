@@ -7,7 +7,6 @@
 
 #include <chrono>
 #include <cstdlib>
-#include <iostream>
 
 #include "optimization/sa/sa_common.hpp"
 #include "optimization/sa/skew_model.hpp"
@@ -75,9 +74,9 @@ bool apply_one_resize_polish_step(SkewModel& model, const Metrics& baseline_metr
 }  // namespace
 
 void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
-                          const BufferLibrary& buffer_library,
-                          const OptimizerContext& context) {
+                          const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
+    DebugProgress& debug = context.debug_progress;
     SkewModel model(clock_tree, data_path_graph, buffer_library);
 
     double current_score = model.score(baseline_metrics);
@@ -106,8 +105,7 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
             const double elapsed =
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time)
                     .count();
-            context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
-                                                 current_score);
+            debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
         }
 
         std::size_t phase_resize_steps = 0;
@@ -131,9 +129,11 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
     sa::materialize(clock_tree, best_state, model, buffer_library);
     model.restore(best_state);
 
-    std::cerr << "GreedyOptimizer: phases = " << phases << ", steps = " << greedy_steps
-              << ", resize_steps = " << resize_steps << ", best score = " << best_score
-              << ", restored score = " << model.score(baseline_metrics) << '\n';
+    debug.log([&](std::ostream& os) {
+        os << "GreedyOptimizer: phases = " << phases << ", steps = " << greedy_steps
+           << ", resize_steps = " << resize_steps << ", best score = " << best_score
+           << ", restored score = " << model.score(baseline_metrics) << '\n';
+    });
 }
 
 }  // namespace cadd0040

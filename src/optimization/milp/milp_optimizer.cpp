@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
-#include <iostream>
 #include <limits>
 #include <vector>
 
@@ -79,8 +78,7 @@ std::vector<Violation> worst_violations(const SkewModel& model) {
             });
         }
     }
-    std::sort(violations.begin(), violations.end(), [](const Violation& lhs,
-                                                       const Violation& rhs) {
+    std::sort(violations.begin(), violations.end(), [](const Violation& lhs, const Violation& rhs) {
         return lhs.severity > rhs.severity;
     });
     if (violations.size() > kViolationWindow) {
@@ -221,6 +219,7 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
 void MilpOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                         const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
+    DebugProgress& debug = context.debug_progress;
     SkewModel model(clock_tree, data_path_graph, buffer_library);
 
     const auto incoming_edges = incoming_edge_by_node(model);
@@ -245,15 +244,16 @@ void MilpOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_gr
 
         const double elapsed =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
-        context.debug_progress.report_if_due(elapsed, best_metrics, baseline_metrics,
-                                             current_score);
+        debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
     }
 
     sa::materialize(clock_tree, best_state, model, buffer_library);
     model.restore(best_state);
 
-    std::cerr << "MilpOptimizer: rounds = " << rounds << ", best score = " << best_score
-              << ", restored score = " << model.score(baseline_metrics) << '\n';
+    debug.log([&](std::ostream& os) {
+        os << "MilpOptimizer: rounds = " << rounds << ", best score = " << best_score
+           << ", restored score = " << model.score(baseline_metrics) << '\n';
+    });
 }
 
 }  // namespace cadd0040
