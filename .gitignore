@@ -78,3 +78,4 @@ slurm_runs/
 *.DS_Store
 
 !testcases/**/buf.lib
+dist/

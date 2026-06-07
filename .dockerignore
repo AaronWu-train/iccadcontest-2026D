@@ -1,0 +1,21 @@
+# Local build artifacts
+build/
+build-release/
+Build/
+dist/
+
+# Git and editor metadata
+.git/
+.gitignore
+.cursor/
+.vscode/
+.cache/
+
+# Test output and contest artifacts (not needed to compile)
+results/
+slurm_runs/
+Testing/
+*.pdf
+
+# macOS
+.DS_Store
