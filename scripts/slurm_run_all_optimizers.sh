@@ -453,14 +453,14 @@ aggregate_results() {
             }
         ' "${results_tsv}"
         echo
-        echo "=== Best final score per testcase ==="
+        echo "=== Best final score per testcase (higher is better) ==="
         printf '%-12s %10s %s\n' "TESTCASE" "BEST" "OPTIMIZER"
         printf '%-12s %10s %s\n' "--------" "----" "---------"
         awk -F '\t' '
             NR == 1 { next }
             $7 == "OK" && $4 != "-" && $4 ~ /^-?[0-9]+(\.[0-9]+)?$/ {
                 tc = $2
-                if (!(tc in best_score) || $4 < best_score[tc]) {
+                if (!(tc in best_score) || $4 > best_score[tc]) {
                     best_score[tc] = $4
                     best_opt[tc] = $1
                 }
