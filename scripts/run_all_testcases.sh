@@ -16,7 +16,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
+BUILD_DIR="${BUILD_DIR:-${ROOT}/build}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
 OPTIMIZER="${OPTIMIZER:-anneal}"
@@ -35,7 +35,10 @@ if [[ ! -d "${TESTCASES_DIR}" ]]; then
     exit 1
 fi
 
-mapfile -t TESTCASES < <(find "${TESTCASES_DIR}" -mindepth 1 -maxdepth 1 -type d -name 'testcase*' | sort)
+TESTCASES=()
+while IFS= read -r testcase; do
+    TESTCASES+=("${testcase}")
+done < <(find "${TESTCASES_DIR}" -mindepth 1 -maxdepth 1 -type d -name 'testcase*' | sort)
 if [[ ${#TESTCASES[@]} -eq 0 ]]; then
     echo "No testcase* directories under ${TESTCASES_DIR}" >&2
     exit 1

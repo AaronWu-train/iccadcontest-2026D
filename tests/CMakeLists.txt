@@ -1,4 +1,5 @@
 add_executable(cadd0040_tests
+    test_annealing.cpp
     test_app.cpp
     test_clock_tree.cpp
     test_debug_progress.cpp

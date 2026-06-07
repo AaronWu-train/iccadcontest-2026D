@@ -1,19 +1,22 @@
 /**
  * @file debug_progress.hpp
- * @brief Optional periodic best-solution reporting for local debugging.
+ * @brief Optional debug output for local development (off in Release builds).
  */
 
 #pragma once
+
+#include <iostream>
+#include <utility>
 
 #include "evaluation.hpp"
 
 namespace cadd0040 {
 
 /**
- * @brief Emits periodic progress lines to stderr when enabled via environment.
+ * @brief Controls optional stderr debug output.
  *
- * Enable with CADD0040_DEBUG_PROGRESS=1 (competition evaluators do not set this).
- * Interval defaults to 30 seconds; override with CADD0040_DEBUG_PROGRESS_INTERVAL.
+ * Release builds (NDEBUG) are always disabled.
+ * Debug builds honor CADD0040_DEBUG_PROGRESS=1 and CADD0040_DEBUG_PROGRESS_INTERVAL.
  */
 class DebugProgress {
 public:
@@ -22,19 +25,16 @@ public:
     [[nodiscard]] bool enabled() const { return enabled_; }
     [[nodiscard]] double interval_seconds() const { return interval_seconds_; }
 
-    /**
-     * @brief Prints a progress line when the elapsed interval has been reached.
-     *
-     * Output prefix is "Progress" so batch scripts can distinguish it from
-     * "Final Score".
-     *
-     * @return true if a line was emitted.
-     */
+    template <typename WriteFn>
+    void log(WriteFn&& write) const {
+        if (!enabled_) {
+            return;
+        }
+        write(std::cerr);
+    }
+
     bool report_if_due(double elapsed_seconds, double best_score, double current_score);
 
-    /**
-     * @brief Like the score-only overload, but also prints best metrics.
-     */
     bool report_if_due(double elapsed_seconds, const Metrics& best_metrics, const Metrics& baseline,
                        double current_score);
 

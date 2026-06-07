@@ -1,0 +1,9 @@
+---
+description: Route optimizer algorithm telemetry through DebugProgress
+globs: src/optimization/**/*,src/solver.cpp
+alwaysApply: false
+---
+
+# DebugProgress
+
+Follow the **DebugProgress (algorithm output)** section in [`AGENTS.md`](../../AGENTS.md).

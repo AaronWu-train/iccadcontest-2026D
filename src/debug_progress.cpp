@@ -14,9 +14,11 @@
 namespace cadd0040 {
 namespace {
 
+constexpr double kDefaultIntervalSeconds = 30.0;
+
+#ifndef NDEBUG
 constexpr const char* kEnableEnvVar = "CADD0040_DEBUG_PROGRESS";
 constexpr const char* kIntervalEnvVar = "CADD0040_DEBUG_PROGRESS_INTERVAL";
-constexpr double kDefaultIntervalSeconds = 30.0;
 
 bool env_flag_enabled(const char* name) {
     const char* value = std::getenv(name);
@@ -41,6 +43,7 @@ double env_interval_seconds(const char* name, double default_value) {
         return default_value;
     }
 }
+#endif
 
 bool should_emit_report(const DebugProgress& reporter, double elapsed_seconds) {
     if (!reporter.enabled()) {
@@ -60,8 +63,12 @@ DebugProgress::DebugProgress(bool enabled, double interval_seconds)
     : enabled_(enabled), interval_seconds_(interval_seconds) {}
 
 DebugProgress DebugProgress::from_environment() {
+#ifdef NDEBUG
+    return DebugProgress(false, kDefaultIntervalSeconds);
+#else
     return DebugProgress(env_flag_enabled(kEnableEnvVar),
                          env_interval_seconds(kIntervalEnvVar, kDefaultIntervalSeconds));
+#endif
 }
 
 bool DebugProgress::report_if_due(double elapsed_seconds, double best_score, double current_score) {
