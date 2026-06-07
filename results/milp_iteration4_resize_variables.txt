@@ -1,0 +1,51 @@
+========================================
+cadd0040 batch run
+  binary   : /Users/yuchengliu/NTU/114-2/IEDA/iccadcontest-2026D/build-release/cadd0040
+  optimizer: milp
+  SA budget: 10s
+  progress : off
+  cases    : 5
+========================================
+
+TESTCASE        INITIAL      FINAL      TIME(s) STATUS
+--------        -------      -----      ------- ------
+Initial baseline metrics: tns_ss: -1134.16, wns_ss: -0.5286, tns_ff: -2.988, wns_ff: -0.1065, area: 6997.01
+Initial Score = 0
+MilpOptimizer: rounds = 94, best score = 0.271692, restored score = 0.271692
+======================================
+Final metrics: tns_ss: -1073.52, wns_ss: -0.3645, tns_ff: -1.3649, wns_ff: -0.1065, area: 7004.77
+Final Score = 0.271692
+testcase0             0   0.271692           12 OK
+Initial baseline metrics: tns_ss: -252.448, wns_ss: -0.4023, tns_ff: -0.4121, wns_ff: -0.0788, area: 1653.16
+Initial Score = 0
+MilpOptimizer: rounds = 298, best score = 0.834134, restored score = 0.834134
+======================================
+Final metrics: tns_ss: -166.789, wns_ss: -0.2076, tns_ff: -0.0069, wns_ff: -0.0069, area: 1576.94
+Final Score = 0.834134
+testcase1             0   0.834134           10 OK
+Initial baseline metrics: tns_ss: -98.6976, wns_ss: -0.302, tns_ff: -0.1034, wns_ff: -0.0298, area: 980.414
+Initial Score = 0
+MilpOptimizer: rounds = 525, best score = 1.03743, restored score = 1.03743
+======================================
+Final metrics: tns_ss: -37.7524, wns_ss: -0.0916, tns_ff: 0, wns_ff: 0, area: 874.589
+Final Score = 1.03743
+testcase2             0    1.03743           10 OK
+Initial baseline metrics: tns_ss: -374.233, wns_ss: -0.4594, tns_ff: -1.0243, wns_ff: -0.1078, area: 2784.19
+Initial Score = 0
+MilpOptimizer: rounds = 136, best score = 0.713852, restored score = 0.713852
+======================================
+Final metrics: tns_ss: -308.962, wns_ss: -0.2687, tns_ff: -0.0599, wns_ff: -0.0163, area: 2784.87
+Final Score = 0.713852
+testcase3             0   0.713852           11 OK
+Initial baseline metrics: tns_ss: -2277.69, wns_ss: -0.5938, tns_ff: -6.9904, wns_ff: -0.1217, area: 10539.5
+Initial Score = 0
+MilpOptimizer: rounds = 37, best score = 0.144856, restored score = 0.144856
+======================================
+Final metrics: tns_ss: -2242.14, wns_ss: -0.481, tns_ff: -5.7121, wns_ff: -0.1101, area: 10546.6
+Final Score = 0.144856
+testcase4             0   0.144856           12 OK
+
+========================================
+Summary: 5 passed, 0 failed
+Total wall time: 55s
+========================================

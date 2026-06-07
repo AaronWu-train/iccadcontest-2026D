@@ -27,10 +27,17 @@ add_library(cadd0040_core
     src/app.cpp
     src/clock_tree.cpp
     src/datapath_graph.cpp
+    src/debug_progress.cpp
     src/evaluation.cpp
     src/parser.cpp
     src/optimization/factory.cpp
+    src/optimization/greedy/greedy_optimizer.cpp
+    src/optimization/milp/milp_optimizer.cpp
     src/optimization/optimizer.cpp
+    src/optimization/sa/annealing_optimizer.cpp
+    src/optimization/sa/iterated_sa_optimizer.cpp
+    src/optimization/sa/sa_common.cpp
+    src/optimization/sa/skew_model.cpp
     src/solver.cpp
 )
 
@@ -48,6 +55,10 @@ target_compile_options(cadd0040_core PRIVATE
     -Wall
     -Wextra
     -Wpedantic
+)
+
+target_compile_definitions(cadd0040_core PRIVATE
+    $<$<CONFIG:Release>:NDEBUG>
 )
 
 add_executable(cadd0040

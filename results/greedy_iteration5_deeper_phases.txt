@@ -1,0 +1,51 @@
+========================================
+cadd0040 batch run
+  binary   : /Users/yuchengliu/NTU/114-2/IEDA/iccadcontest-2026D/build-release/cadd0040
+  optimizer: greedy
+  SA budget: 10s
+  progress : off
+  cases    : 5
+========================================
+
+TESTCASE        INITIAL      FINAL      TIME(s) STATUS
+--------        -------      -----      ------- ------
+Initial baseline metrics: tns_ss: -1134.16, wns_ss: -0.5286, tns_ff: -2.988, wns_ff: -0.1065, area: 6997.01
+Initial Score = 0
+GreedyOptimizer: phases = 1, steps = 1607, resize_steps = 5, best score = 0.589894, restored score = 0.589894
+======================================
+Final metrics: tns_ss: -777.696, wns_ss: -0.174, tns_ff: -0.4704, wns_ff: -0.0876, area: 7200.87
+Final Score = 0.589894
+testcase0             0   0.589894           12 OK
+Initial baseline metrics: tns_ss: -252.448, wns_ss: -0.4023, tns_ff: -0.4121, wns_ff: -0.0788, area: 1653.16
+Initial Score = 0
+GreedyOptimizer: phases = 1, steps = 991, resize_steps = 89, best score = 1.04792, restored score = 1.04792
+======================================
+Final metrics: tns_ss: -46.4129, wns_ss: -0.102, tns_ff: 0, wns_ff: 0, area: 1739.4
+Final Score = 1.04792
+testcase1             0    1.04792           11 OK
+Initial baseline metrics: tns_ss: -98.6976, wns_ss: -0.302, tns_ff: -0.1034, wns_ff: -0.0298, area: 980.414
+Initial Score = 0
+GreedyOptimizer: phases = 3, steps = 1132, resize_steps = 277, best score = 1.18791, restored score = 1.18791
+======================================
+Final metrics: tns_ss: -6.0388, wns_ss: -0.0366, tns_ff: 0, wns_ff: 0, area: 875.938
+Final Score = 1.18791
+testcase2             0    1.18791           10 OK
+Initial baseline metrics: tns_ss: -374.233, wns_ss: -0.4594, tns_ff: -1.0243, wns_ff: -0.1078, area: 2784.19
+Initial Score = 0
+GreedyOptimizer: phases = 1, steps = 1168, resize_steps = 29, best score = 0.973768, restored score = 0.973768
+======================================
+Final metrics: tns_ss: -138.897, wns_ss: -0.1422, tns_ff: 0, wns_ff: 0, area: 2937.5
+Final Score = 0.973768
+testcase3             0   0.973768           11 OK
+Initial baseline metrics: tns_ss: -2277.69, wns_ss: -0.5938, tns_ff: -6.9904, wns_ff: -0.1217, area: 10539.5
+Initial Score = 0
+GreedyOptimizer: phases = 1, steps = 1582, resize_steps = 0, best score = 0.487804, restored score = 0.487804
+======================================
+Final metrics: tns_ss: -1954.24, wns_ss: -0.2055, tns_ff: -2.7624, wns_ff: -0.0912, area: 10740
+Final Score = 0.487804
+testcase4             0   0.487804           12 OK
+
+========================================
+Summary: 5 passed, 0 failed
+Total wall time: 56s
+========================================

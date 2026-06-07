@@ -1,0 +1,11 @@
+---
+description: ICCAD Problem D optimization module conventions
+globs: src/optimization/**/*
+alwaysApply: false
+---
+
+# Optimization module
+
+Follow [`AGENTS.md`](../../AGENTS.md): **DebugProgress** and **Optimization module** sections.
+
+For architecture, data flows, and scoring details, read [`docs/annealing-optimizer.md`](../../docs/annealing-optimizer.md).

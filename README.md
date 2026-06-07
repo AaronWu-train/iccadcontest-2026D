@@ -43,7 +43,7 @@ make release
 ## Run
 
 ```sh
-./build/cadd0040 <testcase_dir> <output_file>
+./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>]
 ```
 
 Example:
@@ -52,12 +52,78 @@ Example:
 ./build/cadd0040 ./testcases/testcase0 ./testcases/testcase0/modified_clk_tree.structure
 ```
 
+Or run every testcase with progress reporting (uses the debug build in `build/`):
+
+```sh
+make run
+```
+
 Each testcase directory should contain:
 
 - `clk_tree.structure`
 - `buf.lib`
 - `SS_delay.rpt`
 - `FF_delay.rpt`
+
+### Local debug progress
+
+During local development, you can print the current best score every N seconds
+to stderr. This is controlled by environment variables and is **off by default**
+(competition runs do not set these).
+
+```sh
+# Print best score every 30 seconds (default interval)
+CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 ./testcases/testcase0 ./testcases/testcase0/modified_clk_tree.structure
+
+# Custom interval
+CADD0040_DEBUG_PROGRESS=1 CADD0040_DEBUG_PROGRESS_INTERVAL=15 ./build/cadd0040 ...
+
+# Makefile shortcut (all testcases, debug progress every 15s)
+make run
+```
+
+Progress lines use the `Progress` prefix so they do not interfere with the
+`Initial Score` / `Final Score` summary lines.
+
+### Batch run all testcases
+
+`scripts/run_all_testcases.sh` runs every `testcases/testcase*/` directory,
+prints a score table, and enables debug progress every 15 seconds by default.
+
+```sh
+make run          # debug build, all testcases, progress on
+
+# Or use a release binary directly:
+make release
+./scripts/run_all_testcases.sh
+```
+
+Common overrides:
+
+```sh
+# Shorter SA budget for a quick smoke test
+CADD0040_SA_SECONDS=60 ./scripts/run_all_testcases.sh
+
+# Use the debug build instead of build-release
+BUILD_DIR=build ./scripts/run_all_testcases.sh
+
+# Change optimizer (must be registered in the factory)
+OPTIMIZER=dummy ./scripts/run_all_testcases.sh
+
+# Disable progress or change the interval
+CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
+CADD0040_DEBUG_PROGRESS_INTERVAL=30 ./scripts/run_all_testcases.sh
+```
+
+Environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
+| `OPTIMIZER` | `anneal` | Value passed to `--optimizer` |
+| `CADD0040_SA_SECONDS` | `540` | SA time budget in seconds (contest limit) |
+| `CADD0040_DEBUG_PROGRESS` | `1` | Set to `0` to disable periodic best-score progress |
+| `CADD0040_DEBUG_PROGRESS_INTERVAL` | `15` | Seconds between `Progress` lines |
 
 ## Unit Test
 
@@ -68,6 +134,9 @@ make test
 Tests are written with Catch2 v3 and registered with CTest.
 
 ## Development
+
+Agent instructions: [`AGENTS.md`](AGENTS.md). Optimizer architecture:
+[`docs/annealing-optimizer.md`](docs/annealing-optimizer.md).
 
 Install the formatting hook once per checkout:
 
