@@ -55,6 +55,7 @@ target_compile_options(cadd0040_core PRIVATE
     -Wall
     -Wextra
     -Wpedantic
+    -std=c++2a
 )
 
 target_compile_definitions(cadd0040_core PRIVATE
