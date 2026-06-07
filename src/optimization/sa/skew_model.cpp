@@ -48,12 +48,8 @@ void SkewModel::build_library(const BufferLibrary& buffer_library) {
     cells_.reserve(buffer_library.size());
 
     for (const auto& [name, cell] : buffer_library) {
-        FlatBufferCell flat{
-            .name = name,
-            .area = cell.area != 0.0 ? cell.area : cell.width * cell.height,
-            .ss_delays_by_fanout = cell.ss_delays_by_fanout,
-            .ff_delays_by_fanout = cell.ff_delays_by_fanout,
-        };
+        FlatBufferCell flat{name, cell.area != 0.0 ? cell.area : cell.width * cell.height,
+                            cell.ss_delays_by_fanout, cell.ff_delays_by_fanout};
         cells_.push_back(std::move(flat));
     }
 }
@@ -99,11 +95,7 @@ void SkewModel::build_from_clock_tree(const ClockTree& clock_tree) {
     edges_.clear();
     for (std::size_t parent_idx = 0; parent_idx < nodes.size(); ++parent_idx) {
         for (const std::size_t child_id : children_[parent_idx]) {
-            edges_.push_back(TreeEdge{
-                .parent_idx = parent_idx,
-                .child_idx = child_id,
-                .inserted_cell_indices = {},
-            });
+            edges_.push_back(TreeEdge{parent_idx, child_id, {}});
         }
     }
 }
@@ -526,9 +518,7 @@ void SkewModel::restore(const SkewModelState& state) {
     arrival_ff_ = state.arrival_ff;
     ss_slack_ = state.ss_slack;
     ff_slack_ = state.ff_slack;
-    metrics_ = SkewModelMetrics{
-        .area = state.metrics.area,
-    };
+    metrics_ = SkewModelMetrics{0.0, 0.0, 0.0, 0.0, state.metrics.area};
 
     negative_ss_slacks_.clear();
     negative_ff_slacks_.clear();
@@ -755,11 +745,7 @@ bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
             for (const std::size_t edge_idx : target_edges) {
                 for (const int cell_idx : fanout1_cells) {
                     const double before = score(baseline_metrics);
-                    SkewMove move{
-                        .kind = SkewMoveKind::Insert,
-                        .edge_idx = edge_idx,
-                        .cell_idx = cell_idx,
-                    };
+                    SkewMove move{SkewMoveKind::Insert, edge_idx, 0, cell_idx};
                     if (!try_move(move)) {
                         continue;
                     }
@@ -785,12 +771,7 @@ bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
         const int insert_position = static_cast<int>(inserted_cells.size() - 1);
         const int cell_idx = inserted_cells.back();
         const double before = score(baseline_metrics);
-        SkewMove move{
-            .kind = SkewMoveKind::Remove,
-            .edge_idx = edge_idx,
-            .cell_idx = cell_idx,
-            .insert_position = insert_position,
-        };
+        SkewMove move{SkewMoveKind::Remove, edge_idx, 0, cell_idx, insert_position};
         if (!try_move(move)) {
             continue;
         }

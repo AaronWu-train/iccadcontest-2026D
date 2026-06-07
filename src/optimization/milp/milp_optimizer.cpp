@@ -72,10 +72,7 @@ std::vector<Violation> worst_violations(const SkewModel& model) {
         const double ff = model.ff_slack()[path_idx];
         const double severity = std::max(0.0, -ss) + std::max(0.0, -ff);
         if (severity > 0.0) {
-            violations.push_back(Violation{
-                .path_idx = path_idx,
-                .severity = severity,
-            });
+            violations.push_back(Violation{path_idx, severity});
         }
     }
     std::sort(violations.begin(), violations.end(), [](const Violation& lhs, const Violation& rhs) {
@@ -104,10 +101,7 @@ bool consider_move(SkewModel& model, const Metrics& baseline_metrics, const Skew
 bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
                           const std::vector<std::size_t>& incoming_edges,
                           const std::vector<int>& fanout1_cells) {
-    Candidate best{
-        .move = SkewMove{.kind = SkewMoveKind::Insert},
-        .delta = 0.0,
-    };
+    Candidate best{SkewMove{SkewMoveKind::Insert}, 0.0};
     const double before_score = model.score(baseline_metrics);
     const auto violations = worst_violations(model);
     std::size_t candidates = 0;
@@ -121,11 +115,7 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
             if (edge_idx < model.edge_count()) {
                 for (const int cell_idx : fanout1_cells) {
                     consider_move(model, baseline_metrics,
-                                  SkewMove{
-                                      .kind = SkewMoveKind::Insert,
-                                      .edge_idx = edge_idx,
-                                      .cell_idx = cell_idx,
-                                  },
+                                  SkewMove{SkewMoveKind::Insert, edge_idx, 0, cell_idx},
                                   before_score, best);
                     if (++candidates >= kCandidateLimit) {
                         break;
@@ -144,11 +134,7 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
             if (edge_idx < model.edge_count()) {
                 for (const int cell_idx : fanout1_cells) {
                     consider_move(model, baseline_metrics,
-                                  SkewMove{
-                                      .kind = SkewMoveKind::Insert,
-                                      .edge_idx = edge_idx,
-                                      .cell_idx = cell_idx,
-                                  },
+                                  SkewMove{SkewMoveKind::Insert, edge_idx, 0, cell_idx},
                                   before_score, best);
                     if (++candidates >= kCandidateLimit) {
                         break;
@@ -170,14 +156,10 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
                 continue;
             }
             const int insert_position = static_cast<int>(inserted_cells.size() - 1);
-            consider_move(model, baseline_metrics,
-                          SkewMove{
-                              .kind = SkewMoveKind::Remove,
-                              .edge_idx = edge_idx,
-                              .cell_idx = inserted_cells.back(),
-                              .insert_position = insert_position,
-                          },
-                          before_score, best);
+            consider_move(
+                model, baseline_metrics,
+                SkewMove{SkewMoveKind::Remove, edge_idx, 0, inserted_cells.back(), insert_position},
+                before_score, best);
             ++candidates;
         }
 
@@ -190,14 +172,10 @@ bool apply_one_milp_round(SkewModel& model, const Metrics& baseline_metrics,
             }
             ++resize_nodes;
             for (int cell_idx = 0; cell_idx < static_cast<int>(model.cell_count()); ++cell_idx) {
-                consider_move(model, baseline_metrics,
-                              SkewMove{
-                                  .kind = SkewMoveKind::Resize,
-                                  .node_idx = node_idx,
-                                  .cell_idx = cell_idx,
-                                  .old_cell_idx = old_cell_idx,
-                              },
-                              before_score, best);
+                consider_move(
+                    model, baseline_metrics,
+                    SkewMove{SkewMoveKind::Resize, 0, node_idx, cell_idx, 0, old_cell_idx},
+                    before_score, best);
                 if (++candidates >= kCandidateLimit) {
                     break;
                 }

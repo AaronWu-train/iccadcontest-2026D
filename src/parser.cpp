@@ -68,7 +68,8 @@ std::vector<double> parse_delay_values(const std::filesystem::path& path, std::s
 
 bool is_delay_report_non_data_line(const std::string& line) {
     const auto stripped = trim(line);
-    return stripped.empty() || stripped.starts_with("#") || stripped.starts_with("---");
+    return stripped.empty() || stripped.compare(0, 1, "#") == 0 ||
+           stripped.compare(0, 3, "---") == 0;
 }
 
 double parse_clock_period_line(const std::string& line, const std::filesystem::path& path,
@@ -103,12 +104,7 @@ DelayRecord parse_delay_record_line(const std::string& line, const std::filesyst
                                  std::to_string(line_number));
     }
 
-    return DelayRecord{
-        .path_name = match[1].str(),
-        .launch_flip_flop_name = match[2].str(),
-        .capture_flip_flop_name = match[3].str(),
-        .delay = std::stod(match[4].str()),
-    };
+    return DelayRecord{match[1].str(), match[2].str(), match[3].str(), std::stod(match[4].str())};
 }
 
 void ensure_matching_clock_period(double expected, double actual,

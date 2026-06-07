@@ -7,7 +7,7 @@ to the requested output path.
 ## Requirements
 
 - CMake 3.20 or newer
-- A C++20 compiler
+- A C++17 compiler
 - Make
 - Git, for CMake FetchContent dependencies
 - clang-format and pre-commit, for the formatting hook

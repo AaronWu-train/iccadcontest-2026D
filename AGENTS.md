@@ -5,7 +5,7 @@ Canonical instructions for Codex, Cursor, and other coding agents.
 
 ## Project
 
-C++20 CMake project for ICCAD Contest 2026 Problem D (clock tree optimization).  
+C++17 CMake project for ICCAD Contest 2026 Problem D (clock tree optimization).  
 Catch2 v3 tests, CLI11 CLI, clang-format via pre-commit.
 
 ## Build and test

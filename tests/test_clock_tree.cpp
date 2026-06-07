@@ -8,24 +8,8 @@ namespace {
 
 cadd0040::BufferLibrary make_buffer_library() {
     return cadd0040::BufferLibrary{
-        {"BUF_X1",
-         cadd0040::BufferCell{
-             .name = "BUF_X1",
-             .width = 1.0,
-             .height = 1.0,
-             .area = 1.0,
-             .ss_delays_by_fanout = {0.10},
-             .ff_delays_by_fanout = {0.05},
-         }},
-        {"BUF_X4",
-         cadd0040::BufferCell{
-             .name = "BUF_X4",
-             .width = 2.0,
-             .height = 1.0,
-             .area = 2.0,
-             .ss_delays_by_fanout = {0.08, 0.09},
-             .ff_delays_by_fanout = {0.04, 0.05},
-         }},
+        {"BUF_X1", cadd0040::BufferCell{"BUF_X1", 1.0, 1.0, 1.0, {0.10}, {0.05}}},
+        {"BUF_X4", cadd0040::BufferCell{"BUF_X4", 2.0, 1.0, 2.0, {0.08, 0.09}, {0.04, 0.05}}},
     };
 }
 
