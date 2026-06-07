@@ -53,7 +53,7 @@ int Solver::run() {
         auto optimizer = make_optimizer(config_.optimizer_name);
         optimizer->run(clock_tree_, data_path_graph_, buffer_library_, optimizer_context);
 
-        const Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+        // const Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
         // std::cout << "======================================\n";
         // std::cout << "Final metrics: " << final_metrics << '\n';
         // std::cout << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
