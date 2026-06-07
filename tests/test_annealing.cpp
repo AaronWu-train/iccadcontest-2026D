@@ -14,24 +14,8 @@ namespace {
 
 cadd0040::BufferLibrary make_buffer_library() {
     return cadd0040::BufferLibrary{
-        {"SMALL",
-         cadd0040::BufferCell{
-             .name = "SMALL",
-             .width = 0.5,
-             .height = 0.5,
-             .area = 0.25,
-             .ss_delays_by_fanout = {0.05, 0.06},
-             .ff_delays_by_fanout = {0.02, 0.03},
-         }},
-        {"LARGE",
-         cadd0040::BufferCell{
-             .name = "LARGE",
-             .width = 1.0,
-             .height = 1.0,
-             .area = 1.0,
-             .ss_delays_by_fanout = {0.02, 0.03},
-             .ff_delays_by_fanout = {0.01, 0.015},
-         }},
+        {"SMALL", cadd0040::BufferCell{"SMALL", 0.5, 0.5, 0.25, {0.05, 0.06}, {0.02, 0.03}}},
+        {"LARGE", cadd0040::BufferCell{"LARGE", 1.0, 1.0, 1.0, {0.02, 0.03}, {0.01, 0.015}}},
     };
 }
 
@@ -65,13 +49,8 @@ int cell_index_by_name(const cadd0040::SkewModel& model, const std::string& cell
 
 cadd0040::Metrics metrics_from_model(const cadd0040::SkewModel& model) {
     const auto model_metrics = model.metrics();
-    return cadd0040::Metrics{
-        .tns_ss = model_metrics.tns_ss,
-        .wns_ss = model_metrics.wns_ss,
-        .tns_ff = model_metrics.tns_ff,
-        .wns_ff = model_metrics.wns_ff,
-        .area = model_metrics.area,
-    };
+    return cadd0040::Metrics{model_metrics.tns_ss, model_metrics.wns_ss, model_metrics.tns_ff,
+                             model_metrics.wns_ff, model_metrics.area};
 }
 
 }  // namespace
@@ -113,11 +92,7 @@ TEST_CASE("SkewModel insert move updates metrics consistently", "[annealing]") {
     const int small_cell_idx = cell_index_by_name(model, "SMALL");
     REQUIRE(small_cell_idx >= 0);
 
-    cadd0040::SkewMove move{
-        .kind = cadd0040::SkewMoveKind::Insert,
-        .edge_idx = capture_edge_idx,
-        .cell_idx = small_cell_idx,
-    };
+    cadd0040::SkewMove move{cadd0040::SkewMoveKind::Insert, capture_edge_idx, 0, small_cell_idx};
     REQUIRE(model.try_move(move));
 
     clock_tree.insert_buffer("BUF_C", "FF_C", "NEW_BUF_0", "SMALL", buffer_library);
@@ -153,11 +128,7 @@ TEST_CASE("SkewModel restore preserves snapshot metrics", "[annealing]") {
     const int small_cell_idx = cell_index_by_name(model, "SMALL");
     REQUIRE(small_cell_idx >= 0);
 
-    cadd0040::SkewMove move{
-        .kind = cadd0040::SkewMoveKind::Insert,
-        .edge_idx = capture_edge_idx,
-        .cell_idx = small_cell_idx,
-    };
+    cadd0040::SkewMove move{cadd0040::SkewMoveKind::Insert, capture_edge_idx, 0, small_cell_idx};
     REQUIRE(model.try_move(move));
 
     const cadd0040::SkewModelState snapshot = model.snapshot();

@@ -7,24 +7,8 @@ namespace {
 
 cadd0040::BufferLibrary make_eval_buffer_library() {
     return cadd0040::BufferLibrary{
-        {"FAST",
-         cadd0040::BufferCell{
-             .name = "FAST",
-             .width = 1.0,
-             .height = 1.0,
-             .area = 1.0,
-             .ss_delays_by_fanout = {0.04},
-             .ff_delays_by_fanout = {0.01},
-         }},
-        {"SLOW",
-         cadd0040::BufferCell{
-             .name = "SLOW",
-             .width = 2.0,
-             .height = 1.0,
-             .area = 2.0,
-             .ss_delays_by_fanout = {0.10},
-             .ff_delays_by_fanout = {0.04},
-         }},
+        {"FAST", cadd0040::BufferCell{"FAST", 1.0, 1.0, 1.0, {0.04}, {0.01}}},
+        {"SLOW", cadd0040::BufferCell{"SLOW", 2.0, 1.0, 2.0, {0.10}, {0.04}}},
     };
 }
 
@@ -70,20 +54,8 @@ TEST_CASE("evaluate uses lazy cached clock arrivals for setup and hold metrics")
 }
 
 TEST_CASE("score uses explicit baseline and guards zero denominators") {
-    const cadd0040::Metrics baseline{
-        .tns_ss = -10.0,
-        .wns_ss = -1.0,
-        .tns_ff = -4.0,
-        .wns_ff = -0.5,
-        .area = 100.0,
-    };
-    const cadd0040::Metrics improved{
-        .tns_ss = -5.0,
-        .wns_ss = -0.5,
-        .tns_ff = -2.0,
-        .wns_ff = -0.25,
-        .area = 90.0,
-    };
+    const cadd0040::Metrics baseline{-10.0, -1.0, -4.0, -0.5, 100.0};
+    const cadd0040::Metrics improved{-5.0, -0.5, -2.0, -0.25, 90.0};
 
     CHECK(cadd0040::score(baseline, baseline) == Catch::Approx(0.0));
     CHECK(cadd0040::score(improved, baseline) == Catch::Approx(0.64));

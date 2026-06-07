@@ -134,8 +134,8 @@ TEST_CASE("parse_buffer_library builds fanout-indexed buffer cells") {
     cadd0040::parse_buffer_library(path, buffer_library);
 
     REQUIRE(buffer_library.size() == 2);
-    REQUIRE(buffer_library.contains("REALBUF_X2"));
-    REQUIRE(buffer_library.contains("REALBUF_X8"));
+    REQUIRE(buffer_library.find("REALBUF_X2") != buffer_library.end());
+    REQUIRE(buffer_library.find("REALBUF_X8") != buffer_library.end());
 
     const auto& x2 = buffer_library.at("REALBUF_X2");
     CHECK(x2.name == "REALBUF_X2");

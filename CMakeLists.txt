@@ -2,10 +2,22 @@ cmake_minimum_required(VERSION 3.20)
 
 project(cadd0040 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+#include <filesystem>
+int main() {
+    std::filesystem::path path(\".\");
+    return static_cast<int>(path.string().size());
+}
+" CXX_FILESYSTEM_NO_EXTRA_LINK)
+if(NOT CXX_FILESYSTEM_NO_EXTRA_LINK)
+    set(CXX_FILESYSTEM_LIBRARY stdc++fs)
+endif()
 
 include(FetchContent)
 
@@ -50,6 +62,10 @@ target_link_libraries(cadd0040_core
     PUBLIC
         CLI11::CLI11
 )
+
+if(CXX_FILESYSTEM_LIBRARY)
+    target_link_libraries(cadd0040_core PUBLIC ${CXX_FILESYSTEM_LIBRARY})
+endif()
 
 target_compile_options(cadd0040_core PRIVATE
     -Wall

@@ -31,18 +31,12 @@ SkewMove random_move(SkewModel& model) {
     const double roll = kind_dist(rng());
 
     if (roll < 0.45) {
-        return SkewMove{
-            .kind = SkewMoveKind::Insert,
-            .edge_idx = model.random_guided_insert_edge(),
-            .cell_idx = pick_insert_cell(model),
-        };
+        return SkewMove{SkewMoveKind::Insert, model.random_guided_insert_edge(), 0,
+                        pick_insert_cell(model)};
     }
     if (roll < 0.55) {
-        return SkewMove{
-            .kind = SkewMoveKind::Insert,
-            .edge_idx = model.random_edge_index(),
-            .cell_idx = pick_insert_cell(model),
-        };
+        return SkewMove{SkewMoveKind::Insert, model.random_edge_index(), 0,
+                        pick_insert_cell(model)};
     }
     if (roll < 0.80) {
         const std::size_t edge_idx = model.random_edge_with_inserts();
@@ -51,22 +45,13 @@ SkewMove random_move(SkewModel& model) {
             inserted_cells.empty() ? -1 : static_cast<int>(inserted_cells.size() - 1);
         const int cell_idx =
             insert_position < 0 ? -1 : inserted_cells[static_cast<std::size_t>(insert_position)];
-        return SkewMove{
-            .kind = SkewMoveKind::Remove,
-            .edge_idx = edge_idx,
-            .cell_idx = cell_idx,
-            .insert_position = insert_position,
-        };
+        return SkewMove{SkewMoveKind::Remove, edge_idx, 0, cell_idx, insert_position};
     }
 
     const std::size_t node_idx = model.random_buffer_node_index();
     const int new_cell_idx = model.random_valid_cell_for_buffer(node_idx);
-    return SkewMove{
-        .kind = SkewMoveKind::Resize,
-        .node_idx = node_idx,
-        .cell_idx = new_cell_idx,
-        .old_cell_idx = model.cell_indices()[node_idx],
-    };
+    return SkewMove{SkewMoveKind::Resize, 0, node_idx,
+                    new_cell_idx,         0, model.cell_indices()[node_idx]};
 }
 
 void materialize(ClockTree& clock_tree, const SkewModelState& state, const SkewModel& model,
@@ -124,13 +109,8 @@ void materialize(ClockTree& clock_tree, const SkewModelState& state, const SkewM
 }
 
 Metrics metrics_from_skew(const SkewModelMetrics& model_metrics) {
-    return Metrics{
-        .tns_ss = model_metrics.tns_ss,
-        .wns_ss = model_metrics.wns_ss,
-        .tns_ff = model_metrics.tns_ff,
-        .wns_ff = model_metrics.wns_ff,
-        .area = model_metrics.area,
-    };
+    return Metrics{model_metrics.tns_ss, model_metrics.wns_ss, model_metrics.tns_ff,
+                   model_metrics.wns_ff, model_metrics.area};
 }
 
 void maybe_update_best(SkewModel& model, const Metrics& baseline_metrics, double& current_score,

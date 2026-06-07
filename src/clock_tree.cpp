@@ -72,14 +72,7 @@ void ClockTree::add_root(const std::string& root_name) {
     }
 
     const NodeId root_id = nodes_.size();
-    nodes_.push_back(ClockNode{
-        .id = root_id,
-        .name = root_name,
-        .cell_type = "",
-        .kind = NodeKind::ClockSource,
-        .parent_id = kInvalidNodeId,
-        .child_ids = {},
-    });
+    nodes_.push_back(ClockNode{root_id, root_name, "", NodeKind::ClockSource, kInvalidNodeId, {}});
     root_id_ = root_id;
     name_to_id_.emplace(root_name, root_id);
     mark_clock_arrivals_dirty_from(root_id);
@@ -102,14 +95,7 @@ void ClockTree::add_node(const std::string& node_name, const std::string& cell_t
     }
 
     const NodeId node_id = nodes_.size();
-    nodes_.push_back(ClockNode{
-        .id = node_id,
-        .name = node_name,
-        .cell_type = cell_type,
-        .kind = node_kind,
-        .parent_id = parent_id,
-        .child_ids = {},
-    });
+    nodes_.push_back(ClockNode{node_id, node_name, cell_type, node_kind, parent_id, {}});
     mutable_node(parent_id).child_ids.push_back(node_id);
     name_to_id_.emplace(node_name, node_id);
     mark_clock_arrivals_dirty_from(parent_id);
@@ -167,14 +153,8 @@ bool ClockTree::insert_buffer(const std::string& parent_name, const std::string&
     const auto child_index = static_cast<std::size_t>(child_it - parent_children.begin());
 
     const NodeId buffer_id = nodes_.size();
-    nodes_.push_back(ClockNode{
-        .id = buffer_id,
-        .name = buffer_name,
-        .cell_type = cell_type,
-        .kind = NodeKind::Buffer,
-        .parent_id = parent_id,
-        .child_ids = {child_id},
-    });
+    nodes_.push_back(
+        ClockNode{buffer_id, buffer_name, cell_type, NodeKind::Buffer, parent_id, {child_id}});
     name_to_id_.emplace(buffer_name, buffer_id);
 
     mutable_node(parent_id).child_ids[child_index] = buffer_id;
@@ -272,10 +252,7 @@ std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
     }
 
     std::vector<TraversalStackEntry> stack;
-    stack.push_back(TraversalStackEntry{
-        .node_id = root_id_,
-        .depth = 0,
-    });
+    stack.push_back(TraversalStackEntry{root_id_, 0});
 
     // Preserve child_ids order so the writer can reproduce clk_tree.structure ordering.
     while (!stack.empty()) {
@@ -283,16 +260,10 @@ std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
         stack.pop_back();
 
         const auto& current_node = node(current.node_id);
-        traversal.push_back(ClockTreeTraversalEntry{
-            .node_name = current_node.name,
-            .depth = current.depth,
-        });
+        traversal.push_back(ClockTreeTraversalEntry{current_node.name, current.depth});
 
         for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
-            stack.push_back(TraversalStackEntry{
-                .node_id = *it,
-                .depth = current.depth + 1,
-            });
+            stack.push_back(TraversalStackEntry{*it, current.depth + 1});
         }
     }
 
@@ -308,10 +279,7 @@ std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth_recursive() 
     // Recursive reference implementation; avoid this for very deep clock trees.
     const std::function<void(NodeId, std::size_t)> visit = [&](NodeId node_id, std::size_t depth) {
         const auto& current_node = node(node_id);
-        traversal.push_back(ClockTreeTraversalEntry{
-            .node_name = current_node.name,
-            .depth = depth,
-        });
+        traversal.push_back(ClockTreeTraversalEntry{current_node.name, depth});
 
         for (const NodeId child_id : current_node.child_ids) {
             visit(child_id, depth + 1);
@@ -526,10 +494,7 @@ std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree) {
 
     std::vector<TraversalStackEntry> stack;
     for (auto it = root.child_ids.rbegin(); it != root.child_ids.rend(); ++it) {
-        stack.push_back(TraversalStackEntry{
-            .node_id = *it,
-            .depth = 1,
-        });
+        stack.push_back(TraversalStackEntry{*it, 1});
     }
 
     while (!stack.empty()) {
@@ -548,10 +513,7 @@ std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree) {
         os << '\n';
 
         for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
-            stack.push_back(TraversalStackEntry{
-                .node_id = *it,
-                .depth = current.depth + 1,
-            });
+            stack.push_back(TraversalStackEntry{*it, current.depth + 1});
         }
     }
 

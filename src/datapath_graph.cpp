@@ -51,13 +51,8 @@ EdgeId DataPathGraph::add_edge(const std::string& path_name,
     }
 
     const EdgeId edge_id = edges_.size();
-    edges_.push_back(DataPathEdge{
-        .id = edge_id,
-        .path_name = path_name,
-        .launch_flip_flop_name = launch_flip_flop_name,
-        .capture_flip_flop_name = capture_flip_flop_name,
-        .data_delay = {},
-    });
+    edges_.push_back(
+        DataPathEdge{edge_id, path_name, launch_flip_flop_name, capture_flip_flop_name, {}});
 
     path_name_to_id_.emplace(path_name, edge_id);
     launch_to_edge_ids_[launch_flip_flop_name].push_back(edge_id);
@@ -82,17 +77,11 @@ void DataPathGraph::set_clock_period(double clock_period) {
     timing_constraint_.clock_period = clock_period;
 }
 
-double DataPathGraph::clock_period() const {
-    return timing_constraint_.clock_period;
-}
+double DataPathGraph::clock_period() const { return timing_constraint_.clock_period; }
 
-double DataPathGraph::setup_time() const {
-    return timing_constraint_.setup_time();
-}
+double DataPathGraph::setup_time() const { return timing_constraint_.setup_time(); }
 
-double DataPathGraph::hold_time() const {
-    return timing_constraint_.hold_time();
-}
+double DataPathGraph::hold_time() const { return timing_constraint_.hold_time(); }
 
 bool DataPathGraph::contains_edge(const std::string& path_name) const {
     return path_name_to_id_.find(path_name) != path_name_to_id_.end();
@@ -115,13 +104,9 @@ const DataPathEdge& DataPathGraph::edge(const std::string& path_name) const {
     return edge(it->second);
 }
 
-const std::vector<DataPathEdge>& DataPathGraph::all_edges() const {
-    return edges_;
-}
+const std::vector<DataPathEdge>& DataPathGraph::all_edges() const { return edges_; }
 
-std::size_t DataPathGraph::edge_count() const {
-    return edges_.size();
-}
+std::size_t DataPathGraph::edge_count() const { return edges_.size(); }
 
 const std::vector<EdgeId>& DataPathGraph::outgoing_edges(
     const std::string& launch_flip_flop_name) const {

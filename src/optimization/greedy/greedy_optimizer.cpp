@@ -28,9 +28,7 @@ std::chrono::seconds greedy_time_budget() {
 }
 
 bool apply_one_resize_polish_step(SkewModel& model, const Metrics& baseline_metrics) {
-    SkewMove best_move{
-        .kind = SkewMoveKind::Resize,
-    };
+    SkewMove best_move{SkewMoveKind::Resize};
     double best_delta = 0.0;
     const double before = model.score(baseline_metrics);
 
@@ -42,12 +40,8 @@ bool apply_one_resize_polish_step(SkewModel& model, const Metrics& baseline_metr
         ++tested_nodes;
 
         for (int cell_idx = 0; cell_idx < static_cast<int>(model.cell_count()); ++cell_idx) {
-            SkewMove move{
-                .kind = SkewMoveKind::Resize,
-                .node_idx = node_idx,
-                .cell_idx = cell_idx,
-                .old_cell_idx = model.cell_indices()[node_idx],
-            };
+            SkewMove move{SkewMoveKind::Resize,          0, node_idx, cell_idx, 0,
+                          model.cell_indices()[node_idx]};
             if (!model.try_move(move)) {
                 continue;
             }
