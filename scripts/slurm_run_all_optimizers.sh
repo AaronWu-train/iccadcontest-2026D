@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./scripts/slurm_run_all_optimizers.sh
-#   SLURM_PARTITION=GPU ./scripts/slurm_run_all_optimizers.sh
+#   SLURM_PARTITION=short ./scripts/slurm_run_all_optimizers.sh
 #   ./scripts/slurm_run_all_optimizers.sh --wait   # block until done, then aggregate
 #   ./scripts/slurm_run_all_optimizers.sh --local  # no Slurm, run sequentially
 #   OUTPUT_DIR=slurm_runs/20260606_120000 ./scripts/slurm_run_all_optimizers.sh --aggregate-only
@@ -24,7 +24,7 @@
 #   BUILD_DIR                        CMake build directory (default: build-release)
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
-#   OPTIMIZERS                       Space-separated list (default: dummy greedy milp anneal isa)
+#   OPTIMIZERS                       Space-separated list (default: greedy milp anneal isa)
 #   CADD0040_SA_SECONDS              SA time budget (default: 540)
 #   CADD0040_DEBUG_PROGRESS          1 to enable debug progress (default: 0)
 #   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval seconds (default: 30)
@@ -47,7 +47,7 @@ SLURM_MEM="${SLURM_MEM:-4G}"
 SLURM_CPUS="${SLURM_CPUS:-1}"
 
 # Canonical optimizer names (skip registry aliases to avoid duplicate runs).
-OPTIMIZERS="${OPTIMIZERS:-dummy greedy milp anneal isa}"
+OPTIMIZERS="${OPTIMIZERS:-greedy milp anneal isa}"
 
 RUN_MODE="slurm"
 SLURM_WAIT=0
