@@ -79,3 +79,4 @@ slurm_runs/
 
 !testcases/**/buf.lib
 dist/
+results/
