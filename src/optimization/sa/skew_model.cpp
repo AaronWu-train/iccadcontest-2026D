@@ -69,6 +69,7 @@ void SkewModel::build_from_clock_tree(const ClockTree& clock_tree) {
     kinds_.resize(nodes.size());
     parents_.resize(nodes.size());
     children_.resize(nodes.size());
+    incoming_edge_indices_.assign(nodes.size(), std::numeric_limits<std::size_t>::max());
     cell_indices_.resize(nodes.size(), -1);
     arrival_ss_.resize(nodes.size(), 0.0);
     arrival_ff_.resize(nodes.size(), 0.0);
@@ -95,7 +96,9 @@ void SkewModel::build_from_clock_tree(const ClockTree& clock_tree) {
     edges_.clear();
     for (std::size_t parent_idx = 0; parent_idx < nodes.size(); ++parent_idx) {
         for (const std::size_t child_id : children_[parent_idx]) {
+            const std::size_t edge_idx = edges_.size();
             edges_.push_back(TreeEdge{parent_idx, child_id, {}});
+            incoming_edge_indices_[child_id] = edge_idx;
         }
     }
 }
@@ -620,17 +623,15 @@ std::size_t SkewModel::random_guided_insert_edge() const {
 
     std::vector<std::size_t> target_edges;
     if (ss_slack_[path_idx] < 0.0) {
-        for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-            if (edges_[edge_idx].child_idx == capture) {
-                target_edges.push_back(edge_idx);
-            }
+        const std::size_t edge_idx = incoming_edge_indices_[capture];
+        if (edge_idx < edges_.size()) {
+            target_edges.push_back(edge_idx);
         }
     }
     if (ff_slack_[path_idx] < 0.0) {
-        for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-            if (edges_[edge_idx].child_idx == launch) {
-                target_edges.push_back(edge_idx);
-            }
+        const std::size_t edge_idx = incoming_edge_indices_[launch];
+        if (edge_idx < edges_.size()) {
+            target_edges.push_back(edge_idx);
         }
     }
     if (target_edges.empty()) {
@@ -728,17 +729,15 @@ bool SkewModel::apply_one_greedy_step(const Metrics& baseline_metrics) {
 
             std::vector<std::size_t> target_edges;
             if (ss_slack_[path_idx] < 0.0) {
-                for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-                    if (edges_[edge_idx].child_idx == capture) {
-                        target_edges.push_back(edge_idx);
-                    }
+                const std::size_t edge_idx = incoming_edge_indices_[capture];
+                if (edge_idx < edges_.size()) {
+                    target_edges.push_back(edge_idx);
                 }
             }
             if (ff_slack_[path_idx] < 0.0) {
-                for (std::size_t edge_idx = 0; edge_idx < edges_.size(); ++edge_idx) {
-                    if (edges_[edge_idx].child_idx == launch) {
-                        target_edges.push_back(edge_idx);
-                    }
+                const std::size_t edge_idx = incoming_edge_indices_[launch];
+                if (edge_idx < edges_.size()) {
+                    target_edges.push_back(edge_idx);
                 }
             }
 

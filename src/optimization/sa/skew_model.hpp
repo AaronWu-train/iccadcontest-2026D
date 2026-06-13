@@ -134,6 +134,7 @@ private:
     std::vector<NodeKind> kinds_;
     std::vector<std::size_t> parents_;
     std::vector<std::vector<std::size_t>> children_;
+    std::vector<std::size_t> incoming_edge_indices_;
     std::vector<int> cell_indices_;
     std::vector<int> original_cell_indices_;
     std::vector<std::size_t> ff_descendant_counts_;
