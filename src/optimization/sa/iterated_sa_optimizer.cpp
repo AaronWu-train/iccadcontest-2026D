@@ -24,6 +24,8 @@ constexpr std::size_t kGreedyWarmupIterations = 512;
 constexpr std::size_t kNumSaRounds = 5;
 constexpr std::size_t kGreedyRoundIterations = 48;
 constexpr std::size_t kFinalGreedyPolishIterations = 64;
+constexpr std::size_t kFinalResizePolishIterations = 32;
+constexpr std::size_t kResizeNodeScanLimit = 4096;
 constexpr std::size_t kRestartStaleIterations = 2500;
 constexpr double kRestartScoreGap = 0.05;
 
@@ -134,6 +136,44 @@ std::size_t run_sa_phase(SkewModel& model, const Metrics& baseline_metrics,
     }
 
     return iteration;
+}
+
+bool apply_one_resize_polish_step(SkewModel& model, const Metrics& baseline_metrics) {
+    SkewMove best_move{SkewMoveKind::Resize};
+    double best_delta = 0.0;
+    const double before_score = model.score(baseline_metrics);
+
+    std::size_t scanned_buffer_nodes = 0;
+    for (std::size_t node_idx = 0; node_idx < model.node_count(); ++node_idx) {
+        const int old_cell_idx = model.cell_indices()[node_idx];
+        if (old_cell_idx < 0) {
+            continue;
+        }
+
+        ++scanned_buffer_nodes;
+        for (int cell_idx = 0; cell_idx < static_cast<int>(model.cell_count()); ++cell_idx) {
+            SkewMove move{SkewMoveKind::Resize, 0, node_idx, cell_idx, 0, old_cell_idx};
+            if (!model.try_move(move)) {
+                continue;
+            }
+
+            const double delta = model.score(baseline_metrics) - before_score;
+            if (delta > best_delta) {
+                best_delta = delta;
+                best_move = move;
+            }
+            model.undo_move(move);
+        }
+
+        if (scanned_buffer_nodes >= kResizeNodeScanLimit) {
+            break;
+        }
+    }
+
+    if (best_delta <= 0.0) {
+        return false;
+    }
+    return model.try_move(best_move);
 }
 
 }  // namespace
@@ -248,6 +288,22 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
            << polish_score_before << " -> " << best_score << '\n';
     });
 
+    const double resize_score_before = best_score;
+    std::size_t resize_polish_steps = 0;
+    for (std::size_t polish = 0; polish < kFinalResizePolishIterations; ++polish) {
+        if (!apply_one_resize_polish_step(model, baseline_metrics)) {
+            break;
+        }
+        ++resize_polish_steps;
+        maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
+                          best_metrics);
+    }
+
+    debug.log([&](std::ostream& os) {
+        os << "IteratedSaOptimizer: final resize polish done, steps=" << resize_polish_steps
+           << ", score " << resize_score_before << " -> " << best_score << '\n';
+    });
+
     materialize(clock_tree, best_state, model, buffer_library);
 
     model.restore(best_state);
@@ -257,6 +313,7 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
         os << "IteratedSaOptimizer: iterations = " << total_iterations
            << ", accepted = " << accepted_moves << ", rejected = " << rejected_moves
            << ", restarts = " << restarts << ", greedy_steps = " << greedy_steps
+           << ", resize_polish_steps = " << resize_polish_steps
            << ", best score = " << best_score << ", restored score = " << final_score << '\n';
     });
 }
