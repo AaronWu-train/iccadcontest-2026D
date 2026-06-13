@@ -9,7 +9,7 @@
 
 #include "clock_tree.hpp"
 #include "evaluation.hpp"
-#include "optimization/sa/skew_model.hpp"
+#include "optimization/skew_model.hpp"
 #include "types.hpp"
 
 namespace cadd0040 {

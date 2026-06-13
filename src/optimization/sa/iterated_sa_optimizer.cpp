@@ -11,7 +11,7 @@
 #include <random>
 
 #include "optimization/sa/sa_common.hpp"
-#include "optimization/sa/skew_model.hpp"
+#include "optimization/skew_model.hpp"
 
 namespace cadd0040 {
 namespace {

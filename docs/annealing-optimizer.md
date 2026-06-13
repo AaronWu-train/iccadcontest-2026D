@@ -19,13 +19,13 @@
 
 ## 目錄結構
 
-SA 相關程式集中在 `src/optimization/sa/`，與其他協作者的 optimizer 隔離：
+`SkewModel` 位於 `src/optimization/` 共用層；SA 相關策略仍集中在 `src/optimization/sa/`：
 
 ```
 src/optimization/
 ├── optimizer.hpp / factory.hpp / factory.cpp
+├── skew_model.hpp / .cpp
 └── sa/
-    ├── skew_model.hpp / .cpp
     ├── sa_common.hpp / .cpp
     ├── annealing_optimizer.hpp / .cpp   # 單輪 SA（舊版）
     └── iterated_sa_optimizer.hpp / .cpp # 多輪 SA+Greedy（預設）
@@ -38,7 +38,7 @@ src/optimization/
 | `DataPathGraph` | `src/datapath_graph.hpp` | 輸入：FF→FF path、固定 data delay、Tclk/setup/hold | 否（唯讀） |
 | `ClockTree` | `src/clock_tree.hpp` | 可修改的 clock tree；`insert_buffer` / `resize_buffer` | 最後才寫回 |
 | `evaluate()` | `src/evaluation.cpp` | 完整時序評分（ground truth） | — |
-| `SkewModel` | `src/optimization/sa/skew_model.*` | SA 內部增量計時沙盒 | 是（記憶體內試算） |
+| `SkewModel` | `src/optimization/skew_model.*` | optimizer 共用增量計時沙盒 | 是（記憶體內試算） |
 | `sa_common` | `src/optimization/sa/sa_common.*` | 共用 move / materialize / best-state helpers | — |
 | `AnnealingOptimizer` | `src/optimization/sa/annealing_optimizer.*` | 單輪：warmup + SA + final polish | — |
 | `IteratedSaOptimizer` | `src/optimization/sa/iterated_sa_optimizer.*` | 多輪：warmup + (SA ↔ greedy batch) × N + final polish | — |
@@ -124,8 +124,8 @@ CADD0040_SA_SECONDS=30 ./scripts/run_all_testcases.sh
 ## 檔案清單
 
 ```
-src/optimization/sa/skew_model.hpp
-src/optimization/sa/skew_model.cpp
+src/optimization/skew_model.hpp
+src/optimization/skew_model.cpp
 src/optimization/sa/sa_common.hpp
 src/optimization/sa/sa_common.cpp
 src/optimization/sa/annealing_optimizer.hpp
