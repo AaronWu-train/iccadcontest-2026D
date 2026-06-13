@@ -12,33 +12,33 @@ TESTCASE        INITIAL      FINAL      TIME(s) STATUS
 Initial baseline metrics: tns_ss: -1134.16, wns_ss: -0.5286, tns_ff: -2.988, wns_ff: -0.1065, area: 6997.01
 Initial Score = 0
 ======================================
-Final metrics: tns_ss: -707.497, wns_ss: -0.2244, tns_ff: -0.3295, wns_ff: -0.0525, area: 7877.07
-Final Score = 0.654222
-testcase0             0   0.654222           13 OK
+Final metrics: tns_ss: -468.76, wns_ss: -0.1682, tns_ff: -0.1327, wns_ff: -0.0443, area: 9202.32
+Final Score = 0.716363
+testcase0             0   0.716363           13 OK
 Initial baseline metrics: tns_ss: -252.448, wns_ss: -0.4023, tns_ff: -0.4121, wns_ff: -0.0788, area: 1653.16
 Initial Score = 0
 ======================================
-Final metrics: tns_ss: -33.5604, wns_ss: -0.1013, tns_ff: 0, wns_ff: 0, area: 1990.49
-Final Score = 1.00296
-testcase1             0    1.00296           11 OK
+Final metrics: tns_ss: -13.8831, wns_ss: -0.059, tns_ff: 0, wns_ff: 0, area: 2189.23
+Final Score = 1.0098
+testcase1             0     1.0098           11 OK
 Initial baseline metrics: tns_ss: -98.6976, wns_ss: -0.302, tns_ff: -0.1034, wns_ff: -0.0298, area: 980.414
 Initial Score = 0
 ======================================
-Final metrics: tns_ss: -2.4663, wns_ss: -0.0183, tns_ff: 0, wns_ff: 0, area: 798.669
-Final Score = 1.24848
-testcase2             0    1.24848           10 OK
+Final metrics: tns_ss: -2.2196, wns_ss: -0.0178, tns_ff: 0, wns_ff: 0, area: 810.453
+Final Score = 1.24491
+testcase2             0    1.24491           11 OK
 Initial baseline metrics: tns_ss: -374.233, wns_ss: -0.4594, tns_ff: -1.0243, wns_ff: -0.1078, area: 2784.19
 Initial Score = 0
 ======================================
-Final metrics: tns_ss: -129.86, wns_ss: -0.1476, tns_ff: 0, wns_ff: 0, area: 3230.37
-Final Score = 0.93541
-testcase3             0    0.93541           11 OK
+Final metrics: tns_ss: -124.847, wns_ss: -0.1186, tns_ff: 0, wns_ff: 0, area: 3264.91
+Final Score = 0.953405
+testcase3             0   0.953405           11 OK
 Initial baseline metrics: tns_ss: -2277.69, wns_ss: -0.5938, tns_ff: -6.9904, wns_ff: -0.1217, area: 10539.5
 Initial Score = 0
 ======================================
-Final metrics: tns_ss: -1942.64, wns_ss: -0.2805, tns_ff: -2.9708, wns_ff: -0.1011, area: 10970.8
-Final Score = 0.409334
-testcase4             0   0.409334           15 OK
+Final metrics: tns_ss: -2092.97, wns_ss: -0.2496, tns_ff: -3.4369, wns_ff: -0.1101, area: 10643
+Final Score = 0.375396
+testcase4             0   0.375396           14 OK
 
 ========================================
 Summary: 5 passed, 0 failed
@@ -46,5 +46,5 @@ Total wall time: 60s
 ========================================
 
 Change:
-- Restored solver Initial/Final Score output so batch results are graphable.
-- Added incoming_edge_indices_ to SkewModel and used it for endpoint-edge lookup in guided insert/greedy repair.
+- Replaced uniform guided violating-path selection with severity-weighted selection based on negative SS/FF slack magnitude.
+- Kept C++17-compatible implementation and existing DebugProgress-only optimizer logging.

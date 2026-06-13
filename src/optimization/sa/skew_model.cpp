@@ -605,19 +605,37 @@ std::size_t SkewModel::random_edge_with_inserts() const {
 std::size_t SkewModel::random_guided_insert_edge() const {
     static thread_local std::mt19937 rng(47);
 
-    std::vector<std::size_t> violating_paths;
+    struct ViolatingPath {
+        std::size_t path_idx = 0;
+        double weight = 0.0;
+    };
+
+    std::vector<ViolatingPath> violating_paths;
     violating_paths.reserve(launch_idx_.size());
+    double total_weight = 0.0;
     for (std::size_t path_idx = 0; path_idx < launch_idx_.size(); ++path_idx) {
-        if (ss_slack_[path_idx] < 0.0 || ff_slack_[path_idx] < 0.0) {
-            violating_paths.push_back(path_idx);
+        const double ss_violation = std::max(0.0, -ss_slack_[path_idx]);
+        const double ff_violation = std::max(0.0, -ff_slack_[path_idx]);
+        const double weight = ss_violation + ff_violation;
+        if (weight > 0.0) {
+            violating_paths.push_back(ViolatingPath{path_idx, weight});
+            total_weight += weight;
         }
     }
-    if (violating_paths.empty()) {
+    if (violating_paths.empty() || total_weight <= 0.0) {
         return random_edge_index();
     }
 
-    std::uniform_int_distribution<std::size_t> path_dist(0, violating_paths.size() - 1);
-    const std::size_t path_idx = violating_paths[path_dist(rng)];
+    std::uniform_real_distribution<double> path_dist(0.0, total_weight);
+    double target = path_dist(rng);
+    std::size_t path_idx = violating_paths.back().path_idx;
+    for (const ViolatingPath& violating_path : violating_paths) {
+        target -= violating_path.weight;
+        if (target <= 0.0) {
+            path_idx = violating_path.path_idx;
+            break;
+        }
+    }
     const std::size_t launch = launch_idx_[path_idx];
     const std::size_t capture = capture_idx_[path_idx];
 
