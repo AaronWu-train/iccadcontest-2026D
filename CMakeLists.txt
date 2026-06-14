@@ -50,6 +50,7 @@ add_library(cadd0040_core
     src/optimization/sa/iterated_sa_optimizer.cpp
     src/optimization/sa/sa_common.cpp
     src/optimization/sa/skew_model.cpp
+    src/optimization/visual/clock_tree_trace_optimizer.cpp
     src/solver.cpp
 )
 

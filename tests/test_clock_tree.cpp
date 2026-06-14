@@ -52,6 +52,24 @@ TEST_CASE("resize_buffer validates replacement cell fanout before mutating") {
     CHECK(clock_tree.node("BUF_0").cell_type == "BUF_X4");
 }
 
+TEST_CASE("remove_buffer bypasses single-fanout buffers") {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree_with_two_sinks();
+
+    REQUIRE(clock_tree.insert_buffer("BUF_0", "FF_0", "NEW_BUF_0", "BUF_X1", buffer_library));
+    CHECK(clock_tree.area(buffer_library) == Catch::Approx(3.0));
+    CHECK(clock_tree.clock_skew("FF_1", "FF_0", buffer_library, cadd0040::Corner::SS) ==
+          Catch::Approx(0.10));
+
+    REQUIRE(clock_tree.remove_buffer("NEW_BUF_0"));
+
+    CHECK_FALSE(clock_tree.contains_name("NEW_BUF_0"));
+    CHECK(clock_tree.node("FF_0").parent_id == clock_tree.node("BUF_0").id);
+    CHECK(clock_tree.area(buffer_library) == Catch::Approx(2.0));
+    CHECK(clock_tree.clock_skew("FF_1", "FF_0", buffer_library, cadd0040::Corner::SS) ==
+          Catch::Approx(0.0));
+}
+
 TEST_CASE("clock_skew lazily computes capture minus launch clock arrival for flip-flops") {
     const auto buffer_library = make_buffer_library();
     auto clock_tree = make_clock_tree_with_two_sinks();

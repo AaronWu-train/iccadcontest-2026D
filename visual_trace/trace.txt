@@ -1,0 +1,1539 @@
+=== frame 0 | iteration 0 | baseline | kept ===
+move: initial clock tree
+score: 0.000000
+metrics: tns_ss: -0.620000, wns_ss: -0.230000, tns_ff: -0.020000, wns_ff: -0.020000, area: 24.000000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 1 | iteration 1 | greedy_warmup | accepted ===
+move: insert NEW_VIS_BUF_0 (BUF_TINY) between BUF_RB1 and FF_H
+score: 0.198209
+metrics: tns_ss: -0.500000, wns_ss: -0.120000, tns_ff: -0.020000, wns_ff: -0.020000, area: 24.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 2 | iteration 2 | greedy_warmup | rejected ===
+move: resize BUF_LA from BUF_MID to BUF_FAST
+score: -0.037929
+metrics: tns_ss: -0.380000, wns_ss: -0.090000, tns_ff: -0.040000, wns_ff: -0.020000, area: 26.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_FAST)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 3 | iteration 2 | greedy_rollback | kept ===
+move: rollback after rejected resize BUF_LA from BUF_MID to BUF_FAST
+score: 0.198209
+metrics: tns_ss: -0.500000, wns_ss: -0.120000, tns_ff: -0.020000, wns_ff: -0.020000, area: 24.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 4 | iteration 3 | greedy_warmup | accepted ===
+move: insert NEW_VIS_BUF_1 (BUF_FAST) between BUF_RA1 and FF_F
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 5 | iteration 4 | greedy_warmup | rejected ===
+move: remove NEW_VIS_BUF_1 and reconnect BUF_RA1 to FF_F
+score: 0.198209
+metrics: tns_ss: -0.500000, wns_ss: -0.120000, tns_ff: -0.020000, wns_ff: -0.020000, area: 24.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 6 | iteration 4 | greedy_rollback | kept ===
+move: rollback after rejected remove NEW_VIS_BUF_1 and reconnect BUF_RA1 to FF_F
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 7 | iteration 5 | greedy_warmup | rejected ===
+move: insert NEW_VIS_BUF_2 (BUF_MID) between BUF_LA2 and FF_D
+score: 0.350369
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: -0.010000, wns_ff: -0.008000, area: 30.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] NEW_VIS_BUF_2 (BUF_MID)
+					[5] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 8 | iteration 5 | greedy_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_2 (BUF_MID) between BUF_LA2 and FF_D
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 9 | iteration 6 | greedy_warmup | rejected ===
+move: resize BUF_LB1 from BUF_MID to BUF_FAST
+score: 0.193048
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.022000, wns_ff: -0.012000, area: 30.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_FAST)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 10 | iteration 6 | greedy_rollback | kept ===
+move: rollback after rejected resize BUF_LB1 from BUF_MID to BUF_FAST
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 11 | iteration 7 | greedy_warmup | rejected ===
+move: insert NEW_VIS_BUF_3 (BUF_TINY) between BUF_LA2 and FF_C
+score: 0.187978
+metrics: tns_ss: -0.580000, wns_ss: -0.240000, tns_ff: -0.015000, wns_ff: -0.008000, area: 28.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] NEW_VIS_BUF_3 (BUF_TINY)
+					[5] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 12 | iteration 7 | greedy_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_3 (BUF_TINY) between BUF_LA2 and FF_C
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 13 | iteration 8 | greedy_warmup | rejected ===
+move: remove NEW_VIS_BUF_1 and reconnect BUF_RA1 to FF_F
+score: 0.198209
+metrics: tns_ss: -0.500000, wns_ss: -0.120000, tns_ff: -0.020000, wns_ff: -0.020000, area: 24.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 14 | iteration 8 | greedy_rollback | kept ===
+move: rollback after rejected remove NEW_VIS_BUF_1 and reconnect BUF_RA1 to FF_F
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 15 | iteration 9 | greedy_warmup | accepted ===
+move: insert NEW_VIS_BUF_4 (BUF_FAST) between BUF_LA1 and FF_B
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 16 | iteration 10 | greedy_warmup | rejected ===
+move: resize BUF_RA1 from BUF_MID to BUF_FAST
+score: -0.202651
+metrics: tns_ss: -0.550000, wns_ss: -0.120000, tns_ff: -0.027000, wns_ff: -0.027000, area: 34.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_FAST)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 17 | iteration 10 | greedy_rollback | kept ===
+move: rollback after rejected resize BUF_RA1 from BUF_MID to BUF_FAST
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 18 | iteration 11 | simulated_annealing | rejected ===
+move: insert NEW_VIS_BUF_5 (BUF_MID) between NEW_VIS_BUF_0 and FF_H [SA delta=-1.0098, temp=0.3500, downhill rejected]
+score: -0.419425
+metrics: tns_ss: -0.440000, wns_ss: -0.120000, tns_ff: -0.037000, wns_ff: -0.035000, area: 34.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] NEW_VIS_BUF_5 (BUF_MID)
+						[6] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 19 | iteration 11 | sa_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_5 (BUF_MID) between NEW_VIS_BUF_0 and FF_H
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 20 | iteration 12 | simulated_annealing | rejected ===
+move: remove NEW_VIS_BUF_4 and reconnect BUF_LA1 to FF_B [SA delta=-0.1240, temp=0.2848, downhill rejected]
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 21 | iteration 12 | sa_rollback | kept ===
+move: rollback after rejected remove NEW_VIS_BUF_4 and reconnect BUF_LA1 to FF_B
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 22 | iteration 13 | simulated_annealing | accepted ===
+move: insert NEW_VIS_BUF_6 (BUF_TINY) between NEW_VIS_BUF_1 and FF_F [SA delta=-0.0067, temp=0.2317, downhill accepted]
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 23 | iteration 14 | simulated_annealing | rejected ===
+move: resize BUF_RB1 from BUF_MID to BUF_FAST [SA delta=-0.1078, temp=0.1885, downhill rejected]
+score: 0.475895
+metrics: tns_ss: -0.680000, wns_ss: -0.170000, tns_ff: 0.000000, wns_ff: 0.000000, area: 34.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_FAST)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 24 | iteration 14 | sa_rollback | kept ===
+move: rollback after rejected resize BUF_RB1 from BUF_MID to BUF_FAST
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 25 | iteration 15 | simulated_annealing | accepted ===
+move: insert NEW_VIS_BUF_7 (BUF_FAST) between BUF_LA2 and FF_D [SA delta=-0.0860, temp=0.1534, downhill accepted]
+score: 0.497681
+metrics: tns_ss: -0.620000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 36.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] NEW_VIS_BUF_7 (BUF_FAST)
+					[5] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 26 | iteration 16 | simulated_annealing | accepted ===
+move: remove NEW_VIS_BUF_7 and reconnect BUF_LA2 to FF_D [SA delta=0.0860, temp=0.1248]
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 27 | iteration 17 | simulated_annealing | rejected ===
+move: insert NEW_VIS_BUF_8 (BUF_MID) between BUF_LA2 and FF_C [SA delta=-1.2216, temp=0.1015, downhill rejected]
+score: -0.637892
+metrics: tns_ss: -0.580000, wns_ss: -0.210000, tns_ff: -0.037000, wns_ff: -0.037000, area: 34.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] NEW_VIS_BUF_8 (BUF_MID)
+					[5] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 28 | iteration 17 | sa_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_8 (BUF_MID) between BUF_LA2 and FF_C
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 29 | iteration 18 | simulated_annealing | rejected ===
+move: resize BUF_LA from BUF_MID to BUF_FAST [SA delta=-1.0252, temp=0.0826, downhill rejected]
+score: -0.441461
+metrics: tns_ss: -0.480000, wns_ss: -0.200000, tns_ff: -0.045000, wns_ff: -0.020000, area: 34.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_FAST)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 30 | iteration 18 | sa_rollback | kept ===
+move: rollback after rejected resize BUF_LA from BUF_MID to BUF_FAST
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 31 | iteration 19 | simulated_annealing | accepted ===
+move: insert NEW_VIS_BUF_9 (BUF_TINY) between NEW_VIS_BUF_4 and FF_B [SA delta=-0.0372, temp=0.0672, downhill accepted]
+score: 0.546498
+metrics: tns_ss: -0.650000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.600000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] NEW_VIS_BUF_9 (BUF_TINY)
+						[6] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 32 | iteration 20 | simulated_annealing | accepted ===
+move: remove NEW_VIS_BUF_9 and reconnect NEW_VIS_BUF_4 to FF_B [SA delta=0.0372, temp=0.0547]
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 33 | iteration 21 | simulated_annealing | rejected ===
+move: insert NEW_VIS_BUF_10 (BUF_FAST) between NEW_VIS_BUF_0 and FF_H [SA delta=-0.4373, temp=0.0445, downhill rejected]
+score: 0.146391
+metrics: tns_ss: -0.540000, wns_ss: -0.150000, tns_ff: -0.013000, wns_ff: -0.013000, area: 36.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] NEW_VIS_BUF_10 (BUF_FAST)
+						[6] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 34 | iteration 21 | sa_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_10 (BUF_FAST) between NEW_VIS_BUF_0 and FF_H
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 35 | iteration 22 | simulated_annealing | rejected ===
+move: resize BUF_LB from BUF_MID to BUF_FAST [SA delta=-0.3933, temp=0.0362, downhill rejected]
+score: 0.190369
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: -0.012000, wns_ff: -0.012000, area: 34.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_FAST)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 36 | iteration 22 | sa_rollback | kept ===
+move: rollback after rejected resize BUF_LB from BUF_MID to BUF_FAST
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 37 | iteration 23 | simulated_annealing | rejected ===
+move: insert NEW_VIS_BUF_11 (BUF_MID) between NEW_VIS_BUF_6 and FF_F [SA delta=-1.2443, temp=0.0295, downhill rejected]
+score: -0.660570
+metrics: tns_ss: -0.670000, wns_ss: -0.240000, tns_ff: -0.035000, wns_ff: -0.035000, area: 34.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] NEW_VIS_BUF_11 (BUF_MID)
+							[7] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 38 | iteration 23 | sa_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_11 (BUF_MID) between NEW_VIS_BUF_6 and FF_F
+score: 0.583703
+metrics: tns_ss: -0.580000, wns_ss: -0.150000, tns_ff: 0.000000, wns_ff: 0.000000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] NEW_VIS_BUF_6 (BUF_TINY)
+						[6] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 39 | iteration 24 | simulated_annealing | accepted ===
+move: remove NEW_VIS_BUF_6 and reconnect NEW_VIS_BUF_1 to FF_F [SA delta=0.0067, temp=0.0240]
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 40 | iteration 25 | simulated_annealing | rejected ===
+move: insert NEW_VIS_BUF_12 (BUF_TINY) between BUF_LA2 and FF_D [SA delta=-0.1397, temp=0.0195, downhill rejected]
+score: 0.450701
+metrics: tns_ss: -0.650000, wns_ss: -0.180000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] NEW_VIS_BUF_12 (BUF_TINY)
+					[5] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 41 | iteration 25 | sa_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_12 (BUF_TINY) between BUF_LA2 and FF_D
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 42 | iteration 26 | simulated_annealing | rejected ===
+move: resize NEW_VIS_BUF_1 from BUF_FAST to BUF_TINY [SA delta=-0.3315, temp=0.0159, downhill rejected]
+score: 0.258855
+metrics: tns_ss: -0.540000, wns_ss: -0.120000, tns_ff: -0.015000, wns_ff: -0.015000, area: 28.400000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_TINY)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 43 | iteration 26 | sa_rollback | kept ===
+move: rollback after rejected resize NEW_VIS_BUF_1 from BUF_FAST to BUF_TINY
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 44 | iteration 27 | simulated_annealing | rejected ===
+move: insert NEW_VIS_BUF_13 (BUF_FAST) between BUF_LA2 and FF_C [SA delta=-0.6637, temp=0.0129, downhill rejected]
+score: -0.073319
+metrics: tns_ss: -0.540000, wns_ss: -0.160000, tns_ff: -0.020000, wns_ff: -0.020000, area: 36.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] NEW_VIS_BUF_13 (BUF_FAST)
+					[5] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 45 | iteration 27 | sa_rollback | kept ===
+move: rollback after rejected insert NEW_VIS_BUF_13 (BUF_FAST) between BUF_LA2 and FF_C
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 46 | iteration 28 | simulated_annealing | rejected ===
+move: remove NEW_VIS_BUF_4 and reconnect BUF_LA1 to FF_B [SA delta=-0.1240, temp=0.0105, downhill rejected]
+score: 0.466381
+metrics: tns_ss: -0.490000, wns_ss: -0.120000, tns_ff: -0.010000, wns_ff: -0.008000, area: 28.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+
+=== frame 47 | iteration 28 | sa_rollback | kept ===
+move: rollback after rejected remove NEW_VIS_BUF_4 and reconnect BUF_LA1 to FF_B
+score: 0.590360
+metrics: tns_ss: -0.530000, wns_ss: -0.120000, tns_ff: -0.002000, wns_ff: -0.002000, area: 32.200000
+
+Root: ROOT_CLK
+	[1] BUF_L (BUF_MID)
+		[2] BUF_LA (BUF_MID)
+			[3] BUF_LA1 (BUF_MID)
+				[4] FF_A (FIFO) (SINK)
+				[4] NEW_VIS_BUF_4 (BUF_FAST)
+					[5] FF_B (FIFO) (SINK)
+			[3] BUF_LA2 (BUF_MID)
+				[4] FF_C (FIFO) (SINK)
+				[4] FF_D (FIFO) (SINK)
+		[2] BUF_LB (BUF_MID)
+			[3] BUF_LB1 (BUF_MID)
+				[4] FF_E (FIFO) (SINK)
+	[1] BUF_R (BUF_MID)
+		[2] BUF_RA (BUF_MID)
+			[3] BUF_RA1 (BUF_MID)
+				[4] NEW_VIS_BUF_1 (BUF_FAST)
+					[5] FF_F (FIFO) (SINK)
+				[4] FF_G (FIFO) (SINK)
+		[2] BUF_RB (BUF_MID)
+			[3] BUF_RB1 (BUF_MID)
+				[4] NEW_VIS_BUF_0 (BUF_TINY)
+					[5] FF_H (FIFO) (SINK)
+				[4] FF_I (FIFO) (SINK)
+			[3] BUF_RB2 (BUF_MID)
+				[4] FF_J (FIFO) (SINK)
+

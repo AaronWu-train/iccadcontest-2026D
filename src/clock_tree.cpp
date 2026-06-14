@@ -163,6 +163,47 @@ bool ClockTree::insert_buffer(const std::string& parent_name, const std::string&
     return true;
 }
 
+bool ClockTree::remove_buffer(const std::string& buffer_name) {
+    const NodeId buffer_id = find_node(buffer_name);
+    if (!contains_node(buffer_id)) {
+        return false;
+    }
+
+    auto& buffer_node = mutable_node(buffer_id);
+    if (buffer_node.kind != NodeKind::Buffer) {
+        return false;
+    }
+    if (buffer_node.parent_id == kInvalidNodeId) {
+        return false;
+    }
+    if (buffer_node.child_ids.size() != 1) {
+        return false;
+    }
+
+    const NodeId parent_id = buffer_node.parent_id;
+    const NodeId child_id = buffer_node.child_ids.front();
+    if (!contains_node(parent_id) || !contains_node(child_id)) {
+        return false;
+    }
+
+    auto& parent_node = mutable_node(parent_id);
+    const auto buffer_it =
+        std::find(parent_node.child_ids.begin(), parent_node.child_ids.end(), buffer_id);
+    if (buffer_it == parent_node.child_ids.end()) {
+        return false;
+    }
+
+    *buffer_it = child_id;
+    mutable_node(child_id).parent_id = parent_id;
+
+    buffer_node.parent_id = kInvalidNodeId;
+    buffer_node.child_ids.clear();
+    name_to_id_.erase(buffer_name);
+
+    mark_clock_arrivals_dirty_from(child_id);
+    return true;
+}
+
 bool ClockTree::resize_buffer(const std::string& node_name, const std::string& cell_type,
                               const BufferLibrary& buffer_library) {
     const NodeId node_id = find_node(node_name);
@@ -473,12 +514,28 @@ double ClockTree::clock_skew(const std::string& launch_flip_flop_name,
 double ClockTree::area(const BufferLibrary& buffer_library) const {
     double total_area = 0.0;
 
-    for (const auto& clock_node : nodes_) {
+    if (root_id_ == kInvalidNodeId) {
+        return total_area;
+    }
+
+    std::vector<NodeId> stack{root_id_};
+    while (!stack.empty()) {
+        const NodeId node_id = stack.back();
+        stack.pop_back();
+
+        const auto& clock_node = node(node_id);
         if (clock_node.kind != NodeKind::Buffer) {
+            for (auto it = clock_node.child_ids.rbegin(); it != clock_node.child_ids.rend(); ++it) {
+                stack.push_back(*it);
+            }
             continue;
         }
 
         total_area += buffer_area(find_buffer_cell(buffer_library, clock_node.cell_type));
+
+        for (auto it = clock_node.child_ids.rbegin(); it != clock_node.child_ids.rend(); ++it) {
+            stack.push_back(*it);
+        }
     }
 
     return total_area;

@@ -101,6 +101,18 @@ public:
                        const BufferLibrary& buffer_library);
 
     /**
+     * @brief Removes a single-fanout buffer by reconnecting its parent directly to its child.
+     * Time: average O(P), where P is the removed buffer parent's fanout.
+     *
+     * This is intended for optimizer rollback and visualization traces. It preserves existing
+     * NodeId values by leaving the old node storage unreachable from the root.
+     *
+     * @return true if the buffer was removed. Returns false and leaves the tree unchanged if
+     * buffer_name is invalid, is not a buffer, is root-like, or does not have exactly one child.
+     */
+    bool remove_buffer(const std::string& buffer_name);
+
+    /**
      * @brief Changes an existing buffer node to another buffer cell type.
      * Time: average O(1), excluding string hash costs.
      *
