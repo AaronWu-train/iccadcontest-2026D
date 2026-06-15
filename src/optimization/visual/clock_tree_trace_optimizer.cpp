@@ -244,13 +244,8 @@ void record_frame(std::vector<TraceFrame>& frames, ClockTree& clock_tree,
                   const Metrics& baseline_metrics, std::size_t iteration, std::string phase,
                   std::string status, std::string move) {
     const Metrics metrics = evaluate(clock_tree, data_path_graph, buffer_library);
-    frames.push_back(TraceFrame{frames.size(),
-                                iteration,
-                                std::move(phase),
-                                std::move(status),
-                                std::move(move),
-                                metrics,
-                                score(metrics, baseline_metrics),
+    frames.push_back(TraceFrame{frames.size(), iteration, std::move(phase), std::move(status),
+                                std::move(move), metrics, score(metrics, baseline_metrics),
                                 clock_tree_text(clock_tree)});
 }
 
@@ -263,8 +258,8 @@ AppliedMove apply_insert_move(ClockTree& clock_tree, const DataPathGraph& data_p
     }
 
     const auto& path = data_path_graph.all_edges()[iteration % data_path_graph.edge_count()];
-    const std::string target = iteration % 2 == 0 ? path.capture_flip_flop_name
-                                                  : path.launch_flip_flop_name;
+    const std::string target =
+        iteration % 2 == 0 ? path.capture_flip_flop_name : path.launch_flip_flop_name;
     const TreeEdgeName edge = edge_before_node(clock_tree, target);
     if (edge.parent.empty() || edge.child.empty()) {
         return AppliedMove{};
@@ -351,8 +346,8 @@ AppliedMove apply_remove_move(ClockTree& clock_tree, std::vector<std::string>& i
     move.parent_name = parent_name;
     move.child_name = child_name;
     move.old_cell = cell_name;
-    move.description = "remove " + buffer_name + " and reconnect " + parent_name + " to " +
-                       child_name;
+    move.description =
+        "remove " + buffer_name + " and reconnect " + parent_name + " to " + child_name;
     return move;
 }
 
@@ -379,9 +374,8 @@ AppliedMove apply_visual_candidate(ClockTree& clock_tree, const DataPathGraph& d
     AppliedMove move;
     const std::size_t mode = move_seed % 4;
     if (mode == 0 || mode == 2) {
-        move =
-            apply_insert_move(clock_tree, data_path_graph, buffer_library, move_seed,
-                              next_buffer_id);
+        move = apply_insert_move(clock_tree, data_path_graph, buffer_library, move_seed,
+                                 next_buffer_id);
     } else if (mode == 1) {
         move = apply_resize_move(clock_tree, buffer_library, move_seed);
     } else {
@@ -444,17 +438,17 @@ void ClockTreeTraceOptimizer::run(ClockTree& clock_tree, const DataPathGraph& da
     record_frame(frames, clock_tree, data_path_graph, buffer_library, baseline_metrics, 0,
                  "baseline", "kept", "initial clock tree");
 
-    const std::size_t greedy_iterations = configured_count(
-        "CADD0040_VISUAL_GREEDY_WARMUP", kDefaultGreedyWarmupIterations);
+    const std::size_t greedy_iterations =
+        configured_count("CADD0040_VISUAL_GREEDY_WARMUP", kDefaultGreedyWarmupIterations);
     const std::size_t sa_iterations =
         configured_count("CADD0040_VISUAL_SA_ITERATIONS",
                          configured_count("CADD0040_VISUAL_ITERATIONS", kDefaultSaIterations));
 
     std::size_t global_iteration = 0;
     for (std::size_t iteration = 0; iteration < greedy_iterations; ++iteration) {
-        AppliedMove move = apply_visual_candidate(clock_tree, data_path_graph, buffer_library,
-                                                  accepted_inserted_buffers, global_iteration,
-                                                  next_buffer_id);
+        AppliedMove move =
+            apply_visual_candidate(clock_tree, data_path_graph, buffer_library,
+                                   accepted_inserted_buffers, global_iteration, next_buffer_id);
 
         if (move.kind == AppliedMove::Kind::None) {
             record_frame(frames, clock_tree, data_path_graph, buffer_library, baseline_metrics,
@@ -490,9 +484,9 @@ void ClockTreeTraceOptimizer::run(ClockTree& clock_tree, const DataPathGraph& da
 
     std::mt19937 rng(2026);
     for (std::size_t iteration = 0; iteration < sa_iterations; ++iteration) {
-        AppliedMove move = apply_visual_candidate(clock_tree, data_path_graph, buffer_library,
-                                                  accepted_inserted_buffers, global_iteration,
-                                                  next_buffer_id);
+        AppliedMove move =
+            apply_visual_candidate(clock_tree, data_path_graph, buffer_library,
+                                   accepted_inserted_buffers, global_iteration, next_buffer_id);
 
         if (move.kind == AppliedMove::Kind::None) {
             record_frame(frames, clock_tree, data_path_graph, buffer_library, baseline_metrics,
@@ -505,18 +499,17 @@ void ClockTreeTraceOptimizer::run(ClockTree& clock_tree, const DataPathGraph& da
         const Metrics candidate_metrics = evaluate(clock_tree, data_path_graph, buffer_library);
         const double candidate_score = score(candidate_metrics, baseline_metrics);
         const double delta = candidate_score - current_score;
-        const double progress =
-            sa_iterations <= 1 ? 1.0 : static_cast<double>(iteration) /
-                                            static_cast<double>(sa_iterations - 1);
+        const double progress = sa_iterations <= 1 ? 1.0
+                                                   : static_cast<double>(iteration) /
+                                                         static_cast<double>(sa_iterations - 1);
         const double temperature =
-            std::max(kMinTemperature,
-                     kInitialTemperature * std::pow(kCoolingFactor, progress));
+            std::max(kMinTemperature, kInitialTemperature * std::pow(kCoolingFactor, progress));
         const bool accept = accept_sa_move(delta, temperature, rng);
         const std::string move_text = with_sa_note(move.description, delta, temperature, accept);
 
         record_frame(frames, clock_tree, data_path_graph, buffer_library, baseline_metrics,
-                     global_iteration + 1, "simulated_annealing",
-                     accept ? "accepted" : "rejected", move_text);
+                     global_iteration + 1, "simulated_annealing", accept ? "accepted" : "rejected",
+                     move_text);
 
         if (accept) {
             current_score = candidate_score;

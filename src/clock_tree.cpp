@@ -221,11 +221,13 @@ ClockTreeEdit ClockTree::insert_buffer_on_edge(EdgeId edge_id, const std::string
         return {};
     }
 
-    const auto child_it = std::find(node(parent_id).child_ids.begin(), node(parent_id).child_ids.end(), child_id);
+    const auto child_it =
+        std::find(node(parent_id).child_ids.begin(), node(parent_id).child_ids.end(), child_id);
     if (child_it == node(parent_id).child_ids.end()) {
         return {};
     }
-    const std::size_t child_index = static_cast<std::size_t>(child_it - node(parent_id).child_ids.begin());
+    const std::size_t child_index =
+        static_cast<std::size_t>(child_it - node(parent_id).child_ids.begin());
 
     const NodeId buffer_id = nodes_.size();
     nodes_.push_back(ClockNode{buffer_id,
@@ -309,11 +311,13 @@ ClockTreeEdit ClockTree::remove_inserted_buffer(NodeId buffer_id) {
     if (!contains_node(parent_id) || !contains_node(child_id)) {
         return {};
     }
-    const auto child_it = std::find(node(parent_id).child_ids.begin(), node(parent_id).child_ids.end(), buffer_id);
+    const auto child_it =
+        std::find(node(parent_id).child_ids.begin(), node(parent_id).child_ids.end(), buffer_id);
     if (child_it == node(parent_id).child_ids.end()) {
         return {};
     }
-    const std::size_t child_index = static_cast<std::size_t>(child_it - node(parent_id).child_ids.begin());
+    const std::size_t child_index =
+        static_cast<std::size_t>(child_it - node(parent_id).child_ids.begin());
     const EdgeId first_edge = edge_between(parent_id, buffer_id);
     const EdgeId second_edge = edge_between(buffer_id, child_id);
     if (first_edge == kInvalidEdgeId || second_edge == kInvalidEdgeId) {
