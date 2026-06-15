@@ -26,10 +26,10 @@ Use the same budget for every optimizer in one comparison table:
 
 | Optimizer | Time budget | Main parameters |
 |-----------|-------------|-----------------|
-| Greedy | `540s` | `max_steps=4096`, `max_resize_polish_steps=96`, `max_polish_phases=5`, `violation_sample_limit=32`, `removal_candidate_limit=512` |
+| Greedy | `540s` | `max_steps=4096`, `max_resize_polish_steps=96`, `max_polish_phases=64`, `violation_sample_limit=32`, `removal_candidate_limit=512` |
 | MILP-inspired | `540s` | `max_rounds=4096`, `violation_window=96`, `candidate_limit=4096`, `resize_node_limit=4096` |
 | SA | `540s` | `greedy_warmup=256`, `final_greedy_polish=32`, `greedy_polish_interval=0`, `restart_stale=2500`, `restart_gap=0.05` |
-| ISA | `540s` | `greedy_warmup=256`, `rounds=5`, `round_greedy=16`, `final_greedy_polish=32`, `restart_stale=2500`, `restart_gap=0.05` |
+| ISA | `540s` | `greedy_warmup=256`, `rounds=16`, `round_greedy=16`, `final_greedy_polish=32`, `restart_stale=2500`, `restart_gap=0.05` |
 
 ## SA vs ISA policy
 
@@ -46,7 +46,7 @@ SA and ISA intentionally share these settings:
 They differ only in search schedule:
 
 - SA uses one long SA phase.
-- ISA splits the budget into `5` SA rounds.
+- ISA splits the budget into `16` SA rounds.
 - ISA performs a bounded greedy batch after each round.
 
 The old SA periodic greedy polish is disabled by default (`greedy_polish_interval=0`) so the SA and
@@ -58,6 +58,9 @@ exploration-refinement.
 - Equal `540s` defaults remove the previous unfairness where Greedy/MILP defaulted to `60s`.
 - `256` warmup steps give SA and ISA the same deterministic starting help.
 - `32` final polish steps give SA and ISA the same deterministic cleanup budget.
+- Greedy uses a high `64` phase cap so insert/remove and resize can alternate until time or local
+  convergence, instead of stopping because the phase cap is too tight.
+- ISA uses `16` rounds so SA exploration and greedy refinement have more chances to alternate.
 - ISA keeps `16` greedy steps after each round because round-level refinement is the feature being
   tested.
 - All deterministic helper steps are bounded by the same deadline, so short-budget experiments do

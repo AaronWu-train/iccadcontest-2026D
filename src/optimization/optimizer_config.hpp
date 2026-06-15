@@ -15,7 +15,7 @@ struct GreedyConfig {
     std::size_t max_steps = 4096;
     std::size_t max_resize_polish_steps = 96;
     std::size_t max_resize_nodes_per_step = 8192;
-    std::size_t max_polish_phases = 5;
+    std::size_t max_polish_phases = 64;
     std::size_t violation_sample_limit = 32;
     std::size_t removal_candidate_limit = 512;
 };
@@ -46,7 +46,7 @@ struct IsaConfig {
     double min_temperature = 1e-6;
     double cooling_factor = 0.01;
     std::size_t greedy_warmup_iterations = 256;
-    std::size_t rounds = 5;
+    std::size_t rounds = 16;
     std::size_t greedy_round_iterations = 16;
     std::size_t final_greedy_polish_iterations = 32;
     std::size_t restart_stale_iterations = 2500;
