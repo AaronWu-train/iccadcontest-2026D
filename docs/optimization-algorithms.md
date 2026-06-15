@@ -20,7 +20,7 @@ Original contest nodes cannot be removed.
 The common score comes from `src/evaluation.cpp`:
 
 ```text
-Score = 0.3 * SS improvement + 0.3 * FF improvement + 0.4 * area improvement
+Score = 0.5 * SS improvement + 0.25 * FF improvement + 0.25 * area improvement
 ```
 
 The full `evaluate()` path is used for validation and final scoring. `TimingState` is used for
