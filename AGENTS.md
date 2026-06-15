@@ -26,7 +26,7 @@ CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
 
 | Variable | Purpose |
 |----------|---------|
-| `CADD0040_SA_SECONDS` | SA time budget (default 540) |
+| `CADD0040_SA_SECONDS` | Optimizer time budget (default 540) |
 | `CADD0040_REPORT_METRICS` | `1` prints initial/final metrics and scores from `Solver` |
 | `CADD0040_DEBUG_PROGRESS` | `1` enables debug telemetry (debug builds) |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between `Progress` lines (default 30) |
@@ -122,5 +122,5 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 
 ### Deep architecture
 
-See `docs/optimization-architecture.md`, `docs/optimization-algorithms.md`, and
-`docs/optimization-complexity.md`.
+See `docs/optimization-architecture.md`, `docs/optimization-algorithms.md`,
+`docs/optimization-complexity.md`, and `docs/optimization-experiment-parameters.md`.

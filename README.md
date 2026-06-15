@@ -101,7 +101,7 @@ make release
 Common overrides:
 
 ```sh
-# Shorter SA budget for a quick smoke test
+# Shorter optimizer budget for a quick smoke test
 CADD0040_SA_SECONDS=60 ./scripts/run_all_testcases.sh
 
 # Use the debug build instead of build-release
@@ -121,7 +121,7 @@ Environment variables:
 |----------|---------|-------------|
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
 | `OPTIMIZER` | `anneal` | Value passed to `--optimizer` |
-| `CADD0040_SA_SECONDS` | `540` | SA time budget in seconds (contest limit) |
+| `CADD0040_SA_SECONDS` | `540` | Optimizer time budget in seconds (contest limit) |
 | `CADD0040_DEBUG_PROGRESS` | `1` | Set to `0` to disable periodic best-score progress |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | `15` | Seconds between `Progress` lines |
 

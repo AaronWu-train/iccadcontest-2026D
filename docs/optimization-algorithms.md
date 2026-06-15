@@ -143,7 +143,8 @@ accepted according to the Metropolis probability.
 - Guided insert near a violated timing path.
 - Random resize.
 - Remove inserted buffer.
-- Periodic greedy polish candidates from the shared SA helper.
+- Optional periodic greedy polish candidates from the shared SA helper. This is disabled by
+  default in the fair experiment parameter set.
 
 ### Accept/reject rule
 
@@ -162,7 +163,8 @@ exp(delta / temperature)
 - Guided insert biases some moves toward violated paths.
 - Fixed RNG seed keeps experiments reproducible.
 - Restart from best when the search is stale and below best score by a configured gap.
-- Periodic greedy polish repairs easy local opportunities during the SA loop.
+- Periodic greedy polish support remains in the shared SA runner, but the fair experiment default
+  sets `greedy_polish_interval=0`.
 - Final greedy polish runs after annealing.
 
 ### Stop condition
@@ -182,7 +184,7 @@ See `SaConfig`:
 - `final_greedy_polish_iterations`
 - `restart_stale_iterations`
 - `restart_score_gap`
-- `greedy_polish_interval`
+- `greedy_polish_interval` (`0` by default for fair experiments)
 
 ## IteratedSaOptimizer
 
@@ -196,7 +198,7 @@ while repeatedly cleaning up obvious local improvements.
 - Build `TimingState`.
 - Record initial current and best state.
 - Load `IsaConfig`.
-- Run a larger greedy warmup than `AnnealingOptimizer`.
+- Run the same greedy warmup limit as `AnnealingOptimizer` in the fair experiment parameter set.
 
 ### Candidate moves
 

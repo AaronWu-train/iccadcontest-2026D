@@ -17,6 +17,8 @@ separate. Optimizers may mutate a working `ClockTree`, but they should not use n
 lookups in hot loops.
 
 Complexity details are tracked in [`optimization-complexity.md`](optimization-complexity.md).
+Experiment parameters are tracked in
+[`optimization-experiment-parameters.md`](optimization-experiment-parameters.md).
 
 ## ClockTree
 

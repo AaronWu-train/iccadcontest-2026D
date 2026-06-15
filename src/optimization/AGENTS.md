@@ -7,6 +7,7 @@ Architecture details:
 - [`docs/optimization-architecture.md`](../../docs/optimization-architecture.md)
 - [`docs/optimization-algorithms.md`](../../docs/optimization-algorithms.md)
 - [`docs/optimization-complexity.md`](../../docs/optimization-complexity.md)
+- [`docs/optimization-experiment-parameters.md`](../../docs/optimization-experiment-parameters.md)
 
 Local rules:
 

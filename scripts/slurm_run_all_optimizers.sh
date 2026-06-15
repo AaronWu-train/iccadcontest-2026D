@@ -25,7 +25,7 @@
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
 #   OPTIMIZERS                       Space-separated list (default: greedy milp anneal isa)
-#   CADD0040_SA_SECONDS              SA time budget (default: 540)
+#   CADD0040_SA_SECONDS              Optimizer time budget (default: 540)
 #   CADD0040_DEBUG_PROGRESS          1 to enable debug progress (default: 0)
 #   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval seconds (default: 30)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings

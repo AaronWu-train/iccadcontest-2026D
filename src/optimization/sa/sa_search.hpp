@@ -35,7 +35,8 @@ void restore_best(ClockTree& clock_tree, TimingState& timing, double& current_sc
 
 std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                             SearchState& best_state, std::size_t max_steps);
+                             SearchState& best_state, std::size_t max_steps,
+                             const std::chrono::steady_clock::time_point& deadline);
 
 std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
                          const BufferLibrary& buffer_library, const Metrics& baseline_metrics,

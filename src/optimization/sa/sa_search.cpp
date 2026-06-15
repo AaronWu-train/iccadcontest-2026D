@@ -316,9 +316,10 @@ void restore_best(ClockTree& clock_tree, TimingState& timing, double& current_sc
 
 std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                             SearchState& best_state, std::size_t max_steps) {
+                             SearchState& best_state, std::size_t max_steps,
+                             const std::chrono::steady_clock::time_point& deadline) {
     std::size_t steps = 0;
-    for (; steps < max_steps; ++steps) {
+    for (; steps < max_steps && std::chrono::steady_clock::now() < deadline; ++steps) {
         if (!apply_one_greedy_step(clock_tree, timing, buffer_library, baseline_metrics)) {
             break;
         }

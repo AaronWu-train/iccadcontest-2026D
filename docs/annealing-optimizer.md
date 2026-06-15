@@ -7,6 +7,7 @@ The optimizer architecture is now documented in:
 - [`optimization-architecture.md`](optimization-architecture.md)
 - [`optimization-algorithms.md`](optimization-algorithms.md)
 - [`optimization-complexity.md`](optimization-complexity.md)
+- [`optimization-experiment-parameters.md`](optimization-experiment-parameters.md)
 
 The old `SkewModel` / `sa_common` split has been replaced by:
 

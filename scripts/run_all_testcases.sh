@@ -8,7 +8,7 @@
 #
 # Environment:
 #   BUILD_DIR                        Path to CMake build directory (default: build-release)
-#   CADD0040_SA_SECONDS              SA time budget in seconds (default: 540, contest limit)
+#   CADD0040_SA_SECONDS              Optimizer time budget in seconds (default: 540, contest limit)
 #   OPTIMIZER                        --optimizer value (default: anneal)
 #   CADD0040_REPORT_METRICS          Set to 0 to suppress per-run score lines (default: on)
 #   CADD0040_DEBUG_PROGRESS            Set to 0 to disable periodic best-score progress (default: on)

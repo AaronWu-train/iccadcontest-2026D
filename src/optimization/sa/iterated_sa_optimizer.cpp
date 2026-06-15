@@ -30,18 +30,18 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
     sa::SearchState best_state{clock_tree, timing.snapshot(), timing.metrics(),
                                timing.score(baseline_metrics)};
 
+    const auto start_time = std::chrono::steady_clock::now();
+    const auto deadline = start_time + config.time_budget;
+
     std::size_t greedy_steps = 0;
     greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
-                                         best_state, config.greedy_warmup_iterations);
+                                         best_state, config.greedy_warmup_iterations, deadline);
     double current_score = timing.score(baseline_metrics);
 
     debug.log([&](std::ostream& os) {
         os << "IteratedSaOptimizer: after warmup score = " << current_score << '\n';
         os << "IteratedSaOptimizer: mode -> multi_round (" << config.rounds << " rounds)\n";
     });
-
-    const auto start_time = std::chrono::steady_clock::now();
-    const auto deadline = start_time + config.time_budget;
 
     std::size_t accepted_moves = 0;
     std::size_t rejected_moves = 0;
@@ -98,7 +98,7 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
         });
         sa::restore_best(clock_tree, timing, current_score, best_state);
         greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
-                                             best_state, config.greedy_round_iterations);
+                                             best_state, config.greedy_round_iterations, deadline);
         current_score = timing.score(baseline_metrics);
     }
 
@@ -112,7 +112,7 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
     const double polish_score_before = best_state.score;
     const std::size_t polish_steps =
         sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
-                             config.final_greedy_polish_iterations);
+                             config.final_greedy_polish_iterations, deadline);
     greedy_steps += polish_steps;
     sa::restore_best(clock_tree, timing, current_score, best_state);
 
