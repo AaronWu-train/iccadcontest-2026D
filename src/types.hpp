@@ -13,16 +13,14 @@
 
 namespace cadd0040 {
 
-// FIXME: @BenLai95 @AaronWu-train @liuchengLYC The types defined in this file are just
-// placeholders. You should feel free to modify them as needed, as long as the overall solver
-// workflow is not affected.
-
 using NodeId = std::size_t;
 using EdgeId = std::size_t;
+using CellId = std::size_t;
 
 // Sentinel value used for missing nodes or nodes without a parent.
 inline constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
 inline constexpr EdgeId kInvalidEdgeId = std::numeric_limits<EdgeId>::max();
+inline constexpr CellId kInvalidCellId = std::numeric_limits<CellId>::max();
 
 enum class Corner {
     SS,
@@ -33,6 +31,11 @@ enum class NodeKind {
     ClockSource,
     Buffer,
     FlipFlop,
+};
+
+enum class NodeOrigin {
+    Original,
+    Inserted,
 };
 
 struct CornerDelay {

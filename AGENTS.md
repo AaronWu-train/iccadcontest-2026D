@@ -27,6 +27,7 @@ CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
 | Variable | Purpose |
 |----------|---------|
 | `CADD0040_SA_SECONDS` | SA time budget (default 540) |
+| `CADD0040_REPORT_METRICS` | `1` prints initial/final metrics and scores from `Solver` |
 | `CADD0040_DEBUG_PROGRESS` | `1` enables debug telemetry (debug builds) |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between `Progress` lines (default 30) |
 
@@ -80,9 +81,12 @@ src/optimization/
 | Module | Role | Mutable during optimization? |
 |--------|------|------------------------------|
 | `DataPathGraph` | read-only paths and fixed data delays | No |
-| `SkewModel` | in-memory incremental timing sandbox | Yes |
-| `ClockTree` | real tree; written only at end via `materialize()` | End only |
+| `ClockTree` | id-based mutable clock topology | Yes |
+| `TimingState` | incremental timing and score cache bound to `ClockTree` + `DataPathGraph` | Yes |
 | `evaluate()` | ground-truth scoring; too slow per step | — |
+
+Optimizers should use id-based `ClockTree` APIs in hot loops. Keep name-based APIs for parser,
+writer, debug, and compatibility paths.
 
 ### Optimizer registration (`factory.cpp`)
 
@@ -90,25 +94,33 @@ Default CLI value: `isa` (`kDefaultOptimizerName` in `factory.hpp`).
 
 | Alias | Class |
 |-------|-------|
-| `isa` / `sa2` | `IteratedSaOptimizer` |
+| `isa` | `IteratedSaOptimizer` |
 | `anneal` / `sa` | `AnnealingOptimizer` |
-| `greedy` / `detgreedy` | `GreedyOptimizer` |
-| `milp` / `ip` | `MilpOptimizer` |
+| `greedy` | `GreedyOptimizer` |
+| `milp` | `MilpOptimizer` |
+| `visual` | `ClockTreeTraceOptimizer` (visualization/trace tool) |
 | `dummy` | `DummyOptimizer` (no-op, testing) |
 
 Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose names via `available_optimizers()`.
 
-### SkewModel invariants
+### ClockTree / TimingState invariants
 
-- `affected_path_epoch_.size()` must equal **path count** (`launch_idx_.size()`), not node count.
-- Inserted buffers use fanout=1 delay entry; resize must pass `cell_supports_fanout`.
-- Moves must be reversible via `undo_move()` for Metropolis rejection.
+- `ClockTree` nodes are separated by `NodeKind`: `ClockSource`, `Buffer`, `FlipFlop`.
+- `NodeOrigin::Original` contest nodes cannot be removed.
+- `NodeOrigin::Inserted` buffers can be removed; removal marks them dead and splices the tree.
+- Output traversal skips dead inserted nodes.
+- `TimingState` owns timing/score cache only. Do not put random move generation, greedy policy, or SA Metropolis logic in it.
+- Reversible edits must call both `TimingState::undo(edit)` and `ClockTree::undo(edit)` when rejected.
+- New optimizer `.cpp` files must be added to `cadd0040_core` in `CMakeLists.txt`, registered in `factory.cpp`, and covered by tests.
 
 ### Tuning
 
-- `CADD0040_SA_SECONDS` overrides default 540s SA budget.
+- Optimizer defaults live in `src/optimization/optimizer_config.hpp`.
+- Environment overrides live in `src/optimization/optimizer_config.cpp`.
+- `CADD0040_SA_SECONDS` remains the legacy time-budget override.
 - Batch run: `./scripts/run_all_testcases.sh`
 
 ### Deep architecture
 
-See `docs/annealing-optimizer.md` for data flows, scoring formula, tests, and file list.
+See `docs/optimization-architecture.md`, `docs/optimization-algorithms.md`, and
+`docs/optimization-complexity.md`.

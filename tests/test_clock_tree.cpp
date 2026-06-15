@@ -70,6 +70,51 @@ TEST_CASE("remove_buffer bypasses single-fanout buffers") {
           Catch::Approx(0.0));
 }
 
+TEST_CASE("id-based clock tree edits can be undone") {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree_with_two_sinks();
+
+    const cadd0040::NodeId parent = clock_tree.node_id("BUF_0");
+    const cadd0040::NodeId child = clock_tree.node_id("FF_0");
+    const cadd0040::EdgeId edge = clock_tree.edge_between(parent, child);
+    REQUIRE(edge != cadd0040::kInvalidEdgeId);
+
+    const auto insert_edit =
+        clock_tree.insert_buffer_on_edge(edge, "NEW_BUF_0", "BUF_X1", buffer_library);
+    REQUIRE(insert_edit);
+    CHECK(clock_tree.node("NEW_BUF_0").origin == cadd0040::NodeOrigin::Inserted);
+    CHECK(clock_tree.node("NEW_BUF_0").alive);
+    CHECK(clock_tree.node("FF_0").parent_id == clock_tree.node("NEW_BUF_0").id);
+
+    clock_tree.undo(insert_edit);
+    CHECK_FALSE(clock_tree.contains_name("NEW_BUF_0"));
+    CHECK(clock_tree.node("FF_0").parent_id == clock_tree.node("BUF_0").id);
+    CHECK_FALSE(clock_tree.node(insert_edit.buffer_id).alive);
+
+    const auto resize_edit =
+        clock_tree.resize_buffer(clock_tree.node_id("BUF_0"), "BUF_X4", buffer_library);
+    CHECK_FALSE(resize_edit);
+}
+
+TEST_CASE("only inserted buffers can be removed through optimizer edit API") {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree_with_two_sinks();
+
+    CHECK_FALSE(clock_tree.remove_inserted_buffer(clock_tree.node_id("BUF_0")));
+
+    REQUIRE(clock_tree.insert_buffer("BUF_0", "FF_0", "NEW_BUF_0", "BUF_X1", buffer_library));
+    const auto remove_edit = clock_tree.remove_inserted_buffer(clock_tree.node_id("NEW_BUF_0"));
+    REQUIRE(remove_edit);
+    CHECK_FALSE(clock_tree.contains_name("NEW_BUF_0"));
+    CHECK_FALSE(clock_tree.node(remove_edit.buffer_id).alive);
+    CHECK(clock_tree.node("FF_0").parent_id == clock_tree.node("BUF_0").id);
+
+    clock_tree.undo(remove_edit);
+    CHECK(clock_tree.contains_name("NEW_BUF_0"));
+    CHECK(clock_tree.node("NEW_BUF_0").alive);
+    CHECK(clock_tree.node("FF_0").parent_id == clock_tree.node("NEW_BUF_0").id);
+}
+
 TEST_CASE("clock_skew lazily computes capture minus launch clock arrival for flip-flops") {
     const auto buffer_library = make_buffer_library();
     auto clock_tree = make_clock_tree_with_two_sinks();

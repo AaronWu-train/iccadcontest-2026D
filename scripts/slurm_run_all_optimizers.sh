@@ -188,6 +188,7 @@ run_one_job() {
 
     local -a run_env=(
         "CADD0040_SA_SECONDS=${SA_SECONDS}"
+        "CADD0040_REPORT_METRICS=1"
     )
     if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
         run_env+=(

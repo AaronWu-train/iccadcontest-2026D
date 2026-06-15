@@ -72,7 +72,14 @@ void ClockTree::add_root(const std::string& root_name) {
     }
 
     const NodeId root_id = nodes_.size();
-    nodes_.push_back(ClockNode{root_id, root_name, "", NodeKind::ClockSource, kInvalidNodeId, {}});
+    nodes_.push_back(ClockNode{root_id,
+                               root_name,
+                               "",
+                               NodeKind::ClockSource,
+                               NodeOrigin::Original,
+                               true,
+                               kInvalidNodeId,
+                               {}});
     root_id_ = root_id;
     name_to_id_.emplace(root_name, root_id);
     mark_clock_arrivals_dirty_from(root_id);
@@ -95,9 +102,11 @@ void ClockTree::add_node(const std::string& node_name, const std::string& cell_t
     }
 
     const NodeId node_id = nodes_.size();
-    nodes_.push_back(ClockNode{node_id, node_name, cell_type, node_kind, parent_id, {}});
+    nodes_.push_back(ClockNode{
+        node_id, node_name, cell_type, node_kind, NodeOrigin::Original, true, parent_id, {}});
     mutable_node(parent_id).child_ids.push_back(node_id);
     name_to_id_.emplace(node_name, node_id);
+    add_edge(parent_id, node_id);
     mark_clock_arrivals_dirty_from(parent_id);
 }
 
@@ -143,65 +152,20 @@ bool ClockTree::insert_buffer(const std::string& parent_name, const std::string&
         return false;
     }
 
-    const auto& parent_children = node(parent_id).child_ids;
-    const auto child_it = std::find(parent_children.begin(), parent_children.end(), child_id);
-    if (child_it == parent_children.end()) {
+    const EdgeId edge_id = edge_between(parent_id, child_id);
+    if (edge_id == kInvalidEdgeId) {
         std::cerr << "Failed to insert buffer " << buffer_name
                   << ": parent does not contain the specified child\n";
         return false;
     }
-    const auto child_index = static_cast<std::size_t>(child_it - parent_children.begin());
 
-    const NodeId buffer_id = nodes_.size();
-    nodes_.push_back(
-        ClockNode{buffer_id, buffer_name, cell_type, NodeKind::Buffer, parent_id, {child_id}});
-    name_to_id_.emplace(buffer_name, buffer_id);
-
-    mutable_node(parent_id).child_ids[child_index] = buffer_id;
-    mutable_node(child_id).parent_id = buffer_id;
-    mark_clock_arrivals_dirty_from(buffer_id);
-    return true;
+    return static_cast<bool>(
+        insert_buffer_on_edge(edge_id, buffer_name, cell_type, buffer_library));
 }
 
 bool ClockTree::remove_buffer(const std::string& buffer_name) {
     const NodeId buffer_id = find_node(buffer_name);
-    if (!contains_node(buffer_id)) {
-        return false;
-    }
-
-    auto& buffer_node = mutable_node(buffer_id);
-    if (buffer_node.kind != NodeKind::Buffer) {
-        return false;
-    }
-    if (buffer_node.parent_id == kInvalidNodeId) {
-        return false;
-    }
-    if (buffer_node.child_ids.size() != 1) {
-        return false;
-    }
-
-    const NodeId parent_id = buffer_node.parent_id;
-    const NodeId child_id = buffer_node.child_ids.front();
-    if (!contains_node(parent_id) || !contains_node(child_id)) {
-        return false;
-    }
-
-    auto& parent_node = mutable_node(parent_id);
-    const auto buffer_it =
-        std::find(parent_node.child_ids.begin(), parent_node.child_ids.end(), buffer_id);
-    if (buffer_it == parent_node.child_ids.end()) {
-        return false;
-    }
-
-    *buffer_it = child_id;
-    mutable_node(child_id).parent_id = parent_id;
-
-    buffer_node.parent_id = kInvalidNodeId;
-    buffer_node.child_ids.clear();
-    name_to_id_.erase(buffer_name);
-
-    mark_clock_arrivals_dirty_from(child_id);
-    return true;
+    return static_cast<bool>(remove_inserted_buffer(buffer_id));
 }
 
 bool ClockTree::resize_buffer(const std::string& node_name, const std::string& cell_type,
@@ -212,8 +176,8 @@ bool ClockTree::resize_buffer(const std::string& node_name, const std::string& c
         return false;
     }
 
-    auto& clock_node = mutable_node(node_id);
-    if (clock_node.kind != NodeKind::Buffer) {
+    const auto& clock_node = node(node_id);
+    if (clock_node.kind != NodeKind::Buffer || !clock_node.alive) {
         std::cerr << "Failed to resize buffer " << node_name << ": node is not a buffer\n";
         return false;
     }
@@ -230,9 +194,203 @@ bool ClockTree::resize_buffer(const std::string& node_name, const std::string& c
                   << " in both timing corners\n";
         return false;
     }
+    if (clock_node.cell_type == cell_type) {
+        return true;
+    }
+    return static_cast<bool>(resize_buffer(node_id, cell_type, buffer_library));
+}
+
+ClockTreeEdit ClockTree::insert_buffer_on_edge(EdgeId edge_id, const std::string& buffer_name,
+                                               const std::string& cell_type,
+                                               const BufferLibrary& buffer_library) {
+    if (edge_id >= edges_.size() || !edges_[edge_id].alive || contains_name(buffer_name)) {
+        return {};
+    }
+    const auto& edge_ref = edges_[edge_id];
+    const NodeId parent_id = edge_ref.parent_id;
+    const NodeId child_id = edge_ref.child_id;
+    if (!contains_node(parent_id) || !contains_node(child_id)) {
+        return {};
+    }
+    if (!node(parent_id).alive || !node(child_id).alive ||
+        node(parent_id).kind == NodeKind::FlipFlop) {
+        return {};
+    }
+    const auto cell_it = buffer_library.find(cell_type);
+    if (cell_it == buffer_library.end() || !cell_supports_fanout(cell_it->second, 1)) {
+        return {};
+    }
+
+    const auto child_it = std::find(node(parent_id).child_ids.begin(), node(parent_id).child_ids.end(), child_id);
+    if (child_it == node(parent_id).child_ids.end()) {
+        return {};
+    }
+    const std::size_t child_index = static_cast<std::size_t>(child_it - node(parent_id).child_ids.begin());
+
+    const NodeId buffer_id = nodes_.size();
+    nodes_.push_back(ClockNode{buffer_id,
+                               buffer_name,
+                               cell_type,
+                               NodeKind::Buffer,
+                               NodeOrigin::Inserted,
+                               true,
+                               parent_id,
+                               {child_id}});
+    name_to_id_.emplace(buffer_name, buffer_id);
+
+    mutable_node(parent_id).child_ids[child_index] = buffer_id;
+    mutable_node(child_id).parent_id = buffer_id;
+    set_edge_alive(edge_id, false);
+    const EdgeId first_edge = add_edge(parent_id, buffer_id);
+    const EdgeId second_edge = add_edge(buffer_id, child_id);
+
+    mark_clock_arrivals_dirty_from(buffer_id);
+
+    return ClockTreeEdit{ClockTreeEdit::Kind::InsertBuffer,
+                         parent_id,
+                         child_id,
+                         buffer_id,
+                         buffer_id,
+                         edge_id,
+                         first_edge,
+                         second_edge,
+                         kInvalidEdgeId,
+                         child_index,
+                         "",
+                         cell_type};
+}
+
+ClockTreeEdit ClockTree::resize_buffer(NodeId node_id, const std::string& cell_type,
+                                       const BufferLibrary& buffer_library) {
+    if (!contains_node(node_id) || !node(node_id).alive || node(node_id).kind != NodeKind::Buffer) {
+        return {};
+    }
+    const auto cell_it = buffer_library.find(cell_type);
+    if (cell_it == buffer_library.end() ||
+        !cell_supports_fanout(cell_it->second, fanout(node_id))) {
+        return {};
+    }
+    auto& clock_node = mutable_node(node_id);
+    if (clock_node.cell_type == cell_type) {
+        return {};
+    }
+
+    const std::string old_cell_type = clock_node.cell_type;
     clock_node.cell_type = cell_type;
     mark_clock_arrivals_dirty_from(node_id);
-    return true;
+
+    return ClockTreeEdit{ClockTreeEdit::Kind::ResizeBuffer,
+                         kInvalidNodeId,
+                         kInvalidNodeId,
+                         node_id,
+                         node_id,
+                         kInvalidEdgeId,
+                         kInvalidEdgeId,
+                         kInvalidEdgeId,
+                         kInvalidEdgeId,
+                         0,
+                         old_cell_type,
+                         cell_type};
+}
+
+ClockTreeEdit ClockTree::remove_inserted_buffer(NodeId buffer_id) {
+    if (!contains_node(buffer_id)) {
+        return {};
+    }
+    auto& buffer_node = mutable_node(buffer_id);
+    if (!buffer_node.alive || buffer_node.kind != NodeKind::Buffer ||
+        buffer_node.origin != NodeOrigin::Inserted || buffer_node.parent_id == kInvalidNodeId ||
+        buffer_node.child_ids.size() != 1) {
+        return {};
+    }
+
+    const NodeId parent_id = buffer_node.parent_id;
+    const NodeId child_id = buffer_node.child_ids.front();
+    if (!contains_node(parent_id) || !contains_node(child_id)) {
+        return {};
+    }
+    const auto child_it = std::find(node(parent_id).child_ids.begin(), node(parent_id).child_ids.end(), buffer_id);
+    if (child_it == node(parent_id).child_ids.end()) {
+        return {};
+    }
+    const std::size_t child_index = static_cast<std::size_t>(child_it - node(parent_id).child_ids.begin());
+    const EdgeId first_edge = edge_between(parent_id, buffer_id);
+    const EdgeId second_edge = edge_between(buffer_id, child_id);
+    if (first_edge == kInvalidEdgeId || second_edge == kInvalidEdgeId) {
+        return {};
+    }
+
+    mutable_node(parent_id).child_ids[child_index] = child_id;
+    mutable_node(child_id).parent_id = parent_id;
+    buffer_node.parent_id = kInvalidNodeId;
+    buffer_node.child_ids.clear();
+    buffer_node.alive = false;
+    name_to_id_.erase(buffer_node.name);
+    set_edge_alive(first_edge, false);
+    set_edge_alive(second_edge, false);
+    const EdgeId replacement_edge = add_edge(parent_id, child_id);
+
+    mark_clock_arrivals_dirty_from(child_id);
+
+    return ClockTreeEdit{ClockTreeEdit::Kind::RemoveInsertedBuffer,
+                         parent_id,
+                         child_id,
+                         buffer_id,
+                         child_id,
+                         kInvalidEdgeId,
+                         first_edge,
+                         second_edge,
+                         replacement_edge,
+                         child_index,
+                         buffer_node.cell_type,
+                         ""};
+}
+
+void ClockTree::undo(const ClockTreeEdit& edit) {
+    if (!edit) {
+        return;
+    }
+
+    switch (edit.kind) {
+        case ClockTreeEdit::Kind::InsertBuffer: {
+            auto& parent = mutable_node(edit.parent_id);
+            parent.child_ids[edit.parent_child_index] = edit.child_id;
+            mutable_node(edit.child_id).parent_id = edit.parent_id;
+            auto& buffer = mutable_node(edit.buffer_id);
+            name_to_id_.erase(buffer.name);
+            buffer.parent_id = kInvalidNodeId;
+            buffer.child_ids.clear();
+            buffer.alive = false;
+            set_edge_alive(edit.original_edge_id, true);
+            set_edge_alive(edit.first_edge_id, false);
+            set_edge_alive(edit.second_edge_id, false);
+            mark_clock_arrivals_dirty_from(edit.child_id);
+            return;
+        }
+        case ClockTreeEdit::Kind::ResizeBuffer: {
+            auto& buffer = mutable_node(edit.buffer_id);
+            buffer.cell_type = edit.old_cell_type;
+            mark_clock_arrivals_dirty_from(edit.buffer_id);
+            return;
+        }
+        case ClockTreeEdit::Kind::RemoveInsertedBuffer: {
+            auto& parent = mutable_node(edit.parent_id);
+            parent.child_ids[edit.parent_child_index] = edit.buffer_id;
+            auto& buffer = mutable_node(edit.buffer_id);
+            buffer.parent_id = edit.parent_id;
+            buffer.child_ids = {edit.child_id};
+            buffer.alive = true;
+            name_to_id_.emplace(buffer.name, edit.buffer_id);
+            mutable_node(edit.child_id).parent_id = edit.buffer_id;
+            set_edge_alive(edit.first_edge_id, true);
+            set_edge_alive(edit.second_edge_id, true);
+            set_edge_alive(edit.replacement_edge_id, false);
+            mark_clock_arrivals_dirty_from(edit.buffer_id);
+            return;
+        }
+        case ClockTreeEdit::Kind::None:
+            return;
+    }
 }
 
 bool ClockTree::empty() const { return nodes_.empty(); }
@@ -251,6 +409,14 @@ bool ClockTree::contains_node(NodeId node_id) const { return node_id < nodes_.si
 bool ClockTree::contains_name(const std::string& node_name) const {
     return name_to_id_.find(node_name) != name_to_id_.end();
 }
+
+bool ClockTree::contains_node_id(NodeId node_id) const { return contains_node(node_id); }
+
+bool ClockTree::is_alive(NodeId node_id) const {
+    return contains_node(node_id) && nodes_[node_id].alive;
+}
+
+NodeId ClockTree::node_id(const std::string& node_name) const { return find_node(node_name); }
 
 NodeId ClockTree::find_node(const std::string& node_name) const {
     const auto it = name_to_id_.find(node_name);
@@ -280,6 +446,64 @@ ClockNode& ClockTree::mutable_node(NodeId node_id) {
 
 const std::vector<ClockNode>& ClockTree::nodes() const { return nodes_; }
 
+const std::vector<ClockTreeEdge>& ClockTree::edges() const { return edges_; }
+
+const ClockTreeEdge& ClockTree::edge(EdgeId edge_id) const {
+    if (edge_id >= edges_.size()) {
+        throw std::out_of_range("Clock tree edge does not exist");
+    }
+    return edges_[edge_id];
+}
+
+ClockTreeEdge& ClockTree::mutable_edge(EdgeId edge_id) {
+    if (edge_id >= edges_.size()) {
+        throw std::out_of_range("Clock tree edge does not exist");
+    }
+    return edges_[edge_id];
+}
+
+EdgeId ClockTree::edge_between(NodeId parent_id, NodeId child_id) const {
+    for (const auto& edge : edges_) {
+        if (edge.alive && edge.parent_id == parent_id && edge.child_id == child_id) {
+            return edge.id;
+        }
+    }
+    return kInvalidEdgeId;
+}
+
+std::vector<EdgeId> ClockTree::active_edge_ids() const {
+    std::vector<EdgeId> edge_ids;
+    edge_ids.reserve(edges_.size());
+    for (const auto& edge : edges_) {
+        if (edge.alive) {
+            edge_ids.push_back(edge.id);
+        }
+    }
+    return edge_ids;
+}
+
+std::vector<NodeId> ClockTree::buffer_nodes() const {
+    std::vector<NodeId> node_ids;
+    node_ids.reserve(nodes_.size());
+    for (const auto& clock_node : nodes_) {
+        if (clock_node.alive && clock_node.kind == NodeKind::Buffer) {
+            node_ids.push_back(clock_node.id);
+        }
+    }
+    return node_ids;
+}
+
+std::vector<NodeId> ClockTree::flip_flop_nodes() const {
+    std::vector<NodeId> node_ids;
+    node_ids.reserve(nodes_.size());
+    for (const auto& clock_node : nodes_) {
+        if (clock_node.alive && clock_node.kind == NodeKind::FlipFlop) {
+            node_ids.push_back(clock_node.id);
+        }
+    }
+    return node_ids;
+}
+
 std::size_t ClockTree::fanout(const std::string& node_name) const {
     return fanout(find_node(node_name));
 }
@@ -288,7 +512,7 @@ std::size_t ClockTree::fanout(NodeId node_id) const { return node(node_id).child
 
 std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
     std::vector<ClockTreeTraversalEntry> traversal;
-    if (root_id_ == kInvalidNodeId) {
+    if (root_id_ == kInvalidNodeId || !node(root_id_).alive) {
         return traversal;
     }
 
@@ -301,10 +525,15 @@ std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
         stack.pop_back();
 
         const auto& current_node = node(current.node_id);
+        if (!current_node.alive) {
+            continue;
+        }
         traversal.push_back(ClockTreeTraversalEntry{current_node.name, current.depth});
 
         for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
-            stack.push_back(TraversalStackEntry{*it, current.depth + 1});
+            if (node(*it).alive) {
+                stack.push_back(TraversalStackEntry{*it, current.depth + 1});
+            }
         }
     }
 
@@ -313,17 +542,22 @@ std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth() const {
 
 std::vector<ClockTreeTraversalEntry> ClockTree::preorder_with_depth_recursive() const {
     std::vector<ClockTreeTraversalEntry> traversal;
-    if (root_id_ == kInvalidNodeId) {
+    if (root_id_ == kInvalidNodeId || !node(root_id_).alive) {
         return traversal;
     }
 
     // Recursive reference implementation; avoid this for very deep clock trees.
     const std::function<void(NodeId, std::size_t)> visit = [&](NodeId node_id, std::size_t depth) {
         const auto& current_node = node(node_id);
+        if (!current_node.alive) {
+            return;
+        }
         traversal.push_back(ClockTreeTraversalEntry{current_node.name, depth});
 
         for (const NodeId child_id : current_node.child_ids) {
-            visit(child_id, depth + 1);
+            if (node(child_id).alive) {
+                visit(child_id, depth + 1);
+            }
         }
     };
 
@@ -345,6 +579,9 @@ std::vector<NodeId> ClockTree::path_to_root(NodeId node_id) const {
 
     while (current_id != kInvalidNodeId) {
         const auto& current_node = node(current_id);
+        if (!current_node.alive) {
+            break;
+        }
         path.push_back(current_id);
         current_id = current_node.parent_id;
     }
@@ -368,7 +605,7 @@ std::vector<NodeId> ClockTree::path_from_root(NodeId node_id) const {
 
 void ClockTree::update_clock_times(const BufferLibrary& buffer_library) {
     use_clock_arrival_library(buffer_library);
-    if (root_id_ == kInvalidNodeId) {
+    if (root_id_ == kInvalidNodeId || !node(root_id_).alive) {
         return;
     }
 
@@ -425,13 +662,15 @@ void ClockTree::update_clock_arrival_subtree(NodeId node_id, const BufferLibrary
 
         const auto& current_node = node(current_id);
         for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
-            stack.push_back(*it);
+            if (node(*it).alive) {
+                stack.push_back(*it);
+            }
         }
     }
 }
 
 void ClockTree::mark_clock_arrivals_dirty_from(NodeId node_id) {
-    if (!contains_node(node_id)) {
+    if (!contains_node(node_id) || !node(node_id).alive) {
         return;
     }
 
@@ -441,10 +680,15 @@ void ClockTree::mark_clock_arrivals_dirty_from(NodeId node_id) {
         stack.pop_back();
 
         auto& current_node = mutable_node(current_id);
+        if (!current_node.alive) {
+            continue;
+        }
         current_node.clock_arrival_dirty = true;
 
         for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
-            stack.push_back(*it);
+            if (node(*it).alive) {
+                stack.push_back(*it);
+            }
         }
     }
 }
@@ -471,6 +715,18 @@ void ClockTree::use_clock_arrival_library(const BufferLibrary& buffer_library) {
         mark_clock_arrivals_dirty_from(root_id_);
     }
     clock_arrival_buffer_library_ = &buffer_library;
+}
+
+EdgeId ClockTree::add_edge(NodeId parent_id, NodeId child_id) {
+    const EdgeId edge_id = edges_.size();
+    edges_.push_back(ClockTreeEdge{edge_id, parent_id, child_id, true});
+    return edge_id;
+}
+
+void ClockTree::set_edge_alive(EdgeId edge_id, bool alive) {
+    if (edge_id < edges_.size()) {
+        edges_[edge_id].alive = alive;
+    }
 }
 
 double ClockTree::clock_delay(const std::string& node_name, const BufferLibrary& buffer_library,
@@ -524,9 +780,14 @@ double ClockTree::area(const BufferLibrary& buffer_library) const {
         stack.pop_back();
 
         const auto& clock_node = node(node_id);
+        if (!clock_node.alive) {
+            continue;
+        }
         if (clock_node.kind != NodeKind::Buffer) {
             for (auto it = clock_node.child_ids.rbegin(); it != clock_node.child_ids.rend(); ++it) {
-                stack.push_back(*it);
+                if (node(*it).alive) {
+                    stack.push_back(*it);
+                }
             }
             continue;
         }
@@ -534,7 +795,9 @@ double ClockTree::area(const BufferLibrary& buffer_library) const {
         total_area += buffer_area(find_buffer_cell(buffer_library, clock_node.cell_type));
 
         for (auto it = clock_node.child_ids.rbegin(); it != clock_node.child_ids.rend(); ++it) {
-            stack.push_back(*it);
+            if (node(*it).alive) {
+                stack.push_back(*it);
+            }
         }
     }
 
@@ -542,7 +805,7 @@ double ClockTree::area(const BufferLibrary& buffer_library) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree) {
-    if (clock_tree.root_id_ == kInvalidNodeId) {
+    if (clock_tree.root_id_ == kInvalidNodeId || !clock_tree.nodes_[clock_tree.root_id_].alive) {
         return os;
     }
 
@@ -559,6 +822,9 @@ std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree) {
         stack.pop_back();
 
         const auto& current_node = clock_tree.nodes_[current.node_id];
+        if (!current_node.alive) {
+            continue;
+        }
         for (std::size_t depth = 0; depth < current.depth; ++depth) {
             os << '\t';
         }
@@ -570,7 +836,9 @@ std::ostream& operator<<(std::ostream& os, const ClockTree& clock_tree) {
         os << '\n';
 
         for (auto it = current_node.child_ids.rbegin(); it != current_node.child_ids.rend(); ++it) {
-            stack.push_back(TraversalStackEntry{*it, current.depth + 1});
+            if (clock_tree.nodes_[*it].alive) {
+                stack.push_back(TraversalStackEntry{*it, current.depth + 1});
+            }
         }
     }
 

@@ -17,6 +17,14 @@
 #include "parser.hpp"
 
 namespace cadd0040 {
+namespace {
+
+bool metrics_report_enabled() {
+    const char* value = std::getenv("CADD0040_REPORT_METRICS");
+    return value != nullptr && value[0] == '1' && value[1] == '\0';
+}
+
+}  // namespace
 
 void Solver::load_input() {
     parse_clock_tree(config_.clk_tree_path, clock_tree_);
@@ -44,19 +52,24 @@ int Solver::run() {
 
         DebugProgress debug_progress = DebugProgress::from_environment();
         const Metrics baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+        const bool report_metrics = metrics_report_enabled();
 
-        // std::cout << "Initial baseline metrics: " << baseline_metrics << '\n';
-        // std::cout << "Initial Score = " << score(baseline_metrics, baseline_metrics) << '\n';
+        if (report_metrics) {
+            std::cout << "Initial baseline metrics: " << baseline_metrics << '\n';
+            std::cout << "Initial Score = " << score(baseline_metrics, baseline_metrics) << '\n';
+        }
 
         OptimizerContext optimizer_context{baseline_metrics, debug_progress};
 
         auto optimizer = make_optimizer(config_.optimizer_name);
         optimizer->run(clock_tree_, data_path_graph_, buffer_library_, optimizer_context);
 
-        // const Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
-        // std::cout << "======================================\n";
-        // std::cout << "Final metrics: " << final_metrics << '\n';
-        // std::cout << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
+        if (report_metrics) {
+            const Metrics final_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
+            std::cout << "======================================\n";
+            std::cout << "Final metrics: " << final_metrics << '\n';
+            std::cout << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
+        }
 
         write_output(clock_tree_, config_.output_file);
 

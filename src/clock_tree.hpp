@@ -19,10 +19,9 @@
  * Area helpers sum buffer cell areas only; clock source and flip-flop nodes are not
  * counted as buffer-library area.
  *
- * Public APIs use node names as the primary key. NodeId is kept as an internal compact
- * index for storage and traversal, while callers should pass instance names such as
- * BUF_0 or FF_37. This keeps parser, optimizer, evaluator, and writer code aligned
- * with the contest file formats, which identify components by name.
+ * Optimizer APIs use stable NodeId and EdgeId handles so hot loops do not depend on
+ * string lookup. Name-based APIs remain available for parser, writer, debug, and
+ * compatibility paths because the contest file formats identify components by name.
  */
 
 #pragma once
@@ -48,6 +47,8 @@ struct ClockNode {
     // Buffer nodes use this to look up buf.lib delay/area; FF nodes keep it for output.
     std::string cell_type;
     NodeKind kind = NodeKind::Buffer;
+    NodeOrigin origin = NodeOrigin::Original;
+    bool alive = true;
     NodeId parent_id = kInvalidNodeId;
     std::vector<NodeId> child_ids;
     // Cached clock arrival times from root to this node. SS/FF here are timing corners, not
@@ -55,6 +56,38 @@ struct ClockNode {
     double ss_clock_arrival = 0.0;
     double ff_clock_arrival = 0.0;
     bool clock_arrival_dirty = true;
+};
+
+struct ClockTreeEdge {
+    EdgeId id = kInvalidEdgeId;
+    NodeId parent_id = kInvalidNodeId;
+    NodeId child_id = kInvalidNodeId;
+    bool alive = true;
+};
+
+struct ClockTreeEdit {
+    enum class Kind {
+        None,
+        InsertBuffer,
+        ResizeBuffer,
+        RemoveInsertedBuffer,
+    };
+
+    Kind kind = Kind::None;
+    NodeId parent_id = kInvalidNodeId;
+    NodeId child_id = kInvalidNodeId;
+    NodeId buffer_id = kInvalidNodeId;
+    NodeId affected_root_id = kInvalidNodeId;
+    EdgeId original_edge_id = kInvalidEdgeId;
+    EdgeId first_edge_id = kInvalidEdgeId;
+    EdgeId second_edge_id = kInvalidEdgeId;
+    EdgeId replacement_edge_id = kInvalidEdgeId;
+    std::size_t parent_child_index = 0;
+    std::string old_cell_type;
+    std::string new_cell_type;
+
+    bool valid() const { return kind != Kind::None; }
+    explicit operator bool() const { return valid(); }
 };
 
 /**
@@ -89,7 +122,8 @@ public:
                   const std::string& parent_name);
     /**
      * @brief Inserts a new buffer between an existing parent-child edge.
-     * Time: average O(P), where P is parent_name's fanout, plus average O(1) buffer-library lookup.
+     * Time: average O(E + F + S), where E is edge count, F is parent fanout, and S is the
+     * affected child subtree size.
      *
      * @return true if the buffer was inserted. Returns false and leaves the tree unchanged if
      * parent_name/child_name are invalid, buffer_name already exists, the parent-child relation is
@@ -102,7 +136,8 @@ public:
 
     /**
      * @brief Removes a single-fanout buffer by reconnecting its parent directly to its child.
-     * Time: average O(P), where P is the removed buffer parent's fanout.
+     * Time: average O(E + F + S), where E is edge count, F is parent fanout, and S is the
+     * affected child subtree size.
      *
      * This is intended for optimizer rollback and visualization traces. It preserves existing
      * NodeId values by leaving the old node storage unreachable from the root.
@@ -114,7 +149,7 @@ public:
 
     /**
      * @brief Changes an existing buffer node to another buffer cell type.
-     * Time: average O(1), excluding string hash costs.
+     * Time: average O(S), excluding string hash costs, where S is the resized buffer subtree size.
      *
      * @return true if the cell type was changed. Returns false and leaves the node unchanged if
      * node_name is invalid, node_name is not a buffer, cell_type is not in buffer_library, or the
@@ -122,6 +157,14 @@ public:
      */
     bool resize_buffer(const std::string& node_name, const std::string& cell_type,
                        const BufferLibrary& buffer_library);
+
+    ClockTreeEdit insert_buffer_on_edge(EdgeId edge_id, const std::string& buffer_name,
+                                        const std::string& cell_type,
+                                        const BufferLibrary& buffer_library);
+    ClockTreeEdit resize_buffer(NodeId node_id, const std::string& cell_type,
+                                const BufferLibrary& buffer_library);
+    ClockTreeEdit remove_inserted_buffer(NodeId buffer_id);
+    void undo(const ClockTreeEdit& edit);
 
     // Time: O(1).
     bool empty() const;
@@ -131,11 +174,21 @@ public:
     const std::string& root_name() const;
     // Time: average O(1), excluding string hash cost.
     bool contains_name(const std::string& node_name) const;
+    bool contains_node_id(NodeId node_id) const;
+    bool is_alive(NodeId node_id) const;
+    NodeId node_id(const std::string& node_name) const;
     // Time: average O(1), excluding string hash cost.
     const ClockNode& node(const std::string& node_name) const;
+    const ClockNode& node(NodeId node_id) const;
     // Returns the owned node array by reference; no node data is copied.
     // Time: O(1).
     const std::vector<ClockNode>& nodes() const;
+    const std::vector<ClockTreeEdge>& edges() const;
+    const ClockTreeEdge& edge(EdgeId edge_id) const;
+    EdgeId edge_between(NodeId parent_id, NodeId child_id) const;
+    std::vector<EdgeId> active_edge_ids() const;
+    std::vector<NodeId> buffer_nodes() const;
+    std::vector<NodeId> flip_flop_nodes() const;
 
     // Time: average O(1), excluding string hash cost.
     std::size_t fanout(const std::string& node_name) const;
@@ -187,9 +240,8 @@ private:
     // Time: average O(1), excluding string hash cost.
     NodeId find_node(const std::string& node_name) const;
     // Time: O(1).
-    const ClockNode& node(NodeId node_id) const;
-    // Time: O(1).
     ClockNode& mutable_node(NodeId node_id);
+    ClockTreeEdge& mutable_edge(EdgeId edge_id);
     // Time: O(1).
     std::size_t fanout(NodeId node_id) const;
     // Time: O(H).
@@ -208,9 +260,12 @@ private:
     void ensure_clock_arrival(NodeId node_id, const BufferLibrary& buffer_library);
     // Time: O(N) if switching BufferLibrary objects; otherwise O(1).
     void use_clock_arrival_library(const BufferLibrary& buffer_library);
+    EdgeId add_edge(NodeId parent_id, NodeId child_id);
+    void set_edge_alive(EdgeId edge_id, bool alive);
 
     NodeId root_id_ = kInvalidNodeId;
     std::vector<ClockNode> nodes_;
+    std::vector<ClockTreeEdge> edges_;
     std::unordered_map<std::string, NodeId> name_to_id_;
     const BufferLibrary* clock_arrival_buffer_library_ = nullptr;
 };
