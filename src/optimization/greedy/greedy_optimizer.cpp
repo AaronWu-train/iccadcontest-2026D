@@ -104,12 +104,16 @@ void maybe_update_best(const ClockTree& clock_tree, const TimingState& timing,
 
 bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                        const std::vector<CandidateMove>& candidates) {
+                        const std::vector<CandidateMove>& candidates,
+                        const std::chrono::steady_clock::time_point& deadline) {
     const double before_score = timing.score(baseline_metrics);
     double best_delta = 0.0;
     CandidateMove best_move;
 
     for (const auto& candidate : candidates) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const ClockTreeEdit edit = apply_candidate(clock_tree, timing, buffer_library, candidate);
         if (!edit) {
             continue;
@@ -125,15 +129,22 @@ bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
     if (best_delta <= 0.0) {
         return false;
     }
+    if (std::chrono::steady_clock::now() >= deadline) {
+        return false;
+    }
     return static_cast<bool>(apply_candidate(clock_tree, timing, buffer_library, best_move));
 }
 
 bool apply_one_violation_step(ClockTree& clock_tree, TimingState& timing,
                               const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                              const GreedyConfig& config) {
+                              const GreedyConfig& config,
+                              const std::chrono::steady_clock::time_point& deadline) {
     std::vector<std::size_t> violating_paths;
     violating_paths.reserve(timing.path_count());
     for (std::size_t path_idx = 0; path_idx < timing.path_count(); ++path_idx) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return false;
+        }
         if (timing.ss_slack()[path_idx] < 0.0 || timing.ff_slack()[path_idx] < 0.0) {
             violating_paths.push_back(path_idx);
         }
@@ -153,6 +164,9 @@ bool apply_one_violation_step(ClockTree& clock_tree, TimingState& timing,
     const std::size_t sample_count =
         std::min<std::size_t>(violating_paths.size(), config.violation_sample_limit);
     for (std::size_t sample = 0; sample < sample_count; ++sample) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const std::size_t path_idx = violating_paths[sample];
         const auto& path = timing.paths()[path_idx];
 
@@ -180,6 +194,9 @@ bool apply_one_violation_step(ClockTree& clock_tree, TimingState& timing,
 
     std::size_t removal_candidates = 0;
     for (const NodeId node_id : clock_tree.buffer_nodes()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const auto& node = clock_tree.node(node_id);
         if (node.origin != NodeOrigin::Inserted) {
             continue;
@@ -191,15 +208,20 @@ bool apply_one_violation_step(ClockTree& clock_tree, TimingState& timing,
         }
     }
 
-    return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates);
+    return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates,
+                              deadline);
 }
 
 bool apply_one_resize_polish_step(ClockTree& clock_tree, TimingState& timing,
                                   const BufferLibrary& buffer_library,
-                                  const Metrics& baseline_metrics, const GreedyConfig& config) {
+                                  const Metrics& baseline_metrics, const GreedyConfig& config,
+                                  const std::chrono::steady_clock::time_point& deadline) {
     std::vector<CandidateMove> candidates;
     std::size_t tested_nodes = 0;
     for (const NodeId node_id : clock_tree.buffer_nodes()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const auto& node = clock_tree.node(node_id);
         const int old_cell_idx = timing.cell_index(node.cell_type);
         if (old_cell_idx < 0) {
@@ -218,7 +240,8 @@ bool apply_one_resize_polish_step(ClockTree& clock_tree, TimingState& timing,
             break;
         }
     }
-    return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates);
+    return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates,
+                              deadline);
 }
 
 }  // namespace
@@ -245,12 +268,13 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
 
         while (greedy_steps < config.max_steps && std::chrono::steady_clock::now() < deadline) {
             if (!apply_one_violation_step(clock_tree, timing, buffer_library, baseline_metrics,
-                                          config)) {
+                                          config, deadline)) {
                 break;
             }
             phase_changed = true;
             ++greedy_steps;
             maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
+            context.maybe_checkpoint(best_state.tree, greedy_steps + resize_steps);
 
             const double elapsed =
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time)
@@ -263,13 +287,14 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
         while (phase_resize_steps < config.max_resize_polish_steps &&
                std::chrono::steady_clock::now() < deadline) {
             if (!apply_one_resize_polish_step(clock_tree, timing, buffer_library, baseline_metrics,
-                                              config)) {
+                                              config, deadline)) {
                 break;
             }
             phase_changed = true;
             ++phase_resize_steps;
             ++resize_steps;
             maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
+            context.maybe_checkpoint(best_state.tree, greedy_steps + resize_steps);
         }
 
         if (!phase_changed) {
@@ -278,6 +303,7 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
     }
 
     clock_tree = best_state.tree;
+    context.write_checkpoint(best_state.tree);
 
     debug.log([&](std::ostream& os) {
         os << "GreedyOptimizer: phases = " << phases << ", steps = " << greedy_steps

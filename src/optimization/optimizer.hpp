@@ -5,6 +5,9 @@
 
 #pragma once
 
+#include <cstddef>
+#include <functional>
+
 #include "clock_tree.hpp"
 #include "datapath_graph.hpp"
 #include "debug_progress.hpp"
@@ -16,6 +19,20 @@ namespace cadd0040 {
 struct OptimizerContext {
     const Metrics& baseline_metrics;
     DebugProgress& debug_progress;
+    std::size_t checkpoint_interval = 0;
+    std::function<void(const ClockTree&)> checkpoint_writer;
+
+    void write_checkpoint(const ClockTree& clock_tree) const {
+        if (checkpoint_writer) {
+            checkpoint_writer(clock_tree);
+        }
+    }
+
+    void maybe_checkpoint(const ClockTree& clock_tree, std::size_t step) const {
+        if (checkpoint_interval > 0 && step > 0 && step % checkpoint_interval == 0) {
+            write_checkpoint(clock_tree);
+        }
+    }
 };
 
 /**

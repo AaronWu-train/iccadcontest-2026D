@@ -34,8 +34,10 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
     const auto deadline = start_time + config.time_budget;
 
     std::size_t greedy_steps = 0;
-    greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
-                                         best_state, config.greedy_warmup_iterations, deadline);
+    std::size_t checkpoint_steps = 0;
+    greedy_steps +=
+        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
+                             config.greedy_warmup_iterations, deadline, context, checkpoint_steps);
     double current_score = timing.score(baseline_metrics);
 
     debug.log([&](std::ostream& os) {
@@ -78,7 +80,7 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
             start_time, round_deadline, config.time_budget, config.initial_temperature,
             config.min_temperature, config.cooling_factor, config.restart_stale_iterations,
             config.restart_score_gap, 0, phase_greedy_steps, accepted_moves, rejected_moves,
-            restarts);
+            restarts, context, checkpoint_steps);
         total_iterations += round_iterations;
 
         debug.log([&](std::ostream& os) {
@@ -98,7 +100,8 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
         });
         sa::restore_best(clock_tree, timing, current_score, best_state);
         greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
-                                             best_state, config.greedy_round_iterations, deadline);
+                                             best_state, config.greedy_round_iterations, deadline,
+                                             context, checkpoint_steps);
         current_score = timing.score(baseline_metrics);
     }
 
@@ -110,11 +113,12 @@ void IteratedSaOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_p
 
     sa::restore_best(clock_tree, timing, current_score, best_state);
     const double polish_score_before = best_state.score;
-    const std::size_t polish_steps =
-        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
-                             config.final_greedy_polish_iterations, deadline);
+    const std::size_t polish_steps = sa::run_greedy_batch(
+        clock_tree, timing, buffer_library, baseline_metrics, best_state,
+        config.final_greedy_polish_iterations, deadline, context, checkpoint_steps);
     greedy_steps += polish_steps;
     sa::restore_best(clock_tree, timing, current_score, best_state);
+    context.write_checkpoint(best_state.tree);
 
     debug.log([&](std::ostream& os) {
         os << "IteratedSaOptimizer: final polish done, steps=" << polish_steps << ", score "

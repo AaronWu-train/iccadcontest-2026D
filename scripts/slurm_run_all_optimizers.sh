@@ -25,7 +25,8 @@
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
 #   OPTIMIZERS                       Space-separated list (default: greedy milp anneal isa)
-#   CADD0040_SA_SECONDS              Optimizer time budget (default: 540)
+#   CADD0040_SA_SECONDS              Optimizer time budget (default: 500)
+#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 1024)
 #   CADD0040_DEBUG_PROGRESS          1 to enable debug progress (default: 0)
 #   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval seconds (default: 30)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings
@@ -39,7 +40,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${TESTCASES_DIR:-${ROOT}/testcases}"
-SA_SECONDS="${CADD0040_SA_SECONDS:-540}"
+SA_SECONDS="${CADD0040_SA_SECONDS:-500}"
+CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-1024}"
 DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-0}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-30}"
 SLURM_TIME="${SLURM_TIME:-02:00:00}"
@@ -188,6 +190,7 @@ run_one_job() {
 
     local -a run_env=(
         "CADD0040_SA_SECONDS=${SA_SECONDS}"
+        "CADD0040_CHECKPOINT_STEPS=${CHECKPOINT_STEPS}"
         "CADD0040_REPORT_METRICS=1"
     )
     if [[ "${DEBUG_PROGRESS}" == "1" ]]; then

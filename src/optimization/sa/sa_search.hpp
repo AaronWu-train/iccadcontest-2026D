@@ -12,6 +12,7 @@
 #include "clock_tree.hpp"
 #include "debug_progress.hpp"
 #include "evaluation.hpp"
+#include "optimization/optimizer.hpp"
 #include "optimization/timing_state.hpp"
 #include "types.hpp"
 
@@ -36,7 +37,8 @@ void restore_best(ClockTree& clock_tree, TimingState& timing, double& current_sc
 std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
                              SearchState& best_state, std::size_t max_steps,
-                             const std::chrono::steady_clock::time_point& deadline);
+                             const std::chrono::steady_clock::time_point& deadline,
+                             const OptimizerContext& context, std::size_t& checkpoint_steps);
 
 std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
                          const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
@@ -48,7 +50,8 @@ std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
                          std::size_t restart_stale_iterations, double restart_score_gap,
                          std::size_t greedy_polish_interval, std::size_t& greedy_steps,
                          std::size_t& accepted_moves, std::size_t& rejected_moves,
-                         std::size_t& restarts);
+                         std::size_t& restarts, const OptimizerContext& context,
+                         std::size_t& checkpoint_steps);
 
 }  // namespace sa
 }  // namespace cadd0040

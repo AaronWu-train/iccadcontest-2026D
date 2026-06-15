@@ -26,7 +26,8 @@ CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
 
 | Variable | Purpose |
 |----------|---------|
-| `CADD0040_SA_SECONDS` | Optimizer time budget (default 540) |
+| `CADD0040_SA_SECONDS` | Optimizer time budget (default 500) |
+| `CADD0040_CHECKPOINT_STEPS` | Write best-so-far output every N optimizer steps; `0` disables (default 1024) |
 | `CADD0040_REPORT_METRICS` | `1` prints initial/final metrics and scores from `Solver` |
 | `CADD0040_DEBUG_PROGRESS` | `1` enables debug telemetry (debug builds) |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between `Progress` lines (default 30) |
@@ -69,7 +70,7 @@ Applies when editing `src/optimization/`.
 
 ```
 src/optimization/
-├── optimizer.hpp       # OptimizerContext { baseline_metrics, debug_progress }
+├── optimizer.hpp       # OptimizerContext { baseline_metrics, debug_progress, checkpoint writer }
 ├── factory.cpp         # register optimizer aliases
 ├── sa/                 # simulated annealing
 ├── greedy/
@@ -118,6 +119,7 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 - Optimizer defaults live in `src/optimization/optimizer_config.hpp`.
 - Environment overrides live in `src/optimization/optimizer_config.cpp`.
 - `CADD0040_SA_SECONDS` remains the legacy time-budget override.
+- `CADD0040_CHECKPOINT_STEPS` controls best-so-far output checkpoint frequency.
 - Batch run: `./scripts/run_all_testcases.sh`
 
 ### Deep architecture

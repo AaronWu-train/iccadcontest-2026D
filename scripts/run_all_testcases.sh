@@ -8,7 +8,8 @@
 #
 # Environment:
 #   BUILD_DIR                        Path to CMake build directory (default: build-release)
-#   CADD0040_SA_SECONDS              Optimizer time budget in seconds (default: 540, contest limit)
+#   CADD0040_SA_SECONDS              Optimizer time budget in seconds (default: 500)
+#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 1024)
 #   OPTIMIZER                        --optimizer value (default: anneal)
 #   CADD0040_REPORT_METRICS          Set to 0 to suppress per-run score lines (default: on)
 #   CADD0040_DEBUG_PROGRESS            Set to 0 to disable periodic best-score progress (default: on)
@@ -21,7 +22,8 @@ BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
 OPTIMIZER="${OPTIMIZER:-anneal}"
-SA_SECONDS="${CADD0040_SA_SECONDS:-540}"
+SA_SECONDS="${CADD0040_SA_SECONDS:-500}"
+CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-1024}"
 REPORT_METRICS="${CADD0040_REPORT_METRICS:-1}"
 DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-1}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-15}"
@@ -83,7 +85,11 @@ for testcase_path in "${TESTCASES[@]}"; do
     log_file="$(mktemp)"
     start_ns="$(date +%s)"
 
-    run_env=(CADD0040_SA_SECONDS="${SA_SECONDS}" CADD0040_REPORT_METRICS="${REPORT_METRICS}")
+    run_env=(
+        CADD0040_SA_SECONDS="${SA_SECONDS}"
+        CADD0040_CHECKPOINT_STEPS="${CHECKPOINT_STEPS}"
+        CADD0040_REPORT_METRICS="${REPORT_METRICS}"
+    )
     if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
         run_env+=(CADD0040_DEBUG_PROGRESS=1 "CADD0040_DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}")
         echo ">>> ${testcase_name}" >&2

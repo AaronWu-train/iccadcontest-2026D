@@ -32,8 +32,10 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     const auto deadline = start_time + config.time_budget;
 
     std::size_t greedy_steps = 0;
-    greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
-                                         best_state, config.greedy_warmup_iterations, deadline);
+    std::size_t checkpoint_steps = 0;
+    greedy_steps +=
+        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
+                             config.greedy_warmup_iterations, deadline, context, checkpoint_steps);
     double current_score = timing.score(baseline_metrics);
 
     debug.log([&](std::ostream& os) {
@@ -49,13 +51,14 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
         start_time, deadline, config.time_budget, config.initial_temperature,
         config.min_temperature, config.cooling_factor, config.restart_stale_iterations,
         config.restart_score_gap, config.greedy_polish_interval, greedy_steps, accepted_moves,
-        rejected_moves, restarts);
+        rejected_moves, restarts, context, checkpoint_steps);
 
     sa::restore_best(clock_tree, timing, current_score, best_state);
-    greedy_steps +=
-        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
-                             config.final_greedy_polish_iterations, deadline);
+    greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
+                                         best_state, config.final_greedy_polish_iterations,
+                                         deadline, context, checkpoint_steps);
     sa::restore_best(clock_tree, timing, current_score, best_state);
+    context.write_checkpoint(best_state.tree);
 
     debug.log([&](std::ostream& os) {
         os << "AnnealingOptimizer: iterations = " << iterations << ", accepted = " << accepted_moves

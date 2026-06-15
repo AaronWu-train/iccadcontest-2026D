@@ -113,6 +113,9 @@ OPTIMIZER=dummy ./scripts/run_all_testcases.sh
 # Disable progress or change the interval
 CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
 CADD0040_DEBUG_PROGRESS_INTERVAL=30 ./scripts/run_all_testcases.sh
+
+# Disable periodic best-so-far output checkpoints
+CADD0040_CHECKPOINT_STEPS=0 ./scripts/run_all_testcases.sh
 ```
 
 Environment variables:
@@ -121,7 +124,8 @@ Environment variables:
 |----------|---------|-------------|
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
 | `OPTIMIZER` | `anneal` | Value passed to `--optimizer` |
-| `CADD0040_SA_SECONDS` | `540` | Optimizer time budget in seconds (contest limit) |
+| `CADD0040_SA_SECONDS` | `500` | Optimizer time budget in seconds with contest safety margin |
+| `CADD0040_CHECKPOINT_STEPS` | `1024` | Write best-so-far output every N optimizer steps; `0` disables |
 | `CADD0040_DEBUG_PROGRESS` | `1` | Set to `0` to disable periodic best-score progress |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | `15` | Seconds between `Progress` lines |
 

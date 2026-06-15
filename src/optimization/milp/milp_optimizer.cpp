@@ -104,10 +104,14 @@ void maybe_update_best(const ClockTree& clock_tree, const TimingState& timing,
     }
 }
 
-std::vector<Violation> worst_violations(const TimingState& timing, const MilpConfig& config) {
+std::vector<Violation> worst_violations(const TimingState& timing, const MilpConfig& config,
+                                        const std::chrono::steady_clock::time_point& deadline) {
     std::vector<Violation> violations;
     violations.reserve(timing.path_count());
     for (std::size_t path_idx = 0; path_idx < timing.path_count(); ++path_idx) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const double severity = std::max(0.0, -timing.ss_slack()[path_idx]) +
                                 std::max(0.0, -timing.ff_slack()[path_idx]);
         if (severity > 0.0) {
@@ -125,12 +129,16 @@ std::vector<Violation> worst_violations(const TimingState& timing, const MilpCon
 
 bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                        const std::vector<CandidateMove>& candidates) {
+                        const std::vector<CandidateMove>& candidates,
+                        const std::chrono::steady_clock::time_point& deadline) {
     const double before_score = timing.score(baseline_metrics);
     double best_delta = 0.0;
     CandidateMove best_move;
 
     for (const auto& candidate : candidates) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const ClockTreeEdit edit = apply_candidate(clock_tree, timing, buffer_library, candidate);
         if (!edit) {
             continue;
@@ -146,18 +154,25 @@ bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
     if (best_delta <= 0.0) {
         return false;
     }
+    if (std::chrono::steady_clock::now() >= deadline) {
+        return false;
+    }
     return static_cast<bool>(apply_candidate(clock_tree, timing, buffer_library, best_move));
 }
 
 bool apply_one_milp_round(ClockTree& clock_tree, TimingState& timing,
                           const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                          const MilpConfig& config) {
-    const auto violations = worst_violations(timing, config);
+                          const MilpConfig& config,
+                          const std::chrono::steady_clock::time_point& deadline) {
+    const auto violations = worst_violations(timing, config, deadline);
     const auto fanout1_cells = timing.cells_for_fanout_by_area(1);
     std::vector<CandidateMove> candidates;
     candidates.reserve(config.candidate_limit);
 
     for (const auto& violation : violations) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
         const std::size_t path_idx = violation.path_idx;
         const auto& path = timing.paths()[path_idx];
 
@@ -196,6 +211,9 @@ bool apply_one_milp_round(ClockTree& clock_tree, TimingState& timing,
 
     if (violations.empty()) {
         for (const NodeId node_id : clock_tree.buffer_nodes()) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                break;
+            }
             if (clock_tree.node(node_id).origin != NodeOrigin::Inserted) {
                 continue;
             }
@@ -208,6 +226,9 @@ bool apply_one_milp_round(ClockTree& clock_tree, TimingState& timing,
 
         std::size_t resize_nodes = 0;
         for (const NodeId node_id : clock_tree.buffer_nodes()) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                break;
+            }
             const auto& node = clock_tree.node(node_id);
             const int old_cell_idx = timing.cell_index(node.cell_type);
             if (old_cell_idx < 0) {
@@ -232,7 +253,8 @@ bool apply_one_milp_round(ClockTree& clock_tree, TimingState& timing,
         }
     }
 
-    return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates);
+    return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates,
+                              deadline);
 }
 
 }  // namespace
@@ -252,11 +274,13 @@ void MilpOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_gr
 
     std::size_t rounds = 0;
     while (rounds < config.max_rounds && std::chrono::steady_clock::now() < deadline) {
-        if (!apply_one_milp_round(clock_tree, timing, buffer_library, baseline_metrics, config)) {
+        if (!apply_one_milp_round(clock_tree, timing, buffer_library, baseline_metrics, config,
+                                  deadline)) {
             break;
         }
         ++rounds;
         maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
+        context.maybe_checkpoint(best_state.tree, rounds);
 
         const double elapsed =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
@@ -265,6 +289,7 @@ void MilpOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_gr
     }
 
     clock_tree = best_state.tree;
+    context.write_checkpoint(best_state.tree);
 
     debug.log([&](std::ostream& os) {
         os << "MilpOptimizer: rounds = " << rounds << ", best score = " << best_state.score << '\n';

@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 #include "debug_progress.hpp"
 #include "optimization/factory.hpp"
@@ -19,9 +20,23 @@
 namespace cadd0040 {
 namespace {
 
+constexpr std::size_t kDefaultCheckpointInterval = 1024;
+
 bool metrics_report_enabled() {
     const char* value = std::getenv("CADD0040_REPORT_METRICS");
     return value != nullptr && value[0] == '1' && value[1] == '\0';
+}
+
+std::size_t checkpoint_interval_from_environment() {
+    const char* value = std::getenv("CADD0040_CHECKPOINT_STEPS");
+    if (value == nullptr) {
+        return kDefaultCheckpointInterval;
+    }
+    try {
+        return static_cast<std::size_t>(std::stoull(value));
+    } catch (const std::exception&) {
+        return kDefaultCheckpointInterval;
+    }
 }
 
 }  // namespace
@@ -33,6 +48,11 @@ void Solver::load_input() {
 }
 
 void Solver::write_output(const ClockTree& clock_tree, const std::filesystem::path& output_path) {
+    const auto parent_path = output_path.parent_path();
+    if (!parent_path.empty()) {
+        std::filesystem::create_directories(parent_path);
+    }
+
     std::ofstream output(output_path);
 
     if (!output) {
@@ -44,6 +64,14 @@ void Solver::write_output(const ClockTree& clock_tree, const std::filesystem::pa
     if (!output) {
         throw std::runtime_error("Failed to write output file: " + output_path.string());
     }
+}
+
+void Solver::write_output_atomically(const ClockTree& clock_tree,
+                                     const std::filesystem::path& output_path) {
+    std::filesystem::path temp_path = output_path;
+    temp_path += ".tmp";
+    write_output(clock_tree, temp_path);
+    std::filesystem::rename(temp_path, output_path);
 }
 
 int Solver::run() {
@@ -59,7 +87,21 @@ int Solver::run() {
             std::cout << "Initial Score = " << score(baseline_metrics, baseline_metrics) << '\n';
         }
 
-        OptimizerContext optimizer_context{baseline_metrics, debug_progress};
+        write_output(clock_tree_, config_.output_file);
+
+        const std::size_t checkpoint_interval = checkpoint_interval_from_environment();
+        auto checkpoint_writer = [&](const ClockTree& checkpoint_tree) {
+            try {
+                write_output_atomically(checkpoint_tree, config_.output_file);
+            } catch (const std::exception& e) {
+                debug_progress.log([&](std::ostream& os) {
+                    os << "Solver: checkpoint write failed: " << e.what() << '\n';
+                });
+            }
+        };
+
+        OptimizerContext optimizer_context{baseline_metrics, debug_progress, checkpoint_interval,
+                                           checkpoint_writer};
 
         auto optimizer = make_optimizer(config_.optimizer_name);
         optimizer->run(clock_tree_, data_path_graph_, buffer_library_, optimizer_context);
@@ -71,7 +113,7 @@ int Solver::run() {
             std::cout << "Final Score = " << score(final_metrics, baseline_metrics) << '\n';
         }
 
-        write_output(clock_tree_, config_.output_file);
+        write_output_atomically(clock_tree_, config_.output_file);
 
         return EXIT_SUCCESS;
     } catch (const std::exception& e) {

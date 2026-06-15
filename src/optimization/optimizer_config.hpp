@@ -11,7 +11,7 @@
 namespace cadd0040 {
 
 struct GreedyConfig {
-    std::chrono::seconds time_budget{540};
+    std::chrono::seconds time_budget{500};
     std::size_t max_steps = 4096;
     std::size_t max_resize_polish_steps = 96;
     std::size_t max_resize_nodes_per_step = 8192;
@@ -21,7 +21,7 @@ struct GreedyConfig {
 };
 
 struct MilpConfig {
-    std::chrono::seconds time_budget{540};
+    std::chrono::seconds time_budget{500};
     std::size_t max_rounds = 4096;
     std::size_t violation_window = 96;
     std::size_t candidate_limit = 4096;
@@ -29,7 +29,7 @@ struct MilpConfig {
 };
 
 struct SaConfig {
-    std::chrono::seconds time_budget{540};
+    std::chrono::seconds time_budget{500};
     double initial_temperature = 0.08;
     double min_temperature = 1e-6;
     double cooling_factor = 0.01;
@@ -41,7 +41,7 @@ struct SaConfig {
 };
 
 struct IsaConfig {
-    std::chrono::seconds time_budget{540};
+    std::chrono::seconds time_budget{500};
     double initial_temperature = 0.08;
     double min_temperature = 1e-6;
     double cooling_factor = 0.01;
