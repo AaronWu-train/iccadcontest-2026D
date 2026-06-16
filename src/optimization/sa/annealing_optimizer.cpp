@@ -18,7 +18,8 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
                              const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const SaConfig config = sa_config_from_environment();
+    const SaConfig config = sa_config_from_sources(context.optimizer_config);
+    sa::set_rng_seed(config.seed);
 
     TimingState timing(clock_tree, data_path_graph, buffer_library);
 
@@ -38,7 +39,8 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     std::size_t rejected_moves = 0;
     greedy_steps +=
         sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
-                             config.greedy_warmup_iterations, deadline, start_time, "warmup", -1,
+                             config.greedy_warmup_iterations, config.violation_sample_limit,
+                             config.removal_candidate_limit, deadline, start_time, "warmup", -1,
                              accepted_moves, rejected_moves, context, checkpoint_steps);
     double current_score = timing.score(baseline_metrics);
 
@@ -52,14 +54,16 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
         clock_tree, timing, buffer_library, baseline_metrics, debug, current_score, best_state,
         start_time, deadline, config.time_budget, config.initial_temperature,
         config.min_temperature, config.cooling_factor, config.restart_stale_iterations,
-        config.restart_score_gap, config.greedy_polish_interval, greedy_steps, accepted_moves,
-        rejected_moves, restarts, context, checkpoint_steps, "sa_phase", -1);
+        config.restart_score_gap, config.greedy_polish_interval, config.violation_sample_limit,
+        config.removal_candidate_limit, greedy_steps, accepted_moves, rejected_moves, restarts,
+        context, checkpoint_steps, "sa_phase", -1);
 
     sa::restore_best(clock_tree, timing, current_score, best_state);
-    greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
-                                         best_state, config.final_greedy_polish_iterations,
-                                         deadline, start_time, "final_polish", -1, accepted_moves,
-                                         rejected_moves, context, checkpoint_steps);
+    greedy_steps +=
+        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
+                             config.final_greedy_polish_iterations, config.violation_sample_limit,
+                             config.removal_candidate_limit, deadline, start_time, "final_polish",
+                             -1, accepted_moves, rejected_moves, context, checkpoint_steps);
     sa::restore_best(clock_tree, timing, current_score, best_state);
     context.write_checkpoint(best_state.tree);
     const double elapsed =

@@ -12,6 +12,8 @@
 #include <string_view>
 #include <vector>
 
+#include "optimization/optimizer_config.hpp"
+
 namespace cadd0040 {
 namespace sa {
 namespace {
@@ -240,6 +242,7 @@ bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
 
 bool apply_one_greedy_step(ClockTree& clock_tree, TimingState& timing,
                            const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
+                           std::size_t violation_sample_limit, std::size_t removal_candidate_limit,
                            const std::chrono::steady_clock::time_point& deadline) {
     std::vector<std::size_t> violating_paths;
     for (std::size_t path_idx = 0; path_idx < timing.path_count(); ++path_idx) {
@@ -261,7 +264,8 @@ bool apply_one_greedy_step(ClockTree& clock_tree, TimingState& timing,
 
     const auto fanout1_cells = timing.cells_for_fanout_by_area(1);
     std::vector<CandidateMove> candidates;
-    const std::size_t sample_count = std::min<std::size_t>(violating_paths.size(), 32);
+    const std::size_t sample_count =
+        std::min<std::size_t>(violating_paths.size(), violation_sample_limit);
     for (std::size_t sample = 0; sample < sample_count; ++sample) {
         if (std::chrono::steady_clock::now() >= deadline) {
             break;
@@ -299,7 +303,7 @@ bool apply_one_greedy_step(ClockTree& clock_tree, TimingState& timing,
         }
         candidates.push_back(
             CandidateMove{CandidateMove::Kind::Remove, kInvalidEdgeId, node_id, -1});
-        if (++removal_candidates >= 512) {
+        if (++removal_candidates >= removal_candidate_limit) {
             break;
         }
     }
@@ -340,9 +344,11 @@ void record_trace(const OptimizerContext& context, const ClockTree& clock_tree,
 }  // namespace
 
 std::mt19937& rng() {
-    static thread_local std::mt19937 engine(2026);
+    static thread_local std::mt19937 engine(kDefaultRngSeed);
     return engine;
 }
+
+void set_rng_seed(unsigned int seed) { rng().seed(seed); }
 
 void maybe_update_best(const ClockTree& clock_tree, const TimingState& timing,
                        const Metrics& baseline_metrics, SearchState& best_state) {
@@ -365,6 +371,8 @@ void restore_best(ClockTree& clock_tree, TimingState& timing, double& current_sc
 std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
                              SearchState& best_state, std::size_t max_steps,
+                             std::size_t violation_sample_limit,
+                             std::size_t removal_candidate_limit,
                              const std::chrono::steady_clock::time_point& deadline,
                              const std::chrono::steady_clock::time_point& start_time,
                              std::string_view phase_name, int round_index,
@@ -379,7 +387,7 @@ std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
     for (; steps < max_steps && std::chrono::steady_clock::now() < deadline; ++steps) {
         const double before_score = timing.score(baseline_metrics);
         if (!apply_one_greedy_step(clock_tree, timing, buffer_library, baseline_metrics,
-                                   deadline)) {
+                                   violation_sample_limit, removal_candidate_limit, deadline)) {
             break;
         }
         const double delta = timing.score(baseline_metrics) - before_score;
@@ -410,7 +418,8 @@ std::size_t run_sa_phase(
     const std::chrono::steady_clock::time_point& phase_deadline, std::chrono::seconds total_budget,
     double initial_temperature, double min_temperature, double cooling_factor,
     std::size_t restart_stale_iterations, double restart_score_gap,
-    std::size_t greedy_polish_interval, std::size_t& greedy_steps, std::size_t& accepted_moves,
+    std::size_t greedy_polish_interval, std::size_t violation_sample_limit,
+    std::size_t removal_candidate_limit, std::size_t& greedy_steps, std::size_t& accepted_moves,
     std::size_t& rejected_moves, std::size_t& restarts, const OptimizerContext& context,
     std::size_t& checkpoint_steps, std::string_view phase_name, int round_index) {
     std::size_t iteration = 0;
@@ -433,6 +442,7 @@ std::size_t run_sa_phase(
         if (greedy_polish_interval > 0 && iteration > 0 &&
             iteration % greedy_polish_interval == 0) {
             if (apply_one_greedy_step(clock_tree, timing, buffer_library, baseline_metrics,
+                                      violation_sample_limit, removal_candidate_limit,
                                       phase_deadline)) {
                 ++greedy_steps;
                 current_score = timing.score(baseline_metrics);

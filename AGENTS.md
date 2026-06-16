@@ -20,9 +20,14 @@ make test           # Catch2 via CTest
 Single testcase:
 
 ```sh
-./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>]
+./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--config <file>]
 CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
 ```
+
+Optional experiment config file (`--config`): INI `key = value` format. Global keys include
+`optimizer`, `seed`, and `time_budget_seconds`. Per-optimizer sections use the optimizer alias as
+the section name (for example `[isa]`). When present, config values override environment variables
+and the config `optimizer` key overrides `--optimizer`.
 
 | Variable | Purpose |
 |----------|---------|
@@ -133,7 +138,9 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 
 - Optimizer defaults live in `src/optimization/optimizer_config.hpp`.
 - Environment overrides live in `src/optimization/optimizer_config.cpp`.
-- `CADD0040_SA_SECONDS` remains the legacy time-budget override.
+- Optional experiment config files are loaded via CLI `--config` and parsed in
+  `src/optimization/optimizer_config.cpp`.
+- `CADD0040_SA_SECONDS` remains the legacy time-budget override when no config file is used.
 - `CADD0040_CHECKPOINT_STEPS` controls best-so-far output checkpoint frequency.
 - `CADD0040_PROGRESS_TRACE` / `CADD0040_VISUAL_TRACE` are optional and default off; keep full
   experiments lightweight.

@@ -1,16 +1,28 @@
 /**
  * @file optimizer_config.hpp
- * @brief Centralized optimizer tuning defaults.
+ * @brief Centralized optimizer tuning defaults and experiment config loading.
  */
 
 #pragma once
 
 #include <chrono>
 #include <cstddef>
+#include <filesystem>
+#include <map>
+#include <optional>
+#include <string>
 
 namespace cadd0040 {
 
 inline constexpr std::chrono::seconds kDefaultOptimizerTimeBudget{570};
+inline constexpr unsigned int kDefaultRngSeed = 2026;
+
+struct OptimizerConfigFile {
+    std::optional<std::string> optimizer;
+    std::optional<unsigned int> seed;
+    std::optional<std::chrono::seconds> time_budget;
+    std::map<std::string, std::map<std::string, std::string>> sections;
+};
 
 struct GreedyConfig {
     std::chrono::seconds time_budget{kDefaultOptimizerTimeBudget};
@@ -32,6 +44,7 @@ struct MilpConfig {
 
 struct SaConfig {
     std::chrono::seconds time_budget{kDefaultOptimizerTimeBudget};
+    unsigned int seed = kDefaultRngSeed;
     double initial_temperature = 0.08;
     double min_temperature = 1e-6;
     double cooling_factor = 0.01;
@@ -40,10 +53,13 @@ struct SaConfig {
     std::size_t restart_stale_iterations = 2500;
     double restart_score_gap = 0.05;
     std::size_t greedy_polish_interval = 0;
+    std::size_t violation_sample_limit = 32;
+    std::size_t removal_candidate_limit = 512;
 };
 
 struct IsaConfig {
     std::chrono::seconds time_budget{kDefaultOptimizerTimeBudget};
+    unsigned int seed = kDefaultRngSeed;
     double initial_temperature = 0.08;
     double min_temperature = 1e-6;
     double cooling_factor = 0.01;
@@ -53,6 +69,8 @@ struct IsaConfig {
     std::size_t final_greedy_polish_iterations = 32;
     std::size_t restart_stale_iterations = 2500;
     double restart_score_gap = 0.05;
+    std::size_t violation_sample_limit = 32;
+    std::size_t removal_candidate_limit = 512;
 };
 
 struct CriticalEndpointConfig {
@@ -94,7 +112,7 @@ struct RandomizedRclConfig {
     std::size_t violation_sample_limit = 32;
     std::size_t removal_candidate_limit = 512;
     std::size_t final_resize_polish_steps = 96;
-    unsigned int seed = 2026;
+    unsigned int seed = kDefaultRngSeed;
 };
 
 struct TabuConfig {
@@ -108,6 +126,22 @@ struct TabuConfig {
     std::size_t resize_node_limit = 1024;
     std::size_t candidate_limit = 4096;
 };
+
+OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& path);
+
+GreedyConfig greedy_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
+MilpConfig milp_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
+SaConfig sa_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
+IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
+CriticalEndpointConfig critical_endpoint_config_from_sources(
+    const OptimizerConfigFile* config_file = nullptr);
+UpstreamWindowConfig upstream_window_config_from_sources(
+    const OptimizerConfigFile* config_file = nullptr);
+RepairRecoverConfig repair_recover_config_from_sources(
+    const OptimizerConfigFile* config_file = nullptr);
+RandomizedRclConfig randomized_rcl_config_from_sources(
+    const OptimizerConfigFile* config_file = nullptr);
+TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
 
 GreedyConfig greedy_config_from_environment();
 MilpConfig milp_config_from_environment();

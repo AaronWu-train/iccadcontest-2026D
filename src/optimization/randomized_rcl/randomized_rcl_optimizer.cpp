@@ -294,7 +294,7 @@ void GreedyRandomizedRclOptimizer::run(ClockTree& clock_tree, const DataPathGrap
                                        const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const RandomizedRclConfig config = randomized_rcl_config_from_environment();
+    const RandomizedRclConfig config = randomized_rcl_config_from_sources(context.optimizer_config);
     const ClockTree base_tree = clock_tree;
     TimingState initial_timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, initial_timing.snapshot(), initial_timing.metrics(),

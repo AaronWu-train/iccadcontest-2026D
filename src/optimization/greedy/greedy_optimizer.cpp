@@ -442,16 +442,17 @@ GreedyRunConfig upstream_window_config(const UpstreamWindowConfig& config) {
                            config.upstream_window_depth};
 }
 
-GreedyRunConfig config_for_policy(GreedyCandidatePolicy policy) {
+GreedyRunConfig config_for_policy(GreedyCandidatePolicy policy,
+                                  const OptimizerConfigFile* config_file) {
     switch (policy) {
         case GreedyCandidatePolicy::ViolationPath:
-            return violation_path_config(greedy_config_from_environment());
+            return violation_path_config(greedy_config_from_sources(config_file));
         case GreedyCandidatePolicy::CriticalEndpoint:
-            return critical_endpoint_config(critical_endpoint_config_from_environment());
+            return critical_endpoint_config(critical_endpoint_config_from_sources(config_file));
         case GreedyCandidatePolicy::UpstreamWindow:
-            return upstream_window_config(upstream_window_config_from_environment());
+            return upstream_window_config(upstream_window_config_from_sources(config_file));
     }
-    return violation_path_config(greedy_config_from_environment());
+    return violation_path_config(greedy_config_from_sources(config_file));
 }
 
 }  // namespace
@@ -462,7 +463,7 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
                           const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const GreedyRunConfig config = config_for_policy(policy_);
+    const GreedyRunConfig config = config_for_policy(policy_, context.optimizer_config);
     const std::string policy = policy_name(policy_);
     TimingState timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, timing.snapshot(), timing.metrics(),

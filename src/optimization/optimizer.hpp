@@ -18,6 +18,8 @@
 
 namespace cadd0040 {
 
+struct OptimizerConfigFile;
+
 struct OptimizerProgressEvent {
     std::size_t step = 0;
     double elapsed_seconds = 0.0;
@@ -38,6 +40,7 @@ struct OptimizerContext {
     DebugProgress& debug_progress;
     std::string optimizer_name;
     std::string testcase_name;
+    const OptimizerConfigFile* optimizer_config = nullptr;
     std::size_t checkpoint_interval = 0;
     std::function<void(const ClockTree&)> checkpoint_writer;
     std::size_t progress_interval = 0;

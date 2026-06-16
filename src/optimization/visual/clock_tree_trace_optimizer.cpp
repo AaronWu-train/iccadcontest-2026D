@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+#include "optimization/optimizer_config.hpp"
+
 namespace cadd0040 {
 namespace {
 
@@ -482,7 +484,7 @@ void ClockTreeTraceOptimizer::run(ClockTree& clock_tree, const DataPathGraph& da
         ++global_iteration;
     }
 
-    std::mt19937 rng(2026);
+    std::mt19937 rng(kDefaultRngSeed);
     for (std::size_t iteration = 0; iteration < sa_iterations; ++iteration) {
         AppliedMove move =
             apply_visual_candidate(clock_tree, data_path_graph, buffer_library,

@@ -328,7 +328,7 @@ void TabuOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_gr
                         const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const TabuConfig config = tabu_config_from_environment();
+    const TabuConfig config = tabu_config_from_sources(context.optimizer_config);
     TimingState timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, timing.snapshot(), timing.metrics(),
                             timing.score(baseline_metrics)};

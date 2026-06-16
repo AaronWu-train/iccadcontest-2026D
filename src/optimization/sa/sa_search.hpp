@@ -29,6 +29,8 @@ struct SearchState {
 
 std::mt19937& rng();
 
+void set_rng_seed(unsigned int seed);
+
 void maybe_update_best(const ClockTree& clock_tree, const TimingState& timing,
                        const Metrics& baseline_metrics, SearchState& best_state);
 
@@ -38,6 +40,8 @@ void restore_best(ClockTree& clock_tree, TimingState& timing, double& current_sc
 std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
                              SearchState& best_state, std::size_t max_steps,
+                             std::size_t violation_sample_limit,
+                             std::size_t removal_candidate_limit,
                              const std::chrono::steady_clock::time_point& deadline,
                              const std::chrono::steady_clock::time_point& start_time,
                              std::string_view phase_name, int round_index,
@@ -51,7 +55,8 @@ std::size_t run_sa_phase(
     const std::chrono::steady_clock::time_point& phase_deadline, std::chrono::seconds total_budget,
     double initial_temperature, double min_temperature, double cooling_factor,
     std::size_t restart_stale_iterations, double restart_score_gap,
-    std::size_t greedy_polish_interval, std::size_t& greedy_steps, std::size_t& accepted_moves,
+    std::size_t greedy_polish_interval, std::size_t violation_sample_limit,
+    std::size_t removal_candidate_limit, std::size_t& greedy_steps, std::size_t& accepted_moves,
     std::size_t& rejected_moves, std::size_t& restarts, const OptimizerContext& context,
     std::size_t& checkpoint_steps, std::string_view phase_name, int round_index);
 

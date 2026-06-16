@@ -311,7 +311,7 @@ void GreedyRepairRecoverOptimizer::run(ClockTree& clock_tree, const DataPathGrap
                                        const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const RepairRecoverConfig config = repair_recover_config_from_environment();
+    const RepairRecoverConfig config = repair_recover_config_from_sources(context.optimizer_config);
     TimingState timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, timing.snapshot(), timing.metrics(),
                             timing.score(baseline_metrics)};

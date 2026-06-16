@@ -7,7 +7,9 @@ This document defines the default experiment matrix and lightweight logging rule
 - Main experiments use the same edit operations: insert buffer, remove inserted buffer, resize buffer.
 - Algorithm differences are limited to candidate policy, search framework, objective schedule, and local-optimum escape.
 - All A1-A8 optimizers use the same default wall-clock budget: `570s`.
-- `CADD0040_SA_SECONDS` overrides the time budget for every optimizer.
+- `CADD0040_SA_SECONDS` overrides the time budget for every optimizer when no config file is used.
+- `--config <file>` loads an INI experiment file. Config values override environment variables.
+  The config `optimizer` key overrides CLI `--optimizer`.
 - `CADD0040_CHECKPOINT_STEPS` writes the best-so-far tree to the requested output path. Default: `4096`; set `0` to disable.
 - Progress trace and visual trace are off by default.
 - Full Slurm runs should keep `CADD0040_DEBUG_PROGRESS=0`, `CADD0040_PROGRESS_TRACE=0`, and `CADD0040_VISUAL_TRACE=0`.
@@ -120,6 +122,36 @@ plots/by_run/<optimizer>__<testcase>_phases.png
 ```
 
 If no `progress.tsv` exists, the script prints a clear message and exits successfully.
+
+## Experiment Config File
+
+Use `--config <file>` for reproducible parameter sweeps without recompiling. Format: INI
+`key = value` with optional per-optimizer sections named by alias.
+
+```ini
+optimizer = isa
+seed = 1234
+time_budget_seconds = 60
+
+[isa]
+rounds = 8
+greedy_round_iterations = 32
+initial_temperature = 0.08
+
+[greedy-randomized-rcl]
+restart_count = 16
+steps_per_restart = 512
+top_k = 8
+```
+
+Precedence when `--config` is present:
+
+1. Struct defaults from `optimizer_config.hpp`
+2. `CADD0040_SA_SECONDS` (if set)
+3. Config file global keys (`optimizer`, `seed`, `time_budget_seconds`)
+4. Config file optimizer section keys
+
+The config `optimizer` key overrides CLI `--optimizer`.
 
 ## Recommended Commands
 

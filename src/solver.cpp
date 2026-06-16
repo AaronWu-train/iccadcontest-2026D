@@ -269,6 +269,7 @@ int Solver::run() {
                                            debug_progress,
                                            optimizer_name,
                                            testcase_name,
+                                           config_.optimizer_config_ptr(),
                                            checkpoint_interval,
                                            checkpoint_writer,
                                            progress_trace_enabled ? progress_interval : 0,
