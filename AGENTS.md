@@ -26,9 +26,13 @@ CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
 
 | Variable | Purpose |
 |----------|---------|
-| `CADD0040_SA_SECONDS` | Optimizer time budget (default 500) |
-| `CADD0040_CHECKPOINT_STEPS` | Write best-so-far output every N optimizer steps; `0` disables (default 1024) |
+| `CADD0040_SA_SECONDS` | Optimizer time budget (default 570) |
+| `CADD0040_CHECKPOINT_STEPS` | Write best-so-far output every N optimizer steps; `0` disables (default 4096) |
 | `CADD0040_REPORT_METRICS` | `1` prints initial/final metrics and scores from `Solver` |
+| `CADD0040_PROGRESS_TRACE` | `1` writes lightweight `progress.tsv`; default `0` |
+| `CADD0040_PROGRESS_STEPS` | Progress trace logical step interval (default 256) |
+| `CADD0040_VISUAL_TRACE` | `1` writes sampled `frames.json`; default `0` |
+| `CADD0040_VISUAL_TRACE_STEPS` | Visual frame logical step interval (default 256) |
 | `CADD0040_DEBUG_PROGRESS` | `1` enables debug telemetry (debug builds) |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between `Progress` lines (default 30) |
 
@@ -73,7 +77,10 @@ src/optimization/
 ├── optimizer.hpp       # OptimizerContext { baseline_metrics, debug_progress, checkpoint writer }
 ├── factory.cpp         # register optimizer aliases
 ├── sa/                 # simulated annealing
-├── greedy/
+├── greedy/             # A1/A4/A5 same best-improvement greedy class
+├── repair_recover/     # A6 Greedy-RepairRecover
+├── randomized_rcl/     # A7 Greedy-RandomizedRCL
+├── tabu/               # A8 Tabu
 └── milp/
 ```
 
@@ -95,10 +102,15 @@ Default CLI value: `isa` (`kDefaultOptimizerName` in `factory.hpp`).
 
 | Alias | Class |
 |-------|-------|
+| `greedy-violation-path` | `GreedyOptimizer(ViolationPath)` |
+| `sa` | `AnnealingOptimizer` |
 | `isa` | `IteratedSaOptimizer` |
-| `anneal` / `sa` | `AnnealingOptimizer` |
-| `greedy` | `GreedyOptimizer` |
-| `milp` | `MilpOptimizer` |
+| `greedy-critical-endpoint` | `GreedyOptimizer(CriticalEndpoint)` |
+| `greedy-upstream-window` | `GreedyOptimizer(UpstreamWindow)` |
+| `greedy-repair-recover` | `GreedyRepairRecoverOptimizer` |
+| `greedy-randomized-rcl` | `GreedyRandomizedRclOptimizer` |
+| `tabu` | `TabuOptimizer` |
+| `milp` | `MilpOptimizer` (legacy runnable; not A1-A8 default) |
 | `visual` | `ClockTreeTraceOptimizer` (visualization/trace tool) |
 | `dummy` | `DummyOptimizer` (no-op, testing) |
 
@@ -112,6 +124,9 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 - Output traversal skips dead inserted nodes.
 - `TimingState` owns timing/score cache only. Do not put random move generation, greedy policy, or SA Metropolis logic in it.
 - Reversible edits must call both `TimingState::undo(edit)` and `ClockTree::undo(edit)` when rejected.
+- Do not add cross-optimizer helper layers for candidate policy or search policy.
+- A1/A4/A5 may share `GreedyOptimizer` because they are the same best-improvement greedy and only
+  differ by candidate generation. A6/A7/A8 must keep their helpers local to their own folders.
 - New optimizer `.cpp` files must be added to `cadd0040_core` in `CMakeLists.txt`, registered in `factory.cpp`, and covered by tests.
 
 ### Tuning
@@ -120,6 +135,8 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 - Environment overrides live in `src/optimization/optimizer_config.cpp`.
 - `CADD0040_SA_SECONDS` remains the legacy time-budget override.
 - `CADD0040_CHECKPOINT_STEPS` controls best-so-far output checkpoint frequency.
+- `CADD0040_PROGRESS_TRACE` / `CADD0040_VISUAL_TRACE` are optional and default off; keep full
+  experiments lightweight.
 - Batch run: `./scripts/run_all_testcases.sh`
 
 ### Deep architecture

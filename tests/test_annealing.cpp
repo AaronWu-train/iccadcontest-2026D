@@ -1,11 +1,15 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
+#include <string>
+#include <vector>
 
 #ifndef _WIN32
 #include <cstdlib>
 #endif
 
 #include "evaluation.hpp"
+#include "optimization/factory.hpp"
 #include "optimization/greedy/greedy_optimizer.hpp"
 #include "optimization/milp/milp_optimizer.hpp"
 #include "optimization/optimizer_config.hpp"
@@ -157,6 +161,85 @@ TEST_CASE("optimizer configs use legacy SA seconds override", "[optimization]") 
     CHECK(cadd0040::milp_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::sa_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::isa_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::critical_endpoint_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::upstream_window_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::repair_recover_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::randomized_rcl_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::tabu_config_from_environment().time_budget.count() == 7);
+    unsetenv("CADD0040_SA_SECONDS");
+#endif
+}
+
+TEST_CASE("A1-A8 optimizer aliases are registered", "[optimization]") {
+    const std::vector<std::string> aliases = {
+        "greedy-violation-path",
+        "sa",
+        "isa",
+        "greedy-critical-endpoint",
+        "greedy-upstream-window",
+        "greedy-repair-recover",
+        "greedy-randomized-rcl",
+        "tabu",
+    };
+    for (const auto& alias : aliases) {
+        CHECK(cadd0040::make_optimizer(alias) != nullptr);
+    }
+}
+
+TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
+    const std::vector<std::string> aliases = {
+        "greedy",
+        "greedy-endpoint",
+        "greedy-critical-ff",
+        "greedy-root-window",
+        "greedy-timing-area",
+        "greedy-grasp",
+        "sa-basic",
+        "isa-basic",
+        "anneal",
+        "tabu-mixed",
+    };
+    for (const auto& alias : aliases) {
+        CHECK_THROWS(cadd0040::make_optimizer(alias));
+    }
+}
+
+TEST_CASE("A1-A8 optimizers run and leave an evaluable tree", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "0", 1);
+#endif
+
+    const std::vector<std::string> aliases = {
+        "greedy-violation-path",
+        "sa",
+        "isa",
+        "greedy-critical-endpoint",
+        "greedy-upstream-window",
+        "greedy-repair-recover",
+        "greedy-randomized-rcl",
+        "tabu",
+    };
+    for (const auto& alias : aliases) {
+        const auto buffer_library = make_buffer_library();
+        auto clock_tree = make_clock_tree();
+        const auto data_path_graph = make_data_path_graph();
+        const cadd0040::Metrics baseline =
+            cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+
+        cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+        cadd0040::OptimizerContext context{baseline, debug_progress};
+        auto optimizer = cadd0040::make_optimizer(alias);
+        optimizer->run(clock_tree, data_path_graph, buffer_library, context);
+
+        const cadd0040::Metrics final_metrics =
+            cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+        CHECK(std::isfinite(cadd0040::score(final_metrics, baseline)));
+        CHECK(clock_tree.contains_name("ROOT_CLK"));
+        CHECK(clock_tree.contains_name("FF_L"));
+        CHECK(clock_tree.contains_name("FF_C"));
+    }
+
+#ifndef _WIN32
     unsetenv("CADD0040_SA_SECONDS");
 #endif
 }

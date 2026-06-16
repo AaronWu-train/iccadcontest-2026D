@@ -1,94 +1,143 @@
 # Optimization Experiment Parameters
 
-This document defines the default parameter set for fair optimizer experiments.
+This document defines the default experiment matrix and lightweight logging rules.
 
-## Fairness rules
+## Fairness Rules
 
-- Greedy, MILP, SA, and ISA use the same wall-clock time budget by default.
-- `CADD0040_SA_SECONDS` overrides the time budget for all optimizers.
-- Default optimizer budget is `500s`, leaving safety margin before a `600s` contest kill.
-- `CADD0040_CHECKPOINT_STEPS` writes the best-so-far tree to the requested output path every fixed
-  number of optimizer steps. The default is `1024`; set it to `0` to disable periodic checkpoints.
-- SA and ISA warmup, SA phases, round greedy batches, and final polish all count against the same
-  time budget.
-- Greedy/SA/ISA use the same score function and the same final `evaluate()` path.
-- SA and ISA keep fixed RNG seed behavior for reproducibility.
+- Main experiments use the same edit operations: insert buffer, remove inserted buffer, resize buffer.
+- Algorithm differences are limited to candidate policy, search framework, objective schedule, and local-optimum escape.
+- All A1-A8 optimizers use the same default wall-clock budget: `570s`.
+- `CADD0040_SA_SECONDS` overrides the time budget for every optimizer.
+- `CADD0040_CHECKPOINT_STEPS` writes the best-so-far tree to the requested output path. Default: `4096`; set `0` to disable.
+- Progress trace and visual trace are off by default.
+- Full Slurm runs should keep `CADD0040_DEBUG_PROGRESS=0`, `CADD0040_PROGRESS_TRACE=0`, and `CADD0040_VISUAL_TRACE=0`.
 
-## Recommended experiment budgets
+## A1-A8 Matrix
 
-Use the same budget for every optimizer in one comparison table:
+| ID | Alias | Name | Framework | Main Difference |
+|----|-------|------|-----------|-----------------|
+| A1 | `greedy-violation-path` | Greedy-ViolationPath | Greedy | Worst violated path endpoint candidate |
+| A2 | `sa` | SA | SA | Single SA phase with Metropolis accept |
+| A3 | `isa` | ISA | ISA | Multi-round SA plus greedy batch |
+| A4 | `greedy-critical-endpoint` | Greedy-CriticalEndpoint | Greedy | Candidate edges from top critical endpoints |
+| A5 | `greedy-upstream-window` | Greedy-UpstreamWindow | Greedy | Candidate edges from upstream endpoint window |
+| A6 | `greedy-repair-recover` | Greedy-RepairRecover | Greedy | Timing repair stage, then area recovery stage |
+| A7 | `greedy-randomized-rcl` | Greedy-RandomizedRCL | Randomized Greedy | Top-k positive move sampling plus restart |
+| A8 | `tabu` | Tabu | Tabu Search | Best non-tabu move with aspiration; worse moves allowed |
 
-| Experiment | Command setting | Purpose |
-|------------|-----------------|---------|
-| Smoke | `CADD0040_SA_SECONDS=10` | Verify all optimizers run. |
-| Short report | `CADD0040_SA_SECONDS=60` | Quick comparison during development. |
-| Main report | `CADD0040_SA_SECONDS=300` | Practical quality/runtime tradeoff table. |
-| Full contest-safe | `CADD0040_SA_SECONDS=500` | Final comparison with margin before a 600s kill. |
+`milp` remains runnable, but it is not part of the A1-A8 default experiment matrix. Old aliases are
+not registered.
 
-## Default parameter set
+## Default Parameters
 
-| Optimizer | Time budget | Main parameters |
-|-----------|-------------|-----------------|
-| Greedy | `500s` | `max_steps=4096`, `max_resize_polish_steps=96`, `max_polish_phases=64`, `violation_sample_limit=32`, `removal_candidate_limit=512` |
-| MILP-inspired | `500s` | `max_rounds=4096`, `violation_window=96`, `candidate_limit=4096`, `resize_node_limit=4096` |
-| SA | `500s` | `greedy_warmup=256`, `final_greedy_polish=32`, `greedy_polish_interval=0`, `restart_stale=2500`, `restart_gap=0.05` |
-| ISA | `500s` | `greedy_warmup=256`, `rounds=16`, `round_greedy=16`, `final_greedy_polish=32`, `restart_stale=2500`, `restart_gap=0.05` |
+| Optimizer | Time | Main parameters |
+|-----------|------|-----------------|
+| A1 Greedy-ViolationPath | `570s` | `max_steps=4096`, `max_resize_polish_steps=96`, `max_polish_phases=64`, `violation_sample_limit=32`, `removal_candidate_limit=512` |
+| A2 SA | `570s` | `greedy_warmup=256`, `final_greedy_polish=32`, `initial_temperature=0.08`, `cooling_factor=0.01`, `restart_stale=2500` |
+| A3 ISA | `570s` | `greedy_warmup=256`, `rounds=16`, `round_greedy=16`, `final_greedy_polish=32`, `restart_stale=2500` |
+| A4 Greedy-CriticalEndpoint | `570s` | `critical_endpoint_limit=32`, `removal_candidate_limit=512`, resize polish same as A1 |
+| A5 Greedy-UpstreamWindow | `570s` | `violation_sample_limit=32`, `upstream_window_depth=4`, `removal_candidate_limit=512`, resize polish same as A1 |
+| A6 Greedy-RepairRecover | `570s` | `timing_steps=4096`, `area_steps=4096`, `upstream_window_depth=4`, `removal_candidate_limit=1024` |
+| A7 Greedy-RandomizedRCL | `570s` | `restart_count=16`, `steps_per_restart=512`, `top_k=8`, `seed=2026` |
+| A8 Tabu | `570s` | `max_steps=8192`, `tabu_tenure=128`, `candidate_limit=4096`, `upstream_window_depth=4` |
 
-## SA vs ISA policy
+## What To Record
 
-SA and ISA intentionally share these settings:
+Default Slurm output is lightweight:
 
-- Same total time budget.
-- Same initial temperature: `0.08`.
-- Same cooling factor: `0.01`.
-- Same minimum temperature: `1e-6`.
-- Same greedy warmup limit: `256`.
-- Same final greedy polish limit: `32`.
-- Same restart rule.
+```text
+logs/
+outputs/
+summary.txt
+results.tsv
+by_optimizer.tsv
+best_by_testcase.tsv
+progress_index.tsv
+```
 
-They differ only in search schedule:
+For report tables, use:
 
-- SA uses one long SA phase.
-- ISA splits the budget into `16` SA rounds.
-- ISA performs a bounded greedy batch after each round.
+- `results.tsv`: optimizer, testcase, initial score, final score, runtime, status.
+- `by_optimizer.tsv`: average final score and total runtime per optimizer.
+- `best_by_testcase.tsv`: best optimizer per testcase.
 
-The old SA periodic greedy polish is disabled by default (`greedy_polish_interval=0`) so the SA and
-ISA comparison is easier to explain: SA is single-phase exploration, ISA is repeated
-exploration-refinement.
+For curves, enable progress trace only on selected runs:
 
-## Why these values
+```sh
+CADD0040_PROGRESS_TRACE=1 CADD0040_PROGRESS_STEPS=256 ./scripts/slurm_run_all_optimizers.sh --local
+```
 
-- Equal `500s` defaults keep optimizer comparisons fair while leaving margin for final
-  evaluation, checkpoint output, and process shutdown before a 600s contest limit.
-- `256` warmup steps give SA and ISA the same deterministic starting help.
-- `32` final polish steps give SA and ISA the same deterministic cleanup budget.
-- Greedy uses a high `64` phase cap so insert/remove and resize can alternate until time or local
-  convergence, instead of stopping because the phase cap is too tight.
-- ISA uses `16` rounds so SA exploration and greedy refinement have more chances to alternate.
-- ISA keeps `16` greedy steps after each round because round-level refinement is the feature being
-  tested.
-- All deterministic helper steps are bounded by the same deadline, so short-budget experiments do
-  not get hidden extra work.
-- `Solver` writes the original tree before optimization, then checkpoint writes replace that file
-  atomically with the current best-so-far tree.
+Progress trace file:
 
-## Recommended commands
+```text
+progress/<optimizer>/<testcase>/progress.tsv
+```
 
-Run all main optimizers locally:
+Columns:
+
+```text
+optimizer testcase step elapsed_sec phase round event current_score best_score delta_score
+tns_ss wns_ss tns_ff wns_ff area accepted_moves rejected_moves candidate_policy
+```
+
+Recording rules:
+
+- Candidate-level trials are not recorded.
+- Every `CADD0040_PROGRESS_STEPS` logical steps are recorded.
+- Phase start/end, best update, restart, and final are always recorded.
+- Set `CADD0040_PROGRESS_STEPS=1` only for small visualization runs.
+
+For clock-tree animation frames, enable visual trace only on a few testcases:
+
+```sh
+CADD0040_VISUAL_TRACE=1 CADD0040_VISUAL_TRACE_STEPS=256 OPTIMIZERS="greedy-violation-path" \
+    ./scripts/slurm_run_all_optimizers.sh --local
+```
+
+Visual output:
+
+```text
+traces/<optimizer>/<testcase>/frames.json
+```
+
+## Plotting
+
+Generate step-score and time-score plots from a run directory:
+
+```sh
+python3 scripts/plot_optimizer_progress.py \
+  --run-dir slurm_runs/20260616_120000 \
+  --y best_score \
+  --out-dir slurm_runs/20260616_120000/plots
+```
+
+Outputs:
+
+```text
+plots/by_testcase/<testcase>_best_score_vs_step.png
+plots/by_testcase/<testcase>_best_score_vs_time.png
+plots/by_run/<optimizer>__<testcase>_phases.png
+```
+
+If no `progress.tsv` exists, the script prints a clear message and exits successfully.
+
+## Recommended Commands
+
+Smoke all A1-A8 locally:
 
 ```sh
 make release
-CADD0040_SA_SECONDS=300 CADD0040_DEBUG_PROGRESS=0 ./scripts/slurm_run_all_optimizers.sh --local
+CADD0040_SA_SECONDS=10 ./scripts/slurm_run_all_optimizers.sh --local
 ```
 
-Run with Slurm:
+Main Slurm run:
 
 ```sh
 make release
-CADD0040_SA_SECONDS=300 ./scripts/slurm_run_all_optimizers.sh
+SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
-Aggregate Slurm results after completion:
+Aggregate after Slurm jobs finish:
 
 ```sh
 OUTPUT_DIR=<printed-output-dir> ./scripts/slurm_run_all_optimizers.sh --aggregate-only

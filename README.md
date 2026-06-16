@@ -123,11 +123,21 @@ Environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
-| `OPTIMIZER` | `anneal` | Value passed to `--optimizer` |
-| `CADD0040_SA_SECONDS` | `500` | Optimizer time budget in seconds with contest safety margin |
-| `CADD0040_CHECKPOINT_STEPS` | `1024` | Write best-so-far output every N optimizer steps; `0` disables |
+| `OPTIMIZER` | `isa` | Value passed to `--optimizer` |
+| `CADD0040_SA_SECONDS` | `570` | Optimizer time budget in seconds |
+| `CADD0040_CHECKPOINT_STEPS` | `4096` | Write best-so-far output every N optimizer steps; `0` disables |
 | `CADD0040_DEBUG_PROGRESS` | `1` | Set to `0` to disable periodic best-score progress |
 | `CADD0040_DEBUG_PROGRESS_INTERVAL` | `15` | Seconds between `Progress` lines |
+| `CADD0040_PROGRESS_TRACE` | `0` | Set to `1` to write `progress/<optimizer>/<testcase>/progress.tsv` |
+| `CADD0040_PROGRESS_STEPS` | `256` | Logical step interval for progress TSV rows |
+| `CADD0040_VISUAL_TRACE` | `0` | Set to `1` to write sampled clock-tree frames |
+| `CADD0040_VISUAL_TRACE_STEPS` | `256` | Logical step interval for visual frames |
+
+Main experiment aliases are `greedy-violation-path`, `sa`, `isa`,
+`greedy-critical-endpoint`, `greedy-upstream-window`, `greedy-repair-recover`,
+`greedy-randomized-rcl`, and `tabu`. Old aliases are intentionally not registered.
+Use `scripts/slurm_run_all_optimizers.sh` to run the full A1-A8 matrix and
+`scripts/plot_optimizer_progress.py` to plot progress traces.
 
 ## Unit Test
 

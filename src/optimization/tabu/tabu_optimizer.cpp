@@ -1,12 +1,13 @@
 /**
- * @file greedy_optimizer.cpp
- * @brief Best-improvement greedy optimizer with selectable candidate generation.
+ * @file tabu_optimizer.cpp
+ * @brief A8 Tabu optimizer.
  */
 
-#include "optimization/greedy/greedy_optimizer.hpp"
+#include "optimization/tabu/tabu_optimizer.hpp"
 
 #include <algorithm>
 #include <chrono>
+#include <deque>
 #include <limits>
 #include <string>
 #include <unordered_map>
@@ -39,36 +40,6 @@ struct BestRunState {
     Metrics metrics;
     double score = -std::numeric_limits<double>::infinity();
 };
-
-struct CandidateChoice {
-    bool found = false;
-    CandidateMove move;
-    double delta = 0.0;
-};
-
-struct GreedyRunConfig {
-    std::chrono::seconds time_budget{0};
-    std::size_t max_steps = 0;
-    std::size_t max_resize_polish_steps = 0;
-    std::size_t max_resize_nodes_per_step = 0;
-    std::size_t max_polish_phases = 0;
-    std::size_t violation_sample_limit = 0;
-    std::size_t removal_candidate_limit = 0;
-    std::size_t critical_endpoint_limit = 0;
-    std::size_t upstream_window_depth = 0;
-};
-
-const char* policy_name(GreedyCandidatePolicy policy) {
-    switch (policy) {
-        case GreedyCandidatePolicy::ViolationPath:
-            return "violation_path";
-        case GreedyCandidatePolicy::CriticalEndpoint:
-            return "critical_endpoint";
-        case GreedyCandidatePolicy::UpstreamWindow:
-            return "upstream_window";
-    }
-    return "unknown";
-}
 
 std::string next_buffer_name(const ClockTree& clock_tree) {
     std::size_t index = 0;
@@ -133,11 +104,14 @@ std::string move_key(const CandidateMove& move) {
     return "unknown";
 }
 
-void dedupe_candidates(std::vector<CandidateMove>& candidates) {
+void dedupe_candidates(std::vector<CandidateMove>& candidates, std::size_t limit) {
     std::unordered_set<std::string> seen;
     std::vector<CandidateMove> deduped;
-    deduped.reserve(candidates.size());
+    deduped.reserve(std::min(candidates.size(), limit));
     for (const auto& candidate : candidates) {
+        if (deduped.size() >= limit) {
+            break;
+        }
         if (seen.insert(move_key(candidate)).second) {
             deduped.push_back(candidate);
         }
@@ -215,12 +189,12 @@ void append_insert_candidates_for_edge(const TimingState& timing, EdgeId edge,
     }
 }
 
-void build_violation_path_candidates(const ClockTree& clock_tree, const TimingState& timing,
-                                     const GreedyRunConfig& config,
-                                     std::vector<CandidateMove>& candidates) {
+void append_violation_path_candidates(const ClockTree& clock_tree, const TimingState& timing,
+                                      std::size_t violation_sample_limit,
+                                      std::vector<CandidateMove>& candidates) {
     const auto violating_paths = sorted_violating_paths(timing);
     const std::size_t sample_count =
-        std::min<std::size_t>(violating_paths.size(), config.violation_sample_limit);
+        std::min<std::size_t>(violating_paths.size(), violation_sample_limit);
     for (std::size_t sample = 0; sample < sample_count; ++sample) {
         const std::size_t path_idx = violating_paths[sample];
         const auto& path = timing.paths()[path_idx];
@@ -235,9 +209,9 @@ void build_violation_path_candidates(const ClockTree& clock_tree, const TimingSt
     }
 }
 
-void build_critical_endpoint_candidates(const ClockTree& clock_tree, const TimingState& timing,
-                                        const GreedyRunConfig& config,
-                                        std::vector<CandidateMove>& candidates) {
+void append_critical_endpoint_candidates(const ClockTree& clock_tree, const TimingState& timing,
+                                         std::size_t critical_endpoint_limit,
+                                         std::vector<CandidateMove>& candidates) {
     std::unordered_map<NodeId, double> criticality;
     for (std::size_t path_idx = 0; path_idx < timing.path_count(); ++path_idx) {
         const auto& path = timing.paths()[path_idx];
@@ -261,8 +235,7 @@ void build_critical_endpoint_candidates(const ClockTree& clock_tree, const Timin
         return lhs.first < rhs.first;
     });
 
-    const std::size_t sample_count =
-        std::min<std::size_t>(ranked.size(), config.critical_endpoint_limit);
+    const std::size_t sample_count = std::min<std::size_t>(ranked.size(), critical_endpoint_limit);
     for (std::size_t idx = 0; idx < sample_count; ++idx) {
         append_insert_candidates_for_edge(timing, incoming_edge(clock_tree, ranked[idx].first),
                                           candidates);
@@ -283,39 +256,24 @@ void append_upstream_window_from_node(const ClockTree& clock_tree, const TimingS
     }
 }
 
-void build_upstream_window_candidates(const ClockTree& clock_tree, const TimingState& timing,
-                                      const GreedyRunConfig& config,
-                                      std::vector<CandidateMove>& candidates) {
+void append_upstream_window_candidates(const ClockTree& clock_tree, const TimingState& timing,
+                                       std::size_t violation_sample_limit,
+                                       std::size_t upstream_window_depth,
+                                       std::vector<CandidateMove>& candidates) {
     const auto violating_paths = sorted_violating_paths(timing);
     const std::size_t sample_count =
-        std::min<std::size_t>(violating_paths.size(), config.violation_sample_limit);
+        std::min<std::size_t>(violating_paths.size(), violation_sample_limit);
     for (std::size_t sample = 0; sample < sample_count; ++sample) {
         const std::size_t path_idx = violating_paths[sample];
         const auto& path = timing.paths()[path_idx];
         if (timing.ss_slack()[path_idx] < 0.0) {
             append_upstream_window_from_node(clock_tree, timing, path.capture_ff,
-                                             config.upstream_window_depth, candidates);
+                                             upstream_window_depth, candidates);
         }
         if (timing.ff_slack()[path_idx] < 0.0) {
             append_upstream_window_from_node(clock_tree, timing, path.launch_ff,
-                                             config.upstream_window_depth, candidates);
+                                             upstream_window_depth, candidates);
         }
-    }
-}
-
-void build_policy_candidates(const ClockTree& clock_tree, const TimingState& timing,
-                             const GreedyRunConfig& config, GreedyCandidatePolicy policy,
-                             std::vector<CandidateMove>& candidates) {
-    switch (policy) {
-        case GreedyCandidatePolicy::ViolationPath:
-            build_violation_path_candidates(clock_tree, timing, config, candidates);
-            break;
-        case GreedyCandidatePolicy::CriticalEndpoint:
-            build_critical_endpoint_candidates(clock_tree, timing, config, candidates);
-            break;
-        case GreedyCandidatePolicy::UpstreamWindow:
-            build_upstream_window_candidates(clock_tree, timing, config, candidates);
-            break;
     }
 }
 
@@ -358,187 +316,102 @@ void append_resize_candidates(const ClockTree& clock_tree, const TimingState& ti
     }
 }
 
-CandidateChoice find_best_score_candidate(ClockTree& clock_tree, TimingState& timing,
-                                          const BufferLibrary& buffer_library,
-                                          const Metrics& baseline_metrics,
-                                          const std::vector<CandidateMove>& candidates,
-                                          const std::chrono::steady_clock::time_point& deadline) {
-    const double before_score = timing.score(baseline_metrics);
-    CandidateChoice best;
-    for (const auto& candidate : candidates) {
-        if (std::chrono::steady_clock::now() >= deadline) {
-            break;
-        }
-        const ClockTreeEdit edit = apply_candidate(clock_tree, timing, buffer_library, candidate);
-        if (!edit) {
-            continue;
-        }
-        const double delta = timing.score(baseline_metrics) - before_score;
-        if (delta > 0.0 && (!best.found || delta > best.delta)) {
-            best = CandidateChoice{true, candidate, delta};
-        }
-        undo_candidate(clock_tree, timing, edit);
-    }
-    return best;
-}
-
-bool apply_best_score_move(ClockTree& clock_tree, TimingState& timing,
-                           const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                           std::vector<CandidateMove>& candidates,
-                           const std::chrono::steady_clock::time_point& deadline,
-                           double& delta_score) {
-    dedupe_candidates(candidates);
-    const CandidateChoice choice = find_best_score_candidate(
-        clock_tree, timing, buffer_library, baseline_metrics, candidates, deadline);
-    delta_score = choice.delta;
-    return choice.found &&
-           static_cast<bool>(apply_candidate(clock_tree, timing, buffer_library, choice.move));
-}
-
-bool run_resize_polish_step(ClockTree& clock_tree, TimingState& timing,
-                            const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                            std::size_t node_limit,
-                            const std::chrono::steady_clock::time_point& deadline,
-                            double& delta_score) {
-    std::vector<CandidateMove> candidates;
-    append_resize_candidates(clock_tree, timing, node_limit, candidates);
-    return apply_best_score_move(clock_tree, timing, buffer_library, baseline_metrics, candidates,
-                                 deadline, delta_score);
-}
-
-GreedyRunConfig violation_path_config(const GreedyConfig& config) {
-    return GreedyRunConfig{config.time_budget,
-                           config.max_steps,
-                           config.max_resize_polish_steps,
-                           config.max_resize_nodes_per_step,
-                           config.max_polish_phases,
-                           config.violation_sample_limit,
-                           config.removal_candidate_limit,
-                           0,
-                           0};
-}
-
-GreedyRunConfig critical_endpoint_config(const CriticalEndpointConfig& config) {
-    return GreedyRunConfig{config.time_budget,
-                           config.max_steps,
-                           config.max_resize_polish_steps,
-                           config.max_resize_nodes_per_step,
-                           config.max_polish_phases,
-                           0,
-                           config.removal_candidate_limit,
-                           config.critical_endpoint_limit,
-                           0};
-}
-
-GreedyRunConfig upstream_window_config(const UpstreamWindowConfig& config) {
-    return GreedyRunConfig{config.time_budget,
-                           config.max_steps,
-                           config.max_resize_polish_steps,
-                           config.max_resize_nodes_per_step,
-                           config.max_polish_phases,
-                           config.violation_sample_limit,
-                           config.removal_candidate_limit,
-                           0,
-                           config.upstream_window_depth};
-}
-
-GreedyRunConfig config_for_policy(GreedyCandidatePolicy policy) {
-    switch (policy) {
-        case GreedyCandidatePolicy::ViolationPath:
-            return violation_path_config(greedy_config_from_environment());
-        case GreedyCandidatePolicy::CriticalEndpoint:
-            return critical_endpoint_config(critical_endpoint_config_from_environment());
-        case GreedyCandidatePolicy::UpstreamWindow:
-            return upstream_window_config(upstream_window_config_from_environment());
-    }
-    return violation_path_config(greedy_config_from_environment());
+bool tabu_active(const std::unordered_map<std::string, std::size_t>& tabu_until,
+                 const std::string& key, std::size_t step) {
+    const auto it = tabu_until.find(key);
+    return it != tabu_until.end() && it->second > step;
 }
 
 }  // namespace
 
-GreedyOptimizer::GreedyOptimizer(GreedyCandidatePolicy policy) : policy_(policy) {}
-
-void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
-                          const BufferLibrary& buffer_library, const OptimizerContext& context) {
+void TabuOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
+                        const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const GreedyRunConfig config = config_for_policy(policy_);
-    const std::string policy = policy_name(policy_);
+    const TabuConfig config = tabu_config_from_environment();
     TimingState timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, timing.snapshot(), timing.metrics(),
                             timing.score(baseline_metrics)};
     const auto start_time = std::chrono::steady_clock::now();
     const auto deadline = start_time + config.time_budget;
 
+    std::unordered_map<std::string, std::size_t> tabu_until;
+    std::deque<std::string> tabu_queue;
     std::size_t accepted_moves = 0;
     std::size_t rejected_moves = 0;
-    std::size_t phases = 0;
+    double current_score = timing.score(baseline_metrics);
+
     record_trace(context, clock_tree,
                  make_event(start_time, 0, "baseline", -1, "kept", timing, baseline_metrics,
-                            best_state, accepted_moves, rejected_moves, policy),
+                            best_state, accepted_moves, rejected_moves, "tabu"),
                  true);
 
-    for (; phases < config.max_polish_phases && std::chrono::steady_clock::now() < deadline;
-         ++phases) {
-        bool phase_changed = false;
-        record_trace(context, clock_tree,
-                     make_event(start_time, accepted_moves, "greedy_insert_remove",
-                                static_cast<int>(phases), "phase_start", timing, baseline_metrics,
-                                best_state, accepted_moves, rejected_moves, policy),
-                     true);
+    for (std::size_t step = 0;
+         step < config.max_steps && std::chrono::steady_clock::now() < deadline; ++step) {
+        std::vector<CandidateMove> candidates;
+        append_violation_path_candidates(clock_tree, timing, config.violation_sample_limit,
+                                         candidates);
+        append_critical_endpoint_candidates(clock_tree, timing, config.critical_endpoint_limit,
+                                            candidates);
+        append_upstream_window_candidates(clock_tree, timing, config.violation_sample_limit,
+                                          config.upstream_window_depth, candidates);
+        append_remove_candidates(clock_tree, config.removal_candidate_limit, candidates);
+        append_resize_candidates(clock_tree, timing, config.resize_node_limit, candidates);
+        dedupe_candidates(candidates, config.candidate_limit);
 
-        while (accepted_moves < config.max_steps && std::chrono::steady_clock::now() < deadline) {
-            std::vector<CandidateMove> candidates;
-            build_policy_candidates(clock_tree, timing, config, policy_, candidates);
-            append_remove_candidates(clock_tree, config.removal_candidate_limit, candidates);
-            double delta = 0.0;
-            if (!apply_best_score_move(clock_tree, timing, buffer_library, baseline_metrics,
-                                       candidates, deadline, delta)) {
+        bool found = false;
+        CandidateMove best_move;
+        double best_candidate_score = -std::numeric_limits<double>::infinity();
+        for (const auto& candidate : candidates) {
+            if (std::chrono::steady_clock::now() >= deadline) {
                 break;
             }
-            phase_changed = true;
-            ++accepted_moves;
-            const bool best_updated =
-                maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
-            context.maybe_checkpoint(best_state.tree, accepted_moves);
-            record_trace(
-                context, best_state.tree,
-                make_event(start_time, accepted_moves, "greedy_insert_remove",
-                           static_cast<int>(phases), best_updated ? "best_update" : "accepted",
-                           timing, baseline_metrics, best_state, accepted_moves, rejected_moves,
-                           policy, delta),
-                best_updated);
-        }
-
-        for (std::size_t resize_steps = 0; resize_steps < config.max_resize_polish_steps &&
-                                           std::chrono::steady_clock::now() < deadline;
-             ++resize_steps) {
-            double delta = 0.0;
-            if (!run_resize_polish_step(clock_tree, timing, buffer_library, baseline_metrics,
-                                        config.max_resize_nodes_per_step, deadline, delta)) {
-                break;
+            const ClockTreeEdit edit =
+                apply_candidate(clock_tree, timing, buffer_library, candidate);
+            if (!edit) {
+                continue;
             }
-            phase_changed = true;
-            ++accepted_moves;
-            const bool best_updated =
-                maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
-            context.maybe_checkpoint(best_state.tree, accepted_moves);
-            record_trace(
-                context, best_state.tree,
-                make_event(start_time, accepted_moves, "resize_polish", static_cast<int>(phases),
-                           best_updated ? "best_update" : "accepted", timing, baseline_metrics,
-                           best_state, accepted_moves, rejected_moves, "resize", delta),
-                best_updated);
+            const double candidate_score = timing.score(baseline_metrics);
+            const std::string key = move_key(candidate);
+            const bool is_tabu = tabu_active(tabu_until, key, step);
+            const bool aspiration = candidate_score > best_state.score;
+            if ((!is_tabu || aspiration) && (!found || candidate_score > best_candidate_score)) {
+                found = true;
+                best_move = candidate;
+                best_candidate_score = candidate_score;
+            }
+            undo_candidate(clock_tree, timing, edit);
         }
 
-        record_trace(context, best_state.tree,
-                     make_event(start_time, accepted_moves, "resize_polish",
-                                static_cast<int>(phases), "phase_end", timing, baseline_metrics,
-                                best_state, accepted_moves, rejected_moves, policy),
-                     true);
-        if (!phase_changed) {
+        if (!found) {
             break;
         }
+
+        const double before_score = current_score;
+        if (!apply_candidate(clock_tree, timing, buffer_library, best_move)) {
+            ++rejected_moves;
+            continue;
+        }
+        current_score = timing.score(baseline_metrics);
+        ++accepted_moves;
+
+        const std::string key = move_key(best_move);
+        tabu_until[key] = step + config.tenure;
+        tabu_queue.push_back(key);
+        while (tabu_queue.size() > config.tenure * 2) {
+            tabu_until.erase(tabu_queue.front());
+            tabu_queue.pop_front();
+        }
+
+        const bool best_updated =
+            maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
+        context.maybe_checkpoint(best_state.tree, accepted_moves);
+        record_trace(context, best_state.tree,
+                     make_event(start_time, accepted_moves, "tabu_search", -1,
+                                best_updated ? "best_update" : "accepted", timing, baseline_metrics,
+                                best_state, accepted_moves, rejected_moves, "tabu",
+                                current_score - before_score),
+                     best_updated);
     }
 
     clock_tree = best_state.tree;
@@ -546,11 +419,11 @@ void GreedyOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_
     context.write_checkpoint(best_state.tree);
     record_trace(context, best_state.tree,
                  make_event(start_time, accepted_moves, "final", -1, "final", timing,
-                            baseline_metrics, best_state, accepted_moves, rejected_moves, policy),
+                            baseline_metrics, best_state, accepted_moves, rejected_moves, "tabu"),
                  true);
     debug.log([&](std::ostream& os) {
-        os << "GreedyOptimizer(" << policy << "): phases = " << phases
-           << ", accepted = " << accepted_moves << ", best score = " << best_state.score << '\n';
+        os << "TabuOptimizer: accepted = " << accepted_moves << ", rejected = " << rejected_moves
+           << ", best score = " << best_state.score << '\n';
     });
 }
 

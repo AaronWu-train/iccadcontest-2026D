@@ -9,6 +9,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace cadd0040 {
@@ -307,6 +308,35 @@ bool apply_one_greedy_step(ClockTree& clock_tree, TimingState& timing,
                               deadline);
 }
 
+OptimizerProgressEvent make_event(const std::chrono::steady_clock::time_point& start_time,
+                                  std::size_t step, std::string_view phase, int round,
+                                  std::string event, const TimingState& timing,
+                                  const Metrics& baseline_metrics, const SearchState& best_state,
+                                  std::size_t accepted_moves, std::size_t rejected_moves,
+                                  std::string candidate_policy,
+                                  double delta_score = std::numeric_limits<double>::quiet_NaN()) {
+    const double elapsed =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
+    return OptimizerProgressEvent{step,
+                                  elapsed,
+                                  std::string(phase),
+                                  round,
+                                  std::move(event),
+                                  timing.score(baseline_metrics),
+                                  best_state.score,
+                                  delta_score,
+                                  timing.metrics(),
+                                  accepted_moves,
+                                  rejected_moves,
+                                  std::move(candidate_policy)};
+}
+
+void record_trace(const OptimizerContext& context, const ClockTree& clock_tree,
+                  const OptimizerProgressEvent& event, bool force) {
+    context.maybe_record_progress(event, force);
+    context.maybe_record_visual(clock_tree, event, force);
+}
+
 }  // namespace
 
 std::mt19937& rng() {
@@ -336,34 +366,61 @@ std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
                              SearchState& best_state, std::size_t max_steps,
                              const std::chrono::steady_clock::time_point& deadline,
+                             const std::chrono::steady_clock::time_point& start_time,
+                             std::string_view phase_name, int round_index,
+                             std::size_t& accepted_moves, std::size_t& rejected_moves,
                              const OptimizerContext& context, std::size_t& checkpoint_steps) {
     std::size_t steps = 0;
+    record_trace(
+        context, clock_tree,
+        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_start", timing,
+                   baseline_metrics, best_state, accepted_moves, rejected_moves, "endpoint"),
+        true);
     for (; steps < max_steps && std::chrono::steady_clock::now() < deadline; ++steps) {
+        const double before_score = timing.score(baseline_metrics);
         if (!apply_one_greedy_step(clock_tree, timing, buffer_library, baseline_metrics,
                                    deadline)) {
             break;
         }
+        const double delta = timing.score(baseline_metrics) - before_score;
+        const double before_best = best_state.score;
         maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
+        const bool best_updated = best_state.score > before_best;
+        ++accepted_moves;
         ++checkpoint_steps;
         context.maybe_checkpoint(best_state.tree, checkpoint_steps);
+        record_trace(context, best_state.tree,
+                     make_event(start_time, checkpoint_steps, phase_name, round_index,
+                                best_updated ? "best_update" : "accepted", timing, baseline_metrics,
+                                best_state, accepted_moves, rejected_moves, "endpoint", delta),
+                     best_updated);
     }
+    record_trace(
+        context, best_state.tree,
+        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_end", timing,
+                   baseline_metrics, best_state, accepted_moves, rejected_moves, "endpoint"),
+        true);
     return steps;
 }
 
-std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
-                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                         DebugProgress& debug, double& current_score, SearchState& best_state,
-                         const std::chrono::steady_clock::time_point& start_time,
-                         const std::chrono::steady_clock::time_point& phase_deadline,
-                         std::chrono::seconds total_budget, double initial_temperature,
-                         double min_temperature, double cooling_factor,
-                         std::size_t restart_stale_iterations, double restart_score_gap,
-                         std::size_t greedy_polish_interval, std::size_t& greedy_steps,
-                         std::size_t& accepted_moves, std::size_t& rejected_moves,
-                         std::size_t& restarts, const OptimizerContext& context,
-                         std::size_t& checkpoint_steps) {
+std::size_t run_sa_phase(
+    ClockTree& clock_tree, TimingState& timing, const BufferLibrary& buffer_library,
+    const Metrics& baseline_metrics, DebugProgress& debug, double& current_score,
+    SearchState& best_state, const std::chrono::steady_clock::time_point& start_time,
+    const std::chrono::steady_clock::time_point& phase_deadline, std::chrono::seconds total_budget,
+    double initial_temperature, double min_temperature, double cooling_factor,
+    std::size_t restart_stale_iterations, double restart_score_gap,
+    std::size_t greedy_polish_interval, std::size_t& greedy_steps, std::size_t& accepted_moves,
+    std::size_t& rejected_moves, std::size_t& restarts, const OptimizerContext& context,
+    std::size_t& checkpoint_steps, std::string_view phase_name, int round_index) {
     std::size_t iteration = 0;
     std::size_t iterations_since_best = 0;
+
+    record_trace(
+        context, clock_tree,
+        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_start", timing,
+                   baseline_metrics, best_state, accepted_moves, rejected_moves, "sa_mixed"),
+        true);
 
     while (std::chrono::steady_clock::now() < phase_deadline) {
         const auto now = std::chrono::steady_clock::now();
@@ -379,8 +436,19 @@ std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
                                       phase_deadline)) {
                 ++greedy_steps;
                 current_score = timing.score(baseline_metrics);
+                const double before_best = best_state.score;
                 maybe_update_best(clock_tree, timing, baseline_metrics, best_state);
+                const bool best_updated = best_state.score > before_best;
                 iterations_since_best = 0;
+                ++accepted_moves;
+                ++checkpoint_steps;
+                context.maybe_checkpoint(best_state.tree, checkpoint_steps);
+                record_trace(context, best_state.tree,
+                             make_event(start_time, checkpoint_steps, phase_name, round_index,
+                                        best_updated ? "best_update" : "greedy_polish", timing,
+                                        baseline_metrics, best_state, accepted_moves,
+                                        rejected_moves, "sa_greedy_polish"),
+                             best_updated);
             }
         }
 
@@ -414,19 +482,37 @@ std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
             ++iterations_since_best;
         }
 
+        const bool best_updated = current_score >= best_state.score && accept && delta > 0.0;
+
         if (iterations_since_best >= restart_stale_iterations ||
             current_score < best_state.score - restart_score_gap) {
             restore_best(clock_tree, timing, current_score, best_state);
             iterations_since_best = 0;
             ++restarts;
+            record_trace(context, best_state.tree,
+                         make_event(start_time, checkpoint_steps, phase_name, round_index,
+                                    "restart", timing, baseline_metrics, best_state, accepted_moves,
+                                    rejected_moves, "sa_mixed"),
+                         true);
         }
 
         debug.report_if_due(elapsed, best_state.metrics, baseline_metrics, current_score);
         ++iteration;
         ++checkpoint_steps;
         context.maybe_checkpoint(best_state.tree, checkpoint_steps);
+        record_trace(context, best_state.tree,
+                     make_event(start_time, checkpoint_steps, phase_name, round_index,
+                                best_updated ? "best_update" : (accept ? "accepted" : "rejected"),
+                                timing, baseline_metrics, best_state, accepted_moves,
+                                rejected_moves, "sa_mixed", delta),
+                     best_updated);
     }
 
+    record_trace(
+        context, best_state.tree,
+        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_end", timing,
+                   baseline_metrics, best_state, accepted_moves, rejected_moves, "sa_mixed"),
+        true);
     return iteration;
 }
 

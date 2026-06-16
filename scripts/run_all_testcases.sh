@@ -8,9 +8,9 @@
 #
 # Environment:
 #   BUILD_DIR                        Path to CMake build directory (default: build-release)
-#   CADD0040_SA_SECONDS              Optimizer time budget in seconds (default: 500)
-#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 1024)
-#   OPTIMIZER                        --optimizer value (default: anneal)
+#   CADD0040_SA_SECONDS              Optimizer time budget in seconds (default: 570)
+#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
+#   OPTIMIZER                        --optimizer value (default: isa)
 #   CADD0040_REPORT_METRICS          Set to 0 to suppress per-run score lines (default: on)
 #   CADD0040_DEBUG_PROGRESS            Set to 0 to disable periodic best-score progress (default: on)
 #   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval in seconds (default: 15)
@@ -21,9 +21,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
-OPTIMIZER="${OPTIMIZER:-anneal}"
-SA_SECONDS="${CADD0040_SA_SECONDS:-500}"
-CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-1024}"
+OPTIMIZER="${OPTIMIZER:-isa}"
+SA_SECONDS="${CADD0040_SA_SECONDS:-570}"
+CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-4096}"
 REPORT_METRICS="${CADD0040_REPORT_METRICS:-1}"
 DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-1}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-15}"

@@ -6,6 +6,7 @@
 #include "optimization/sa/annealing_optimizer.hpp"
 
 #include <chrono>
+#include <limits>
 
 #include "optimization/optimizer_config.hpp"
 #include "optimization/sa/sa_search.hpp"
@@ -33,17 +34,18 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
 
     std::size_t greedy_steps = 0;
     std::size_t checkpoint_steps = 0;
+    std::size_t accepted_moves = 0;
+    std::size_t rejected_moves = 0;
     greedy_steps +=
         sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
-                             config.greedy_warmup_iterations, deadline, context, checkpoint_steps);
+                             config.greedy_warmup_iterations, deadline, start_time, "warmup", -1,
+                             accepted_moves, rejected_moves, context, checkpoint_steps);
     double current_score = timing.score(baseline_metrics);
 
     debug.log([&](std::ostream& os) {
         os << "AnnealingOptimizer: after warmup score = " << current_score << '\n';
     });
 
-    std::size_t accepted_moves = 0;
-    std::size_t rejected_moves = 0;
     std::size_t restarts = 0;
 
     const std::size_t iterations = sa::run_sa_phase(
@@ -51,14 +53,26 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
         start_time, deadline, config.time_budget, config.initial_temperature,
         config.min_temperature, config.cooling_factor, config.restart_stale_iterations,
         config.restart_score_gap, config.greedy_polish_interval, greedy_steps, accepted_moves,
-        rejected_moves, restarts, context, checkpoint_steps);
+        rejected_moves, restarts, context, checkpoint_steps, "sa_phase", -1);
 
     sa::restore_best(clock_tree, timing, current_score, best_state);
     greedy_steps += sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics,
                                          best_state, config.final_greedy_polish_iterations,
-                                         deadline, context, checkpoint_steps);
+                                         deadline, start_time, "final_polish", -1, accepted_moves,
+                                         rejected_moves, context, checkpoint_steps);
     sa::restore_best(clock_tree, timing, current_score, best_state);
     context.write_checkpoint(best_state.tree);
+    const double elapsed =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
+    const OptimizerProgressEvent final_event{
+        checkpoint_steps, elapsed,
+        "final",          -1,
+        "final",          current_score,
+        best_state.score, std::numeric_limits<double>::quiet_NaN(),
+        timing.metrics(), accepted_moves,
+        rejected_moves,   "sa_mixed"};
+    context.maybe_record_progress(final_event, true);
+    context.maybe_record_visual(best_state.tree, final_event, true);
 
     debug.log([&](std::ostream& os) {
         os << "AnnealingOptimizer: iterations = " << iterations << ", accepted = " << accepted_moves

@@ -17,20 +17,29 @@
 # Output layout (after aggregation):
 #   logs/<optimizer>/<testcase>.log
 #   outputs/<optimizer>/<testcase>/modified_clk_tree.structure
+#   results.tsv
+#   by_optimizer.tsv
+#   best_by_testcase.tsv
 #   summary.txt
+#   progress/<optimizer>/<testcase>/progress.tsv   (only with CADD0040_PROGRESS_TRACE=1)
+#   traces/<optimizer>/<testcase>/frames.json      (only with CADD0040_VISUAL_TRACE=1)
 #   slurm-<jobid>_<taskid>.{out,err}   (Slurm only)
 #
 # Environment:
 #   BUILD_DIR                        CMake build directory (default: build-release)
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
-#   OPTIMIZERS                       Space-separated list (default: greedy milp anneal isa)
-#   CADD0040_SA_SECONDS              Optimizer time budget (default: 500)
-#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 1024)
+#   OPTIMIZERS                       Space-separated list (default: A1-A8 experiment matrix)
+#   CADD0040_SA_SECONDS              Optimizer time budget (default: 570)
+#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
+#   CADD0040_PROGRESS_TRACE          1 to write progress TSV traces (default: 0)
+#   CADD0040_PROGRESS_STEPS          Progress trace step interval (default: 256)
+#   CADD0040_VISUAL_TRACE            1 to write clock-tree visual frames (default: 0)
+#   CADD0040_VISUAL_TRACE_STEPS      Visual frame step interval (default: 256)
 #   CADD0040_DEBUG_PROGRESS          1 to enable debug progress (default: 0)
 #   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval seconds (default: 30)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings
-#   SLURM_TIME                       Job time limit (default: 02:00:00)
+#   SLURM_TIME                       Job time limit (default: 00:11:00)
 #   SLURM_MEM                        Memory per task (default: 4G)
 #   SLURM_CPUS                       CPUs per task (default: 1)
 
@@ -40,16 +49,20 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${TESTCASES_DIR:-${ROOT}/testcases}"
-SA_SECONDS="${CADD0040_SA_SECONDS:-500}"
-CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-1024}"
+SA_SECONDS="${CADD0040_SA_SECONDS:-570}"
+CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-4096}"
 DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-0}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-30}"
-SLURM_TIME="${SLURM_TIME:-02:00:00}"
+PROGRESS_TRACE="${CADD0040_PROGRESS_TRACE:-0}"
+PROGRESS_STEPS="${CADD0040_PROGRESS_STEPS:-256}"
+VISUAL_TRACE="${CADD0040_VISUAL_TRACE:-0}"
+VISUAL_TRACE_STEPS="${CADD0040_VISUAL_TRACE_STEPS:-256}"
+SLURM_TIME="${SLURM_TIME:-00:11:00}"
 SLURM_MEM="${SLURM_MEM:-4G}"
 SLURM_CPUS="${SLURM_CPUS:-1}"
 
 # Canonical optimizer names (skip registry aliases to avoid duplicate runs).
-OPTIMIZERS="${OPTIMIZERS:-greedy milp anneal isa}"
+OPTIMIZERS="${OPTIMIZERS:-greedy-violation-path sa isa greedy-critical-endpoint greedy-upstream-window greedy-repair-recover greedy-randomized-rcl tabu}"
 
 RUN_MODE="slurm"
 SLURM_WAIT=0
@@ -104,6 +117,10 @@ MANIFEST="${OUTPUT_DIR}/.manifest"
 RUN_ENV="${OUTPUT_DIR}/.run.env"
 JOB_ID_FILE="${OUTPUT_DIR}/.job_id"
 SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
+RESULTS_TSV="${OUTPUT_DIR}/results.tsv"
+BY_OPTIMIZER_TSV="${OUTPUT_DIR}/by_optimizer.tsv"
+BEST_BY_TESTCASE_TSV="${OUTPUT_DIR}/best_by_testcase.tsv"
+PROGRESS_INDEX_TSV="${OUTPUT_DIR}/progress_index.tsv"
 
 read -r -a OPTIMIZER_LIST <<< "${OPTIMIZERS}"
 
@@ -140,8 +157,13 @@ BINARY='${BINARY}'
 TESTCASES_DIR='${TESTCASES_DIR}'
 OUTPUT_DIR='${OUTPUT_DIR}'
 SA_SECONDS=${SA_SECONDS}
+CHECKPOINT_STEPS=${CHECKPOINT_STEPS}
 DEBUG_PROGRESS=${DEBUG_PROGRESS}
 DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}
+PROGRESS_TRACE=${PROGRESS_TRACE}
+PROGRESS_STEPS=${PROGRESS_STEPS}
+VISUAL_TRACE=${VISUAL_TRACE}
+VISUAL_TRACE_STEPS=${VISUAL_TRACE_STEPS}
 OPTIMIZERS='${OPTIMIZERS}'
 EOF
 }
@@ -171,6 +193,8 @@ run_one_job() {
     local meta_file="${META_DIR}/${optimizer}__${testcase_name}.tsv"
     local output_dir="${OUTPUTS_DIR}/${optimizer}/${testcase_name}"
     local output_file="${output_dir}/modified_clk_tree.structure"
+    local progress_dir="${OUTPUT_DIR}/progress/${optimizer}/${testcase_name}"
+    local visual_dir="${OUTPUT_DIR}/traces/${optimizer}/${testcase_name}"
 
     mkdir -p "${LOG_DIR}/${optimizer}" "${META_DIR}" "${output_dir}"
 
@@ -192,6 +216,12 @@ run_one_job() {
         "CADD0040_SA_SECONDS=${SA_SECONDS}"
         "CADD0040_CHECKPOINT_STEPS=${CHECKPOINT_STEPS}"
         "CADD0040_REPORT_METRICS=1"
+        "CADD0040_PROGRESS_TRACE=${PROGRESS_TRACE}"
+        "CADD0040_PROGRESS_STEPS=${PROGRESS_STEPS}"
+        "CADD0040_PROGRESS_DIR=${progress_dir}"
+        "CADD0040_VISUAL_TRACE=${VISUAL_TRACE}"
+        "CADD0040_VISUAL_TRACE_STEPS=${VISUAL_TRACE_STEPS}"
+        "CADD0040_VISUAL_TRACE_DIR=${visual_dir}"
     )
     if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
         run_env+=(
@@ -423,6 +453,58 @@ aggregate_results() {
     total_ok="$(awk -F '\t' 'NR > 1 && $7 == "OK" { c++ } END { print c+0 }' "${results_tsv}")"
     total_fail="$(awk -F '\t' 'NR > 1 && $7 != "OK" { c++ } END { print c+0 }' "${results_tsv}")"
 
+    cp "${results_tsv}" "${RESULTS_TSV}"
+    {
+        printf 'OPTIMIZER\tOK\tFAIL\tAVG_FINAL\tTOTAL_TIME\n'
+        awk -F '\t' '
+            BEGIN { OFS = "\t" }
+            NR == 1 { next }
+            {
+                opt = $1
+                total[opt]++
+                time[opt] += ($5 ~ /^[0-9]+$/) ? $5 : 0
+                if ($7 == "OK") ok[opt]++
+                else fail[opt]++
+                if ($4 != "-" && $4 ~ /^-?[0-9]+(\.[0-9]+)?$/) {
+                    sum_final[opt] += $4
+                    count_final[opt]++
+                }
+            }
+            END {
+                for (opt in total) {
+                    avg = (count_final[opt] > 0) ? sum_final[opt] / count_final[opt] : 0
+                    print opt, ok[opt]+0, fail[opt]+0, avg, time[opt]+0
+                }
+            }
+        ' "${results_tsv}" | sort -t $'\t' -k1,1
+    } > "${BY_OPTIMIZER_TSV}"
+    {
+        printf 'TESTCASE\tBEST_FINAL\tOPTIMIZER\n'
+        awk -F '\t' '
+            BEGIN { OFS = "\t" }
+            NR == 1 { next }
+            $7 == "OK" && $4 != "-" && $4 ~ /^-?[0-9]+(\.[0-9]+)?$/ {
+                tc = $2
+                if (!(tc in best_score) || $4 > best_score[tc]) {
+                    best_score[tc] = $4
+                    best_opt[tc] = $1
+                }
+            }
+            END {
+                for (tc in best_score) {
+                    print tc, best_score[tc], best_opt[tc]
+                }
+            }
+        ' "${results_tsv}" | sort -t $'\t' -k1,1
+    } > "${BEST_BY_TESTCASE_TSV}"
+    {
+        printf 'OPTIMIZER\tTESTCASE\tPROGRESS_TSV\tFRAMES_JSON\n'
+        awk -F '\t' -v out="${OUTPUT_DIR}" 'NR > 1 {
+            printf "%s\t%s\t%s/progress/%s/%s/progress.tsv\t%s/traces/%s/%s/frames.json\n",
+                $1, $2, out, $1, $2, out, $1, $2
+        }' "${results_tsv}"
+    } > "${PROGRESS_INDEX_TSV}"
+
     {
         echo "cadd0040 optimizer × testcase matrix"
         echo "  output dir : ${OUTPUT_DIR}"
@@ -479,6 +561,9 @@ aggregate_results() {
         echo "Overall: ${total_ok} passed, ${total_fail} failed"
         echo "Logs   : ${LOG_DIR}/<optimizer>/<testcase>.log"
         echo "Outputs: ${OUTPUTS_DIR}/<optimizer>/<testcase>/modified_clk_tree.structure"
+        echo "TSV    : ${RESULTS_TSV}"
+        echo "By opt : ${BY_OPTIMIZER_TSV}"
+        echo "Best   : ${BEST_BY_TESTCASE_TSV}"
     } | tee "${SUMMARY_TXT}"
 
     rm -f "${results_tsv}"
