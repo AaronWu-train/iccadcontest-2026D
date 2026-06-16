@@ -47,6 +47,7 @@ add_library(cadd0040_core
     src/optimization/milp/milp_optimizer.cpp
     src/optimization/optimizer_config.cpp
     src/optimization/optimizer.cpp
+    src/optimization/policy_averaged/policy_averaged_greedy_seed_tabu_optimizer.cpp
     src/optimization/randomized_rcl/randomized_rcl_optimizer.cpp
     src/optimization/repair_recover/repair_recover_optimizer.cpp
     src/optimization/timing_state.cpp

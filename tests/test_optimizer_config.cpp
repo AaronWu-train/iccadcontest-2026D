@@ -64,6 +64,49 @@ TEST_CASE("optimizer config sources apply only matching optimizer section",
     CHECK(sa.greedy_warmup_iterations == 256);
 }
 
+TEST_CASE("policy averaged greedy seed tabu config section is loaded",
+          "[optimization][config]") {
+    const std::filesystem::path temp_path =
+        std::filesystem::temp_directory_path() / "cadd0040_policy_seed_tabu.conf";
+    {
+        std::ofstream output(temp_path);
+        output << "time_budget_seconds = 45\n";
+        output << "[policy-averaged-greedy-seed-then-tabu]\n";
+        output << "seed_steps = 11\n";
+        output << "tabu_steps = 12\n";
+        output << "tenure = 13\n";
+        output << "violation_sample_limit = 14\n";
+        output << "critical_endpoint_limit = 15\n";
+        output << "upstream_window_depth = 3\n";
+        output << "removal_candidate_limit = 16\n";
+        output << "resize_node_limit = 17\n";
+        output << "seed_candidate_limit = 18\n";
+        output << "candidate_limit = 19\n";
+        output << "consensus_bonus = 0.25\n";
+        output << "min_seed_delta = 0.125\n";
+    }
+
+    const auto config_file = cadd0040::parse_optimizer_config_file(temp_path);
+    const cadd0040::PolicyAveragedGreedySeedTabuConfig config =
+        cadd0040::policy_averaged_greedy_seed_tabu_config_from_sources(&config_file);
+
+    CHECK(config.time_budget.count() == 45);
+    CHECK(config.seed_steps == 11);
+    CHECK(config.tabu_steps == 12);
+    CHECK(config.tenure == 13);
+    CHECK(config.violation_sample_limit == 14);
+    CHECK(config.critical_endpoint_limit == 15);
+    CHECK(config.upstream_window_depth == 3);
+    CHECK(config.removal_candidate_limit == 16);
+    CHECK(config.resize_node_limit == 17);
+    CHECK(config.seed_candidate_limit == 18);
+    CHECK(config.candidate_limit == 19);
+    CHECK(config.consensus_bonus == Catch::Approx(0.25));
+    CHECK(config.min_seed_delta == Catch::Approx(0.125));
+
+    std::filesystem::remove(temp_path);
+}
+
 TEST_CASE("optimizer config parser rejects unknown keys", "[optimization][config]") {
     const std::filesystem::path temp_path =
         std::filesystem::temp_directory_path() / "cadd0040_invalid_key.conf";

@@ -10,6 +10,7 @@
 #include "optimization/greedy/greedy_optimizer.hpp"
 #include "optimization/milp/milp_optimizer.hpp"
 #include "optimization/optimizer.hpp"
+#include "optimization/policy_averaged/policy_averaged_greedy_seed_tabu_optimizer.hpp"
 #include "optimization/randomized_rcl/randomized_rcl_optimizer.hpp"
 #include "optimization/repair_recover/repair_recover_optimizer.hpp"
 #include "optimization/sa/annealing_optimizer.hpp"
@@ -36,6 +37,8 @@ const std::map<std::string, OptimizerCreator>& optimizer_registry() {
         {"greedy-repair-recover", [] { return std::make_unique<GreedyRepairRecoverOptimizer>(); }},
         {"greedy-randomized-rcl", [] { return std::make_unique<GreedyRandomizedRclOptimizer>(); }},
         {"tabu", [] { return std::make_unique<TabuOptimizer>(); }},
+        {"policy-averaged-greedy-seed-then-tabu",
+         [] { return std::make_unique<PolicyAveragedGreedySeedTabuOptimizer>(); }},
         {"milp", [] { return std::make_unique<MilpOptimizer>(); }},
         {"visual", [] { return std::make_unique<ClockTreeTraceOptimizer>(); }},
     };

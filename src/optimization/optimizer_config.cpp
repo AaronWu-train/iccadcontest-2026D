@@ -366,6 +366,43 @@ void apply_tabu_section(TabuConfig& config, const std::map<std::string, std::str
     }
 }
 
+void apply_policy_averaged_greedy_seed_tabu_section(
+    PolicyAveragedGreedySeedTabuConfig& config,
+    const std::map<std::string, std::string>& entries, std::string_view section) {
+    for (const auto& [key, value] : entries) {
+        const std::string context = std::string(section) + "." + key;
+        if (key == "time_budget_seconds") {
+            apply_time_budget(config.time_budget, value, context);
+        } else if (key == "seed_steps") {
+            config.seed_steps = parse_size_t(value, context);
+        } else if (key == "tabu_steps") {
+            config.tabu_steps = parse_size_t(value, context);
+        } else if (key == "tenure") {
+            config.tenure = parse_size_t(value, context);
+        } else if (key == "violation_sample_limit") {
+            config.violation_sample_limit = parse_size_t(value, context);
+        } else if (key == "critical_endpoint_limit") {
+            config.critical_endpoint_limit = parse_size_t(value, context);
+        } else if (key == "upstream_window_depth") {
+            config.upstream_window_depth = parse_size_t(value, context);
+        } else if (key == "removal_candidate_limit") {
+            config.removal_candidate_limit = parse_size_t(value, context);
+        } else if (key == "resize_node_limit") {
+            config.resize_node_limit = parse_size_t(value, context);
+        } else if (key == "seed_candidate_limit") {
+            config.seed_candidate_limit = parse_size_t(value, context);
+        } else if (key == "candidate_limit") {
+            config.candidate_limit = parse_size_t(value, context);
+        } else if (key == "consensus_bonus") {
+            config.consensus_bonus = parse_double(value, context);
+        } else if (key == "min_seed_delta") {
+            config.min_seed_delta = parse_double(value, context);
+        } else {
+            throw_unknown_key(section, key);
+        }
+    }
+}
+
 void apply_global_section_keys(OptimizerConfigFile& config_file,
                                const std::map<std::string, std::string>& entries) {
     for (const auto& [key, value] : entries) {
@@ -464,6 +501,9 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
         } else if (section == "tabu") {
             TabuConfig probe;
             apply_tabu_section(probe, entries, section);
+        } else if (section == "policy-averaged-greedy-seed-then-tabu") {
+            PolicyAveragedGreedySeedTabuConfig probe;
+            apply_policy_averaged_greedy_seed_tabu_section(probe, entries, section);
         } else {
             throw std::runtime_error("Unknown optimizer config section [" + section + "] in " +
                                      path.string());
@@ -587,6 +627,21 @@ TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file) {
     return config;
 }
 
+PolicyAveragedGreedySeedTabuConfig policy_averaged_greedy_seed_tabu_config_from_sources(
+    const OptimizerConfigFile* config_file) {
+    PolicyAveragedGreedySeedTabuConfig config;
+    apply_env_time_budget(config.time_budget);
+    std::optional<unsigned int> unused_seed;
+    apply_global_overrides(config.time_budget, unused_seed, config_file);
+    if (const auto* entries =
+            section_entries(config_file, "policy-averaged-greedy-seed-then-tabu");
+        entries != nullptr) {
+        apply_policy_averaged_greedy_seed_tabu_section(
+            config, *entries, "policy-averaged-greedy-seed-then-tabu");
+    }
+    return config;
+}
+
 GreedyConfig greedy_config_from_environment() { return greedy_config_from_sources(nullptr); }
 
 MilpConfig milp_config_from_environment() { return milp_config_from_sources(nullptr); }
@@ -612,5 +667,9 @@ RandomizedRclConfig randomized_rcl_config_from_environment() {
 }
 
 TabuConfig tabu_config_from_environment() { return tabu_config_from_sources(nullptr); }
+
+PolicyAveragedGreedySeedTabuConfig policy_averaged_greedy_seed_tabu_config_from_environment() {
+    return policy_averaged_greedy_seed_tabu_config_from_sources(nullptr);
+}
 
 }  // namespace cadd0040

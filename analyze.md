@@ -1742,3 +1742,164 @@ Recommended implementation order:
 1. `a6-tabu-repair-recover`
 2. `policy-averaged-greedy-seed-then-tabu`
 3. `isa-with-repair-recover-guidance`
+
+# 追加實作結果：policy-averaged-greedy-seed-then-tabu
+
+## 中文：實作內容
+
+我實作了新的 CLI optimizer：
+
+```text
+--optimizer policy-averaged-greedy-seed-then-tabu
+```
+
+設計分成兩段：
+
+1. `policy_average_seed`
+
+   先分別產生 A1 `greedy-violation-path`、A4 `greedy-critical-endpoint`、A5
+   `greedy-upstream-window` 的候選 move。每個 policy 內先用實際 score delta 排名，再把同一個
+   move 在不同 policy 中的 normalized rank 做平均，並用 `consensus_bonus` 略微鼓勵多 policy 都支持的
+   move。這段只接受正分數改善，目標是產生比單一 greedy policy 更穩的 seed tree。
+
+2. `tabu_polish`
+
+   從 seed tree 出發，使用 A8 類似的 tabu search。候選池包含 A1/A4/A5 insert candidates，加上
+   remove/resize candidates。tabu move 只有在 aspiration，也就是可刷新 global best 時才允許。
+
+重要預設：
+
+```text
+seed_steps = 64
+tabu_steps = 8192
+tenure = 128
+violation_sample_limit = 32
+critical_endpoint_limit = 32
+upstream_window_depth = 4
+candidate_limit = 4096
+consensus_bonus = 0.15
+```
+
+我一開始測過 `seed_steps = 512`，但 seed phase 太重，testcase4 整個 570 秒都沒有進入 tabu。後來把
+預設改成 `64`，讓它比較符合「greedy seed then tabu」的原始設計。
+
+## 中文：測試
+
+```text
+make build    OK
+make test     45/45 passed
+make release  OK
+```
+
+## 中文：benchmark 結果
+
+第一輪，`seed_steps = 512`：
+
+```text
+run dir = slurm_runs/policy_averaged_greedy_seed_then_tabu_parallel_20260617_001
+avg final = 1.03775
+```
+
+第二輪，`seed_steps = 64`：
+
+```text
+run dir = slurm_runs/policy_averaged_greedy_seed_then_tabu_v2_parallel_20260617_001
+avg final = 1.07094
+```
+
+第二輪結果如下：
+
+| Testcase | Final score |
+|---|---:|
+| testcase0 | 0.648653 |
+| testcase1 | 1.378640 |
+| testcase2 | 1.474040 |
+| testcase3 | 1.122160 |
+| testcase4 | 0.731218 |
+| Average | 1.070942 |
+
+和相關 baseline 比較：
+
+| Testcase | New | A1 | Delta vs A1 | A4 | Delta vs A4 | A5 | Delta vs A5 | Tabu | Delta vs Tabu | Old best | Delta vs Old best |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| testcase0 | 0.648653 | 0.608713 | +0.039940 | 0.598758 | +0.049895 | 0.841466 | -0.192813 | 0.884014 | -0.235361 | 0.935219 | -0.286566 |
+| testcase1 | 1.378640 | 1.377210 | +0.001430 | 1.117040 | +0.261600 | 1.324320 | +0.054320 | 1.444770 | -0.066130 | 1.444770 | -0.066130 |
+| testcase2 | 1.474040 | 1.529370 | -0.055330 | 1.465410 | +0.008630 | 1.409560 | +0.064480 | 1.469630 | +0.004410 | 1.529370 | -0.055330 |
+| testcase3 | 1.122160 | 1.016730 | +0.105430 | 0.989700 | +0.132460 | 1.150900 | -0.028740 | 1.271120 | -0.148960 | 1.369790 | -0.247630 |
+| testcase4 | 0.731218 | 0.569100 | +0.162118 | 0.233034 | +0.498184 | 0.882466 | -0.151248 | 0.806923 | -0.075705 | 0.882466 | -0.151248 |
+| Average | 1.070942 | 1.020225 | +0.050718 | 0.880788 | +0.190154 | 1.121742 | -0.050800 | 1.175291 | -0.104349 | 1.232323 | -0.161381 |
+
+## 中文：三向度分析
+
+第二輪的 component：
+
+| Testcase | Score | Setup component | Hold component | Area component | Area ratio |
+|---|---:|---:|---:|---:|---:|
+| testcase0 | 0.648653 | 0.927517 | 0.747557 | -0.007981 | 1.007981 |
+| testcase1 | 1.378640 | 1.757541 | 2.000000 | -0.000526 | 1.000526 |
+| testcase2 | 1.474040 | 1.919346 | 2.000000 | 0.057462 | 0.942538 |
+| testcase3 | 1.122160 | 1.259467 | 2.000000 | -0.030296 | 1.030296 |
+| testcase4 | 0.731218 | 0.776015 | 1.375690 | -0.002846 | 1.002846 |
+| Average | 1.070942 | 1.327977 | 1.624649 | 0.003163 | 0.996837 |
+
+觀察：
+
+1. area 很好。
+
+   平均 area component 是 `+0.003163`，甚至略優於原始 area。這比 A5/A6/SA/ISA 都保守，也接近 tabu 的
+   area 優勢。
+
+2. setup/hold 不夠強。
+
+   平均 setup component `1.327977`，低於 A5、A6、tabu；平均 hold component `1.624649`，也低於
+   A5/tabu。分數輸主要不是 area，而是 timing 修復幅度不夠。
+
+3. testcase2 是正面訊號。
+
+   testcase2 分數 `1.474040`，略高於 tabu 的 `1.469630`，代表 policy-averaged seed 在某些局部結構上
+   確實可能給 tabu 一個更好的起點。
+
+4. testcase0/testcase3/testcase4 仍是主要弱點。
+
+   這些 case 需要更強 upstream/timing 修復。現在的 rank-average 可能把 A5 的強訊號稀釋掉，導致平均
+   低於直接跑 A5 或 tabu。
+
+結論：目前 `policy-averaged-greedy-seed-then-tabu` 是可跑且可調參的 hybrid，但還沒有整體勝過現有
+tabu 或 A5。它比 A1/A4 平均好，且 testcase2 小幅勝過 tabu；後續值得測的是降低 consensus 稀釋、
+改成 per-testcase adaptive seed length，或讓 A5/upstream 在 testcase4 類 case 有更高權重。
+
+# Implementation Result: policy-averaged-greedy-seed-then-tabu
+
+## English Summary
+
+I implemented:
+
+```text
+--optimizer policy-averaged-greedy-seed-then-tabu
+```
+
+The optimizer first builds a greedy seed from A1/A4/A5 candidate policies using normalized
+rank-averaging, then runs tabu search from that seed. The default `seed_steps` was reduced from 512
+to 64 after the first benchmark because the long seed phase consumed too much of the 570-second
+budget.
+
+Validation:
+
+```text
+make build    OK
+make test     45/45 passed
+make release  OK
+```
+
+Final benchmark directory:
+
+```text
+slurm_runs/policy_averaged_greedy_seed_then_tabu_v2_parallel_20260617_001
+```
+
+The final average score is `1.070942`. This is better than A1 and A4 on average, but below A5
+(`1.121742`) and tabu (`1.175291`). It beats tabu only on testcase2 by `+0.004410`.
+
+Component-wise, the hybrid preserves area very well, but setup and hold repair are not strong
+enough. The main weakness is that rank averaging can dilute the strongest single policy, especially
+the upstream-window signal that matters on testcase4.
