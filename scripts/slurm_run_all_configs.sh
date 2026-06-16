@@ -21,8 +21,8 @@
 #   by_config.tsv
 #   best_by_testcase.tsv
 #   summary.txt
-#   progress/<config>/<testcase>/progress.tsv   (only with CADD0040_PROGRESS_TRACE=1)
-#   traces/<config>/<testcase>/frames.json      (only with CADD0040_VISUAL_TRACE=1)
+#   progress/<config>/<testcase>/progress.tsv   (numeric event trace; only with CADD0040_PROGRESS_TRACE=1)
+#   traces/<config>/<testcase>/frames.json      (visual frame trace; only with CADD0040_VISUAL_TRACE=1)
 #   slurm-<jobid>_<taskid>.{out,err}            (Slurm only)
 #
 # Environment:
@@ -33,12 +33,12 @@
 #   OUTPUT_DIR                       Run directory (default: config_runs/<timestamp>)
 #   CADD0040_SA_SECONDS              Legacy time-budget env override (config file wins)
 #   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
-#   CADD0040_PROGRESS_TRACE          1 to write progress TSV traces (default: 0)
-#   CADD0040_PROGRESS_STEPS          Progress trace step interval (default: 256)
-#   CADD0040_VISUAL_TRACE            1 to write clock-tree visual frames (default: 0)
-#   CADD0040_VISUAL_TRACE_STEPS      Visual frame step interval (default: 256)
-#   CADD0040_DEBUG_PROGRESS          1 to enable debug progress (default: 0)
-#   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval seconds (default: 30)
+#   CADD0040_PROGRESS_TRACE          1 to write numeric event TSV traces (default: 0)
+#   CADD0040_PROGRESS_STEPS          Numeric event trace step interval (default: 256)
+#   CADD0040_VISUAL_TRACE            1 to write clock-tree frame traces (default: 0)
+#   CADD0040_VISUAL_TRACE_STEPS      Visual frame trace step interval (default: 256)
+#   CADD0040_DEBUG_PROGRESS          1 to enable debug stderr status (default: 0)
+#   CADD0040_DEBUG_PROGRESS_INTERVAL Debug stderr status interval seconds (default: 30)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings
 #   SLURM_TIME                       Job time limit (default: 00:11:00)
 #   SLURM_MEM                        Memory per task (default: 4G)

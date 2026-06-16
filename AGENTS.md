@@ -34,12 +34,12 @@ and the config `optimizer` key overrides `--optimizer`.
 | `CADD0040_SA_SECONDS` | Optimizer time budget (default 570) |
 | `CADD0040_CHECKPOINT_STEPS` | Write best-so-far output every N optimizer steps; `0` disables (default 4096) |
 | `CADD0040_REPORT_METRICS` | `1` prints initial/final metrics and scores from `Solver` |
-| `CADD0040_PROGRESS_TRACE` | `1` writes lightweight `progress.tsv`; default `0` |
-| `CADD0040_PROGRESS_STEPS` | Progress trace logical step interval (default 256) |
-| `CADD0040_VISUAL_TRACE` | `1` writes sampled `frames.json`; default `0` |
-| `CADD0040_VISUAL_TRACE_STEPS` | Visual frame logical step interval (default 256) |
-| `CADD0040_DEBUG_PROGRESS` | `1` enables debug telemetry (debug builds) |
-| `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between `Progress` lines (default 30) |
+| `CADD0040_PROGRESS_TRACE` | `1` writes numeric event trace rows to `progress.tsv`; default `0` |
+| `CADD0040_PROGRESS_STEPS` | Numeric event trace logical step interval (default 256) |
+| `CADD0040_VISUAL_TRACE` | `1` writes sampled visual frame snapshots to `frames.json`; default `0` |
+| `CADD0040_VISUAL_TRACE_STEPS` | Visual frame trace logical step interval (default 256) |
+| `CADD0040_DEBUG_PROGRESS` | `1` enables human-readable stderr status (debug builds) |
+| `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between debug stderr status lines (default 30) |
 
 ## Code layout and style
 
@@ -65,7 +65,8 @@ debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
 - `Solver` creates `DebugProgress::from_environment()` and passes it via `OptimizerContext`.
 - **Release** (`NDEBUG`): always silent.
 - **Debug**: requires `CADD0040_DEBUG_PROGRESS=1`; interval via `CADD0040_DEBUG_PROGRESS_INTERVAL`.
-- `debug.log` — one-off lines (phases, summaries). `report_if_due` — periodic loops (stderr prefix `Progress`).
+- `debug.log` — one-off human-readable stderr lines (phases, summaries).
+  `report_if_due` — periodic human-readable stderr status (stderr prefix `Progress`).
 
 Allowed direct `std::cerr`: `main.cpp` / `Solver::run()` exceptions; `debug_progress.cpp` internals. Do not add algorithm telemetry in low-level helpers (e.g. `ClockTree::insert_buffer`).
 
@@ -142,7 +143,7 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
   `src/optimization/optimizer_config.cpp`.
 - `CADD0040_SA_SECONDS` remains the legacy time-budget override when no config file is used.
 - `CADD0040_CHECKPOINT_STEPS` controls best-so-far output checkpoint frequency.
-- `CADD0040_PROGRESS_TRACE` / `CADD0040_VISUAL_TRACE` are optional and default off; keep full
+- `CADD0040_PROGRESS_TRACE` numeric event TSVs and `CADD0040_VISUAL_TRACE` frame JSONs are optional and default off; keep full
   experiments lightweight.
 - Batch run: `./scripts/run_all_testcases.sh`
 

@@ -11,7 +11,7 @@ This document defines the default experiment matrix and lightweight logging rule
 - `--config <file>` loads an INI experiment file. Config values override environment variables.
   The config `optimizer` key overrides CLI `--optimizer`.
 - `CADD0040_CHECKPOINT_STEPS` writes the best-so-far tree to the requested output path. Default: `4096`; set `0` to disable.
-- Progress trace and visual trace are off by default.
+- Numeric event traces and visual frame traces are off by default.
 - Full Slurm runs should keep `CADD0040_DEBUG_PROGRESS=0`, `CADD0040_PROGRESS_TRACE=0`, and `CADD0040_VISUAL_TRACE=0`.
 
 ## A1-A8 Matrix
@@ -63,13 +63,24 @@ For report tables, use:
 - `by_optimizer.tsv`: average final score and total runtime per optimizer.
 - `best_by_testcase.tsv`: best optimizer per testcase.
 
-For curves, enable progress trace only on selected runs:
+Telemetry terms:
+
+| Purpose | Switch | Output | Use |
+|---------|--------|--------|-----|
+| Human debug status | `CADD0040_DEBUG_PROGRESS=1` | stderr only | Watch a local debug run |
+| Numeric event trace | `CADD0040_PROGRESS_TRACE=1` | `progress.tsv` | Plot score/time curves |
+| Visual frame trace | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Animate or inspect clock-tree moves |
+
+`DebugProgress` is not a file trace. It writes human-readable status to stderr
+only in debug builds, and only when enabled. Keep it off for full Slurm runs.
+
+For curves, enable the numeric event trace only on selected runs:
 
 ```sh
 CADD0040_PROGRESS_TRACE=1 CADD0040_PROGRESS_STEPS=256 ./scripts/slurm_run_all_optimizers.sh --local
 ```
 
-Progress trace file:
+Numeric event trace file:
 
 ```text
 progress/<optimizer>/<testcase>/progress.tsv
@@ -82,21 +93,22 @@ optimizer testcase step elapsed_sec phase round event current_score best_score d
 tns_ss wns_ss tns_ff wns_ff area accepted_moves rejected_moves candidate_policy
 ```
 
-Recording rules:
+Numeric event trace recording rules:
 
 - Candidate-level trials are not recorded.
 - Every `CADD0040_PROGRESS_STEPS` logical steps are recorded.
 - Phase start/end, best update, restart, and final are always recorded.
 - Set `CADD0040_PROGRESS_STEPS=1` only for small visualization runs.
 
-For clock-tree animation frames, enable visual trace only on a few testcases:
+For clock-tree animation frames, enable the visual frame trace only on a few
+testcases:
 
 ```sh
 CADD0040_VISUAL_TRACE=1 CADD0040_VISUAL_TRACE_STEPS=256 OPTIMIZERS="greedy-violation-path" \
     ./scripts/slurm_run_all_optimizers.sh --local
 ```
 
-Visual output:
+Visual frame output:
 
 ```text
 traces/<optimizer>/<testcase>/frames.json

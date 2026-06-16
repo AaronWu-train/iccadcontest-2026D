@@ -12,10 +12,23 @@
 #   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
 #   OPTIMIZER                        --optimizer value (default: isa)
 #   CADD0040_REPORT_METRICS          Set to 0 to suppress per-run score lines (default: on)
-#   CADD0040_DEBUG_PROGRESS            Set to 0 to disable periodic best-score progress (default: on)
-#   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval in seconds (default: 15)
+#   CADD0040_DEBUG_PROGRESS          Set to 0 to disable debug stderr status (default: on)
+#   CADD0040_DEBUG_PROGRESS_INTERVAL Debug stderr status interval in seconds (default: 15)
 
 set -euo pipefail
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h | --help)
+            sed -n '2,17p' "$0" | sed 's/^# \?//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1 (try --help)" >&2
+            exit 1
+            ;;
+    esac
+done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
@@ -54,9 +67,9 @@ echo "  binary   : ${BINARY}"
 echo "  optimizer: ${OPTIMIZER}"
 echo "  SA budget: ${SA_SECONDS}s"
 if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
-    echo "  progress : every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
+    echo "  debug log: every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
 else
-    echo "  progress : off"
+    echo "  debug log: off"
 fi
 echo "  cases    : ${#TESTCASES[@]}"
 echo "========================================"
