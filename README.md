@@ -55,7 +55,7 @@ point for this repo.
 ## CLI
 
 ```sh
-./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--config <file>]
+./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--seed <n>] [--config <file>]
 ```
 
 Example:
@@ -64,7 +64,8 @@ Example:
 ./build/cadd0040 \
   testcases/testcase0 \
   testcases/testcase0/modified_clk_tree.structure \
-  --optimizer isa
+  --optimizer isa \
+  --seed 1234
 ```
 
 Each testcase directory must contain:
@@ -148,14 +149,21 @@ Useful modes:
 ```sh
 ./scripts/slurm_run_all_optimizers.sh --wait      # wait, then aggregate
 ./scripts/slurm_run_all_optimizers.sh --local     # run sequentially without Slurm
+./scripts/slurm_run_all_optimizers.sh --seed-runs 3
+./scripts/slurm_run_all_optimizers.sh --seed 5000 --seed-runs 10
 OPTIMIZERS="isa tabu" ./scripts/slurm_run_all_optimizers.sh
 SLURM_PARTITION=short SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
+`slurm_run_all_optimizers.sh` runs each optimizer/testcase experiment across
+consecutive seeds. The default is 10 runs starting from seed `2026`; `--seed`
+or `CADD0040_SEED` changes the first seed, and `--seed-runs` or
+`CADD0040_SEED_RUNS` changes the count.
+
 The aggregated run directory contains:
 
-- `logs/<optimizer>/<testcase>.log`
-- `outputs/<optimizer>/<testcase>/modified_clk_tree.structure`
+- `logs/<optimizer>/seed_<seed>/<testcase>.log`
+- `outputs/<optimizer>/seed_<seed>/<testcase>/modified_clk_tree.structure`
 - `results.tsv`
 - `by_optimizer.tsv`
 - `best_by_testcase.tsv`
@@ -182,7 +190,8 @@ Config precedence:
 1. Struct defaults from `src/optimization/optimizer_config.hpp`
 2. `CADD0040_SA_SECONDS`, when no config value overrides it
 3. Config global keys: `optimizer`, `seed`, `time_budget_seconds`
-4. Config optimizer-section keys
+4. CLI `--seed`, as a global seed override
+5. Config optimizer-section keys
 
 Run every top-level config file under `config/` against every testcase:
 
@@ -242,8 +251,8 @@ CADD0040_VISUAL_TRACE=1 CADD0040_VISUAL_TRACE_STEPS=256 \
 
 Trace file outputs:
 
-- `progress/<optimizer>/<testcase>/progress.tsv`
-- `traces/<optimizer>/<testcase>/frames.json`
+- `progress/<optimizer>/seed_<seed>/<testcase>/progress.tsv`
+- `traces/<optimizer>/seed_<seed>/<testcase>/frames.json`
 
 Plot numeric event traces:
 
@@ -253,6 +262,10 @@ python3 scripts/plot_optimizer_progress.py \
   --y best_score \
   --out-dir slurm_runs/20260616_120000/plots
 ```
+
+The plotter renders each seed run as small low-opacity points and overlays an
+optimizer-level mean line. Step comparison plots average exact logical steps;
+time comparison plots use time bins.
 
 Generate an HTML visualization from visual frames:
 
@@ -271,6 +284,8 @@ python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
 | `CONFIGS` | all | Space-separated config basenames or filenames |
 | `TESTCASES_DIR` | `testcases/` | Testcase root for Slurm scripts |
 | `OUTPUT_DIR` | timestamped | Run output directory |
+| `CADD0040_SEED` | `2026` | First seed used by `slurm_run_all_optimizers.sh` |
+| `CADD0040_SEED_RUNS` | `10` | Consecutive seed count per optimizer/testcase experiment |
 | `CADD0040_SA_SECONDS` | `570` | Legacy wall-clock budget override |
 | `CADD0040_CHECKPOINT_STEPS` | `4096` | Best-so-far output checkpoint interval; `0` disables |
 | `CADD0040_REPORT_METRICS` | script-specific | Print initial/final score lines |

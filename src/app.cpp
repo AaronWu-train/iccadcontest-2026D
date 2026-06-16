@@ -7,7 +7,9 @@
 
 #include <CLI/CLI.hpp>
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -24,9 +26,22 @@ bool is_registered_optimizer(std::string_view optimizer_name) {
     return std::find(optimizers.begin(), optimizers.end(), optimizer_name) != optimizers.end();
 }
 
+unsigned int parse_seed_option(const std::string& seed_text) {
+    if (seed_text.empty() || !std::all_of(seed_text.begin(), seed_text.end(),
+                                          [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
+        throw std::runtime_error("--seed must be a non-negative integer");
+    }
+
+    const unsigned long parsed = std::stoul(seed_text);
+    if (parsed > std::numeric_limits<unsigned int>::max()) {
+        throw std::runtime_error("--seed is too large for an unsigned int");
+    }
+    return static_cast<unsigned int>(parsed);
+}
+
 void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
                        std::filesystem::path& output_file, std::string& optimizer_name,
-                       std::filesystem::path& config_file) {
+                       std::filesystem::path& config_file, std::string& seed_text) {
     app.add_option("testcase_dir", testcase_dir,
                    "Directory containing clk_tree.structure, buf.lib, "
                    "SS_delay.rpt, and FF_delay.rpt")
@@ -43,6 +58,9 @@ void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
     app.add_option("--config", config_file,
                    "Optional optimizer experiment config file (INI key=value format)")
         ->check(CLI::ExistingFile);
+
+    app.add_option("--seed", seed_text, "Global optimizer RNG seed for seed-aware optimizers")
+        ->check(CLI::NonNegativeNumber);
 }
 
 }  // namespace
@@ -52,9 +70,10 @@ AppConfig parse_arguments(int argc, char** argv) {
     std::filesystem::path output_file;
     std::string optimizer_name;
     std::filesystem::path config_file;
+    std::string seed_text;
 
     CLI::App app{"ICCAD Contest 2026 Problem D solver", program_name(argv[0])};
-    configure_cli_app(app, testcase_dir, output_file, optimizer_name, config_file);
+    configure_cli_app(app, testcase_dir, output_file, optimizer_name, config_file, seed_text);
 
     try {
         app.parse(argc, argv);
@@ -71,6 +90,12 @@ AppConfig parse_arguments(int argc, char** argv) {
                 throw std::runtime_error("Unknown optimizer in config file: " + optimizer_name);
             }
         }
+    }
+    if (!seed_text.empty()) {
+        if (!optimizer_config.has_value()) {
+            optimizer_config.emplace();
+        }
+        optimizer_config->seed = parse_seed_option(seed_text);
     }
 
     return AppConfig(testcase_dir, output_file, optimizer_name, std::move(optimizer_config));

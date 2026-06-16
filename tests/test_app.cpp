@@ -71,6 +71,20 @@ TEST_CASE("parse_arguments accepts an explicit optimizer") {
     CHECK(config.optimizer_name == cadd0040::kDefaultOptimizerName);
 }
 
+TEST_CASE("parse_arguments accepts a global optimizer seed") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--seed",
+        "4321",
+    });
+
+    REQUIRE(config.optimizer_config.has_value());
+    CHECK(config.optimizer_config->seed == 4321u);
+    CHECK(cadd0040::isa_config_from_sources(config.optimizer_config_ptr()).seed == 4321u);
+}
+
 TEST_CASE("parse_arguments uses argv[0] only as the program name") {
     const auto config = parse_arguments({
         "cadd0040-alpha",
@@ -100,6 +114,22 @@ TEST_CASE("parse_arguments loads optional config and overrides optimizer") {
     CHECK(*config.optimizer_config->optimizer == "sa");
     CHECK(config.optimizer_config->seed == 1234u);
     CHECK(config.optimizer_config->time_budget->count() == 60);
+}
+
+TEST_CASE("parse_arguments lets CLI seed override config global seed") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--config",
+        fixture_path("sa_experiment.conf").string(),
+        "--seed",
+        "9876",
+    });
+
+    REQUIRE(config.optimizer_config.has_value());
+    CHECK(config.optimizer_config->seed == 9876u);
+    CHECK(cadd0040::sa_config_from_sources(config.optimizer_config_ptr()).seed == 9876u);
 }
 
 TEST_CASE("parse_arguments keeps CLI optimizer when config omits optimizer") {

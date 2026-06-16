@@ -37,10 +37,28 @@ def find_progress_files(run_dir: Path) -> list[Path]:
     files: list[Path] = []
     if direct.is_file():
         files.append(direct)
+    files.extend(sorted((run_dir / "progress").glob("*/*/*/progress.tsv")))
     files.extend(sorted((run_dir / "progress").glob("*/*/progress.tsv")))
     if not files:
         files.extend(sorted(run_dir.rglob("progress.tsv")))
     return sorted(set(files))
+
+
+def infer_progress_context(path: Path, row: dict[str, str]) -> tuple[str, str, str]:
+    seed = row.get("seed", "")
+    parent = path.parent
+    if not seed and parent.parent.name.startswith("seed_"):
+        seed = parent.parent.name.removeprefix("seed_")
+    if not seed:
+        seed = "default"
+
+    if parent.parent.name.startswith("seed_"):
+        optimizer = row.get("optimizer") or parent.parent.parent.name
+        testcase = row.get("testcase") or parent.name
+    else:
+        optimizer = row.get("optimizer") or parent.parent.name
+        testcase = row.get("testcase") or parent.name
+    return optimizer, testcase, seed
 
 
 def read_progress(path: Path) -> list[dict[str, object]]:
@@ -48,12 +66,12 @@ def read_progress(path: Path) -> list[dict[str, object]]:
     with path.open(newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         for row in reader:
-            optimizer = row.get("optimizer", path.parent.parent.name)
-            testcase = row.get("testcase", path.parent.name)
+            optimizer, testcase, seed = infer_progress_context(path, row)
             rows.append(
                 {
                     "optimizer": optimizer,
                     "testcase": testcase,
+                    "seed": seed,
                     "step": parse_int(row.get("step", "")),
                     "elapsed_sec": parse_float(row.get("elapsed_sec", "")),
                     "phase": row.get("phase", ""),
@@ -84,6 +102,52 @@ def numeric_series(rows: list[dict[str, object]], x_key: str, y_key: str) -> tup
     return xs, ys
 
 
+def mean_series(rows: list[dict[str, object]], x_key: str, y_key: str, bins: int = 80) -> tuple[list[float], list[float]]:
+    seed_points: dict[str, dict[float, list[float]]] = defaultdict(lambda: defaultdict(list))
+    raw_points: list[tuple[str, float, float]] = []
+    for row in rows:
+        x = row["elapsed_sec"] if x_key in {"time", "elapsed_sec"} else row["step"]
+        y = row[y_key]
+        if isinstance(x, int):
+            x = float(x)
+        if not (isinstance(x, float) and isinstance(y, float)):
+            continue
+        if math.isnan(x) or math.isnan(y):
+            continue
+        raw_points.append((str(row.get("seed", "default")), x, y))
+
+    if not raw_points:
+        return [], []
+
+    if x_key in {"time", "elapsed_sec"}:
+        xmin = min(point[1] for point in raw_points)
+        xmax = max(point[1] for point in raw_points)
+        if xmax > xmin:
+            width = (xmax - xmin) / max(1, bins)
+            normalized_points: list[tuple[str, float, float]] = []
+            for seed, x, y in raw_points:
+                bin_index = min(max(0, int((x - xmin) / width)), bins - 1)
+                bin_x = xmin + (bin_index + 0.5) * width
+                normalized_points.append((seed, bin_x, y))
+            raw_points = normalized_points
+
+    for seed, x, y in raw_points:
+        seed_points[seed][x].append(y)
+
+    by_x: dict[float, list[float]] = defaultdict(list)
+    for points_by_x in seed_points.values():
+        for x, values in points_by_x.items():
+            by_x[x].append(sum(values) / len(values))
+
+    xs: list[float] = []
+    ys: list[float] = []
+    for x in sorted(by_x):
+        values = by_x[x]
+        xs.append(x)
+        ys.append(sum(values) / len(values))
+    return xs, ys
+
+
 def plot_by_testcase(rows: list[dict[str, object]], out_dir: Path, y_key: str, x_key: str) -> None:
     import matplotlib.pyplot as plt
 
@@ -96,11 +160,22 @@ def plot_by_testcase(rows: list[dict[str, object]], out_dir: Path, y_key: str, x
     label = "time" if x_key in {"time", "elapsed_sec"} else "step"
     for testcase, by_optimizer in grouped.items():
         fig, ax = plt.subplots(figsize=(10, 5.5))
-        for optimizer, optimizer_rows in sorted(by_optimizer.items()):
+        for color_index, (optimizer, optimizer_rows) in enumerate(sorted(by_optimizer.items())):
             optimizer_rows.sort(key=lambda r: (float(r["elapsed_sec"]), int(r["step"])))
+            color = plt.cm.tab10(color_index % 10)
             xs, ys = numeric_series(optimizer_rows, x_key, y_key)
             if xs:
-                ax.plot(xs, ys, marker="o", markersize=2, linewidth=1.4, label=optimizer)
+                seeds = {str(row.get("seed", "default")) for row in optimizer_rows}
+                ax.scatter(xs, ys, s=5, alpha=0.16, color=color, linewidths=0)
+                mean_xs, mean_ys = mean_series(optimizer_rows, x_key, y_key)
+                if mean_xs:
+                    ax.plot(
+                        mean_xs,
+                        mean_ys,
+                        color=color,
+                        linewidth=2.0,
+                        label=f"{optimizer} mean (n={len(seeds)})",
+                    )
         ax.set_title(f"{testcase}: {y_key} vs {label}")
         ax.set_xlabel("elapsed seconds" if label == "time" else "logical step")
         ax.set_ylabel(y_key)
@@ -114,14 +189,14 @@ def plot_by_testcase(rows: list[dict[str, object]], out_dir: Path, y_key: str, x
 def plot_by_run(rows: list[dict[str, object]], out_dir: Path, y_key: str, x_key: str) -> None:
     import matplotlib.pyplot as plt
 
-    grouped: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str], list[dict[str, object]]] = defaultdict(list)
     for row in rows:
-        grouped[(str(row["optimizer"]), str(row["testcase"]))].append(row)
+        grouped[(str(row["optimizer"]), str(row["testcase"]), str(row.get("seed", "default")))].append(row)
 
     output_dir = out_dir / "by_run"
     output_dir.mkdir(parents=True, exist_ok=True)
     label = "time" if x_key in {"time", "elapsed_sec"} else "step"
-    for (optimizer, testcase), run_rows in sorted(grouped.items()):
+    for (optimizer, testcase, seed), run_rows in sorted(grouped.items()):
         run_rows.sort(key=lambda r: (float(r["elapsed_sec"]), int(r["step"])))
         xs, ys = numeric_series(run_rows, x_key, y_key)
         if not xs:
@@ -145,13 +220,13 @@ def plot_by_run(rows: list[dict[str, object]], out_dir: Path, y_key: str, x_key:
                     color_index = phase_to_index.get(str(row["phase"]), 0)
                     color = plt.cm.tab20(color_index % 20)
                     ax.axvline(x, color=color, alpha=alpha, linewidth=0.8)
-        ax.set_title(f"{optimizer} / {testcase}: phases")
+        ax.set_title(f"{optimizer} / {testcase} / seed {seed}: phases")
         ax.set_xlabel("elapsed seconds" if label == "time" else "logical step")
         ax.set_ylabel(y_key)
         ax.grid(True, linewidth=0.4, alpha=0.35)
         ax.legend(fontsize=8, ncol=2)
         fig.tight_layout()
-        filename = f"{safe_name(optimizer)}__{safe_name(testcase)}_phases.png"
+        filename = f"{safe_name(optimizer)}__seed_{safe_name(seed)}__{safe_name(testcase)}_phases.png"
         fig.savefig(output_dir / filename, dpi=160)
         plt.close(fig)
 
@@ -175,6 +250,31 @@ def scale_points(xs: list[float], ys: list[float], width: int, height: int) -> l
         return []
     xmin, xmax = min(xs), max(xs)
     ymin, ymax = min(ys), max(ys)
+    if xmax == xmin:
+        xmax = xmin + 1.0
+    if ymax == ymin:
+        ymax = ymin + 1.0
+    left, right, top, bottom = 70, width - 30, 35, height - 55
+    points: list[tuple[int, int]] = []
+    for x, y in zip(xs, ys):
+        px = left + int((x - xmin) / (xmax - xmin) * (right - left))
+        py = bottom - int((y - ymin) / (ymax - ymin) * (bottom - top))
+        points.append((px, py))
+    return points
+
+
+def scale_points_with_domain(
+    xs: list[float],
+    ys: list[float],
+    width: int,
+    height: int,
+    xmin: float,
+    xmax: float,
+    ymin: float,
+    ymax: float,
+) -> list[tuple[int, int]]:
+    if not xs or not ys:
+        return []
     if xmax == xmin:
         xmax = xmin + 1.0
     if ymax == ymin:
@@ -257,6 +357,13 @@ def draw_point(
     draw_rect(pixels, width, height, x - 3, y - 3, x + 3, y + 3, color)
 
 
+def draw_small_point(
+    pixels: bytearray, width: int, height: int, point: tuple[int, int], color: tuple[int, int, int]
+) -> None:
+    x, y = point
+    draw_rect(pixels, width, height, x - 1, y - 1, x + 1, y + 1, color)
+
+
 def save_png(path: Path, width: int, height: int, pixels: bytearray) -> None:
     def chunk(kind: bytes, data: bytes) -> bytes:
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
@@ -273,15 +380,37 @@ def save_png(path: Path, width: int, height: int, pixels: bytearray) -> None:
     path.write_bytes(png)
 
 
-def draw_basic_chart(path: Path, title: str, series: list[tuple[str, list[float], list[float]]]) -> None:
+def draw_basic_chart(
+    path: Path,
+    title: str,
+    line_series: list[tuple[str, list[float], list[float]]],
+    point_series: list[tuple[str, list[float], list[float]]] | None = None,
+) -> None:
     width, height = 1000, 560
     pixels = bytearray([255, 255, 255]) * (width * height)
     draw_line(pixels, width, height, (70, 35), (70, height - 55), (40, 40, 40))
     draw_line(pixels, width, height, (70, height - 55), (width - 30, height - 55), (40, 40, 40))
 
+    all_series = line_series + (point_series or [])
+    all_xs = [x for _label, xs, _ys in all_series for x in xs]
+    all_ys = [y for _label, _xs, ys in all_series for y in ys]
+    if not all_xs or not all_ys:
+        save_png(path, width, height, pixels)
+        return
+    xmin, xmax = min(all_xs), max(all_xs)
+    ymin, ymax = min(all_ys), max(all_ys)
+
+    if point_series:
+        for index, (_label, xs, ys) in enumerate(point_series):
+            points = scale_points_with_domain(xs, ys, width, height, xmin, xmax, ymin, ymax)
+            color = PALETTE[index % len(PALETTE)]
+            pale_color = tuple(min(255, int(channel + (255 - channel) * 0.55)) for channel in color)
+            for point in points:
+                draw_small_point(pixels, width, height, point, pale_color)
+
     legend_y = 36
-    for index, (label, xs, ys) in enumerate(series):
-        points = scale_points(xs, ys, width, height)
+    for index, (label, xs, ys) in enumerate(line_series):
+        points = scale_points_with_domain(xs, ys, width, height, xmin, xmax, ymin, ymax)
         if not points:
             continue
         color = PALETTE[index % len(PALETTE)]
@@ -306,35 +435,40 @@ def plot_by_testcase_pillow(
     output_dir.mkdir(parents=True, exist_ok=True)
     label = "time" if x_key in {"time", "elapsed_sec"} else "step"
     for testcase, by_optimizer in grouped.items():
-        series: list[tuple[str, list[float], list[float]]] = []
+        point_series: list[tuple[str, list[float], list[float]]] = []
+        line_series: list[tuple[str, list[float], list[float]]] = []
         for optimizer, optimizer_rows in sorted(by_optimizer.items()):
             optimizer_rows.sort(key=lambda r: (float(r["elapsed_sec"]), int(r["step"])))
             xs, ys = numeric_series(optimizer_rows, x_key, y_key)
-            series.append((optimizer, xs, ys))
+            seeds = {str(row.get("seed", "default")) for row in optimizer_rows}
+            mean_xs, mean_ys = mean_series(optimizer_rows, x_key, y_key)
+            point_series.append((optimizer, xs, ys))
+            line_series.append((f"{optimizer} mean (n={len(seeds)})", mean_xs, mean_ys))
         draw_basic_chart(
             output_dir / f"{safe_name(testcase)}_{safe_name(y_key)}_vs_{label}.png",
             f"{testcase}: {y_key} vs {label}",
-            series,
+            line_series,
+            point_series,
         )
 
 
 def plot_by_run_pillow(rows: list[dict[str, object]], out_dir: Path, y_key: str, x_key: str) -> None:
-    grouped: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str], list[dict[str, object]]] = defaultdict(list)
     for row in rows:
-        grouped[(str(row["optimizer"]), str(row["testcase"]))].append(row)
+        grouped[(str(row["optimizer"]), str(row["testcase"]), str(row.get("seed", "default")))].append(row)
 
     output_dir = out_dir / "by_run"
     output_dir.mkdir(parents=True, exist_ok=True)
     label = "time" if x_key in {"time", "elapsed_sec"} else "step"
-    for (optimizer, testcase), run_rows in sorted(grouped.items()):
+    for (optimizer, testcase, seed), run_rows in sorted(grouped.items()):
         run_rows.sort(key=lambda r: (float(r["elapsed_sec"]), int(r["step"])))
         series: list[tuple[str, list[float], list[float]]] = []
         for phase in sorted({str(row["phase"]) for row in run_rows}):
             phase_rows = [row for row in run_rows if row["phase"] == phase]
             xs, ys = numeric_series(phase_rows, x_key, y_key)
             series.append((phase, xs, ys))
-        filename = f"{safe_name(optimizer)}__{safe_name(testcase)}_phases.png"
-        draw_basic_chart(output_dir / filename, f"{optimizer} / {testcase}: phases", series)
+        filename = f"{safe_name(optimizer)}__seed_{safe_name(seed)}__{safe_name(testcase)}_phases.png"
+        draw_basic_chart(output_dir / filename, f"{optimizer} / {testcase} / seed {seed}: phases", series)
 
 
 def main() -> int:
@@ -344,7 +478,7 @@ def main() -> int:
         "--x",
         choices=["step", "time", "elapsed_sec"],
         default="step",
-        help="X axis for per-run phase plots. Comparison plots always include step and time.",
+        help="X axis for per-seed phase plots. Comparison plots always include step and time.",
     )
     parser.add_argument(
         "--y",
