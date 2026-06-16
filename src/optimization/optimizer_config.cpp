@@ -366,6 +366,39 @@ void apply_tabu_section(TabuConfig& config, const std::map<std::string, std::str
     }
 }
 
+void apply_a6_tabu_repair_recover_section(A6TabuRepairRecoverConfig& config,
+                                          const std::map<std::string, std::string>& entries,
+                                          std::string_view section) {
+    for (const auto& [key, value] : entries) {
+        const std::string context = std::string(section) + "." + key;
+        if (key == "time_budget_seconds") {
+            apply_time_budget(config.time_budget, value, context);
+        } else if (key == "timing_steps") {
+            config.timing_steps = parse_size_t(value, context);
+        } else if (key == "area_steps") {
+            config.area_steps = parse_size_t(value, context);
+        } else if (key == "tenure") {
+            config.tenure = parse_size_t(value, context);
+        } else if (key == "violation_sample_limit") {
+            config.violation_sample_limit = parse_size_t(value, context);
+        } else if (key == "critical_endpoint_limit") {
+            config.critical_endpoint_limit = parse_size_t(value, context);
+        } else if (key == "upstream_window_depth") {
+            config.upstream_window_depth = parse_size_t(value, context);
+        } else if (key == "removal_candidate_limit") {
+            config.removal_candidate_limit = parse_size_t(value, context);
+        } else if (key == "resize_node_limit") {
+            config.resize_node_limit = parse_size_t(value, context);
+        } else if (key == "candidate_limit") {
+            config.candidate_limit = parse_size_t(value, context);
+        } else if (key == "max_timing_score_loss") {
+            config.max_timing_score_loss = parse_double(value, context);
+        } else {
+            throw_unknown_key(section, key);
+        }
+    }
+}
+
 void apply_global_section_keys(OptimizerConfigFile& config_file,
                                const std::map<std::string, std::string>& entries) {
     for (const auto& [key, value] : entries) {
@@ -464,6 +497,9 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
         } else if (section == "tabu") {
             TabuConfig probe;
             apply_tabu_section(probe, entries, section);
+        } else if (section == "a6-tabu-repair-recover") {
+            A6TabuRepairRecoverConfig probe;
+            apply_a6_tabu_repair_recover_section(probe, entries, section);
         } else {
             throw std::runtime_error("Unknown optimizer config section [" + section + "] in " +
                                      path.string());
@@ -587,6 +623,19 @@ TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file) {
     return config;
 }
 
+A6TabuRepairRecoverConfig a6_tabu_repair_recover_config_from_sources(
+    const OptimizerConfigFile* config_file) {
+    A6TabuRepairRecoverConfig config;
+    apply_env_time_budget(config.time_budget);
+    std::optional<unsigned int> unused_seed;
+    apply_global_overrides(config.time_budget, unused_seed, config_file);
+    if (const auto* entries = section_entries(config_file, "a6-tabu-repair-recover");
+        entries != nullptr) {
+        apply_a6_tabu_repair_recover_section(config, *entries, "a6-tabu-repair-recover");
+    }
+    return config;
+}
+
 GreedyConfig greedy_config_from_environment() { return greedy_config_from_sources(nullptr); }
 
 MilpConfig milp_config_from_environment() { return milp_config_from_sources(nullptr); }
@@ -612,5 +661,9 @@ RandomizedRclConfig randomized_rcl_config_from_environment() {
 }
 
 TabuConfig tabu_config_from_environment() { return tabu_config_from_sources(nullptr); }
+
+A6TabuRepairRecoverConfig a6_tabu_repair_recover_config_from_environment() {
+    return a6_tabu_repair_recover_config_from_sources(nullptr);
+}
 
 }  // namespace cadd0040

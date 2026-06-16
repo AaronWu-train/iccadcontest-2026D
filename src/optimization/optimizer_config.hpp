@@ -127,6 +127,20 @@ struct TabuConfig {
     std::size_t candidate_limit = 4096;
 };
 
+struct A6TabuRepairRecoverConfig {
+    std::chrono::seconds time_budget{kDefaultOptimizerTimeBudget};
+    std::size_t timing_steps = 4096;
+    std::size_t area_steps = 4096;
+    std::size_t tenure = 128;
+    std::size_t violation_sample_limit = 32;
+    std::size_t critical_endpoint_limit = 0;
+    std::size_t upstream_window_depth = 4;
+    std::size_t removal_candidate_limit = 1024;
+    std::size_t resize_node_limit = 1024;
+    std::size_t candidate_limit = 4096;
+    double max_timing_score_loss = 1e-9;
+};
+
 OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& path);
 
 GreedyConfig greedy_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
@@ -142,6 +156,8 @@ RepairRecoverConfig repair_recover_config_from_sources(
 RandomizedRclConfig randomized_rcl_config_from_sources(
     const OptimizerConfigFile* config_file = nullptr);
 TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
+A6TabuRepairRecoverConfig a6_tabu_repair_recover_config_from_sources(
+    const OptimizerConfigFile* config_file = nullptr);
 
 GreedyConfig greedy_config_from_environment();
 MilpConfig milp_config_from_environment();
@@ -152,5 +168,6 @@ UpstreamWindowConfig upstream_window_config_from_environment();
 RepairRecoverConfig repair_recover_config_from_environment();
 RandomizedRclConfig randomized_rcl_config_from_environment();
 TabuConfig tabu_config_from_environment();
+A6TabuRepairRecoverConfig a6_tabu_repair_recover_config_from_environment();
 
 }  // namespace cadd0040

@@ -1742,3 +1742,194 @@ Recommended implementation order:
 1. `a6-tabu-repair-recover`
 2. `policy-averaged-greedy-seed-then-tabu`
 3. `isa-with-repair-recover-guidance`
+
+# 追加實作結果：a6-tabu-repair-recover 本機測試
+
+## 中文：實作內容
+
+我實作了新的 CLI optimizer：
+
+```text
+--optimizer a6-tabu-repair-recover
+```
+
+這個版本的設計是以 A6 的 `timing repair -> area recovery` 兩階段為主體，並在候選選擇時加入 tabu memory：
+
+- timing repair：沿用 A6 的 violating path + upstream window 候選，預設只接受 timing repair objective 變好的 move。
+- area recovery：沿用 A6 的 remove/resize 候選，保留 timing 不變差且總分不倒退的限制。
+- tabu memory：最近使用過的 move key 會暫時列入 tabu；若候選能超過歷史 best score，允許 aspiration。
+- best-state restore：中途即使接受探索 move，最後仍回復到整段搜尋中分數最高的 clock tree。
+
+我一開始測過較激進版本，也就是 timing 階段允許非改善 move，並且混入 critical-endpoint 候選。該版本平均只有 `0.984899`，明顯輸給 A6 和 tabu。原因是 timing tabu 會吃滿 570 秒，area recovery 幾乎沒有機會執行。後來把預設調成較保守的 v2：不預設加入 critical-endpoint 候選，且 timing repair 只接受 repair objective 改善的 move。
+
+## 中文：完整測試
+
+完整單元測試結果：
+
+```text
+make test
+45/45 passed
+```
+
+`make format` 嘗試執行過，但本機沒有 `clang-format`：
+
+```text
+/bin/sh: clang-format: command not found
+```
+
+## 中文：v2 本機 benchmark 結果
+
+執行設定：
+
+```text
+optimizer  = a6-tabu-repair-recover
+seed       = 2026
+budget     = CADD0040_SA_SECONDS=570
+trace      = CADD0040_PROGRESS_TRACE=1
+run dir    = slurm_runs/a6_tabu_repair_recover_v2_parallel_20260616_001
+```
+
+五個 testcase 本機平行執行結果：
+
+| Testcase | New final score |
+|---|---:|
+| testcase0 | 0.668446 |
+| testcase1 | 1.390700 |
+| testcase2 | 1.422830 |
+| testcase3 | 1.322860 |
+| testcase4 | 0.608139 |
+| Average | 1.082595 |
+
+和既有結果比較：
+
+| Testcase | New | A6 greedy-repair-recover | Delta vs A6 | Tabu | Delta vs Tabu | Old best | Delta vs Old best |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| testcase0 | 0.668446 | 0.887163 | -0.218717 | 0.884014 | -0.215568 | 0.935219 | -0.266773 |
+| testcase1 | 1.390700 | 1.406210 | -0.015510 | 1.444770 | -0.054070 | 1.444770 | -0.054070 |
+| testcase2 | 1.422830 | 1.457110 | -0.034280 | 1.469630 | -0.046800 | 1.529370 | -0.106540 |
+| testcase3 | 1.322860 | 1.369790 | -0.046930 | 1.271120 | +0.051740 | 1.369790 | -0.046930 |
+| testcase4 | 0.608139 | 0.665701 | -0.057562 | 0.806923 | -0.198784 | 0.882466 | -0.274327 |
+| Average | 1.082595 | 1.157195 | -0.074600 | 1.175291 | -0.092696 | 1.232323 | -0.149728 |
+
+結論：目前 `a6-tabu-repair-recover` 沒有整體進步。它只在 testcase3 贏過 tabu，但平均仍低於 A6、tabu、以及 old best-by-testcase。
+
+## 中文：三向度分析
+
+v2 的三個未加權 component：
+
+| Testcase | Score | Setup component | Hold component | Area component | Area ratio |
+|---|---:|---:|---:|---:|---:|
+| testcase0 | 0.668446 | 0.770792 | 1.153644 | -0.021443 | 1.021443 |
+| testcase1 | 1.390700 | 1.984499 | 2.000000 | -0.406186 | 1.406186 |
+| testcase2 | 1.422830 | 1.985546 | 2.000000 | -0.279755 | 1.279755 |
+| testcase3 | 1.322860 | 1.717460 | 2.000000 | -0.143496 | 1.143496 |
+| testcase4 | 0.608139 | 0.646210 | 1.145806 | -0.005664 | 1.005664 |
+| Average | 1.082595 | 1.420901 | 1.659890 | -0.171309 | 1.171309 |
+
+和先前平均 component 比較：
+
+| Optimizer | Avg score | Setup | Hold | Area |
+|---|---:|---:|---:|---:|
+| a6-tabu-repair-recover v2 | 1.082595 | 1.420901 | 1.659890 | -0.171309 |
+| greedy-repair-recover A6 | 1.157196 | 1.557660 | 1.665355 | -0.151893 |
+| tabu A8 | 1.175291 | 1.454729 | 1.793373 | -0.001667 |
+
+觀察：
+
+1. setup 沒有達到 A6 水準。
+
+   A6 的平均 setup component 是 `1.557660`，新 hybrid 是 `1.420901`。代表目前 tabu wrapper 沒有保留 A6 最強的 timing repair 效率。
+
+2. hold 也沒有達到 tabu 水準。
+
+   Tabu 的 hold component 是 `1.793373`，新 hybrid 是 `1.659890`。這表示目前不是單純「A6 setup + tabu hold」的有效疊加。
+
+3. area 比 tabu 差很多，也比 A6 略差。
+
+   新 hybrid area component 是 `-0.171309`，A6 是 `-0.151893`，tabu 幾乎不增加 area (`-0.001667`)。主要原因是多數 testcase 沒有足夠時間進入 area recovery，或 area recovery 步數不足。
+
+4. progress trace 顯示 phase allocation 是主要問題。
+
+   v2 中 testcase0、testcase1、testcase3、testcase4 最後仍在 `timing_repair_tabu`，只有 testcase2 明確進入 `area_recovery_tabu`。因此這個 hybrid 的瓶頸不是 area recovery policy 本身，而是 timing repair 階段仍然太耗時。
+
+## 中文：後續改良方向
+
+目前不建議把 `a6-tabu-repair-recover` 當預設 optimizer。它比較像一個實驗性 hybrid，證明「直接把 tabu memory 插入 A6」不會自然得到 A6 + tabu 的優點。
+
+更合理的下一版方向：
+
+1. 加入 phase time split。
+
+   例如 timing repair 最多用 60%-70% budget，保留固定時間給 area recovery 或 score-based tabu polish。這可以避免 testcase0/testcase4 完全卡在 timing repair。
+
+2. tabu 只放在 polish 階段，而不是包住 A6 主修復階段。
+
+   A6 的 timing repair 很強，應該先讓它用 deterministic greedy 快速修 timing；tabu 比較適合接在後段處理 local optimum。
+
+3. 使用 score-based tabu polish，而不是 timing-objective tabu。
+
+   現在 timing repair objective 仍偏向修 timing，沒有直接處理 area。若後段改用總分 score objective，可能比較接近 A8 的優勢。
+
+4. 避免本機平行 benchmark 對 step count 的影響。
+
+   這次五個 testcase 是平行執行，總 wall time 符合 570 秒 budget，但每個 process 可用 CPU 可能低於既有 results 的單 run 條件。若要做嚴格比較，應再跑一次 sequential 或 Slurm one-core-per-task。
+
+# Implementation Result: a6-tabu-repair-recover Local Test
+
+## English Summary
+
+I implemented the new CLI optimizer:
+
+```text
+--optimizer a6-tabu-repair-recover
+```
+
+The optimizer uses A6's two-stage repair/recover structure and adds tabu memory to candidate
+selection. The final state is always restored to the best score seen during the run.
+
+The first aggressive version allowed non-improving timing moves and mixed in critical-endpoint
+candidates by default. That version averaged only `0.984899`, because timing tabu consumed the full
+570-second budget and left little room for area recovery. I then changed the default to a more
+conservative v2: no critical-endpoint candidates by default, and timing repair only accepts moves
+that improve the repair objective.
+
+Unit tests:
+
+```text
+make test
+45/45 passed
+```
+
+`make format` could not run because `clang-format` is not installed locally.
+
+## English Benchmark Result
+
+Run directory:
+
+```text
+slurm_runs/a6_tabu_repair_recover_v2_parallel_20260616_001
+```
+
+The v2 average final score is `1.082595`, which is below A6 (`1.157195`) and tabu (`1.175291`).
+It beats tabu only on testcase3, but does not improve the overall average.
+
+| Testcase | New | A6 | Delta vs A6 | Tabu | Delta vs Tabu | Old best | Delta vs Old best |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| testcase0 | 0.668446 | 0.887163 | -0.218717 | 0.884014 | -0.215568 | 0.935219 | -0.266773 |
+| testcase1 | 1.390700 | 1.406210 | -0.015510 | 1.444770 | -0.054070 | 1.444770 | -0.054070 |
+| testcase2 | 1.422830 | 1.457110 | -0.034280 | 1.469630 | -0.046800 | 1.529370 | -0.106540 |
+| testcase3 | 1.322860 | 1.369790 | -0.046930 | 1.271120 | +0.051740 | 1.369790 | -0.046930 |
+| testcase4 | 0.608139 | 0.665701 | -0.057562 | 0.806923 | -0.198784 | 0.882466 | -0.274327 |
+| Average | 1.082595 | 1.157195 | -0.074600 | 1.175291 | -0.092696 | 1.232323 | -0.149728 |
+
+Component comparison:
+
+| Optimizer | Avg score | Setup | Hold | Area |
+|---|---:|---:|---:|---:|
+| a6-tabu-repair-recover v2 | 1.082595 | 1.420901 | 1.659890 | -0.171309 |
+| greedy-repair-recover A6 | 1.157196 | 1.557660 | 1.665355 | -0.151893 |
+| tabu A8 | 1.175291 | 1.454729 | 1.793373 | -0.001667 |
+
+Conclusion: the implemented hybrid is valid and testable, but it is not an improvement yet. The
+main issue is phase allocation: most runs still spend the full budget in timing repair, so the
+hybrid does not recover enough area and does not capture tabu's hold/area advantages.

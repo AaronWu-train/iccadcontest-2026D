@@ -64,6 +64,44 @@ TEST_CASE("optimizer config sources apply only matching optimizer section",
     CHECK(sa.greedy_warmup_iterations == 256);
 }
 
+TEST_CASE("A6 tabu repair recover config section is loaded", "[optimization][config]") {
+    const std::filesystem::path temp_path =
+        std::filesystem::temp_directory_path() / "cadd0040_a6_tabu_repair_recover.conf";
+    {
+        std::ofstream output(temp_path);
+        output << "time_budget_seconds = 45\n";
+        output << "[a6-tabu-repair-recover]\n";
+        output << "timing_steps = 11\n";
+        output << "area_steps = 12\n";
+        output << "tenure = 13\n";
+        output << "violation_sample_limit = 14\n";
+        output << "critical_endpoint_limit = 15\n";
+        output << "upstream_window_depth = 3\n";
+        output << "removal_candidate_limit = 16\n";
+        output << "resize_node_limit = 17\n";
+        output << "candidate_limit = 18\n";
+        output << "max_timing_score_loss = 0.25\n";
+    }
+
+    const auto config_file = cadd0040::parse_optimizer_config_file(temp_path);
+    const cadd0040::A6TabuRepairRecoverConfig config =
+        cadd0040::a6_tabu_repair_recover_config_from_sources(&config_file);
+
+    CHECK(config.time_budget.count() == 45);
+    CHECK(config.timing_steps == 11);
+    CHECK(config.area_steps == 12);
+    CHECK(config.tenure == 13);
+    CHECK(config.violation_sample_limit == 14);
+    CHECK(config.critical_endpoint_limit == 15);
+    CHECK(config.upstream_window_depth == 3);
+    CHECK(config.removal_candidate_limit == 16);
+    CHECK(config.resize_node_limit == 17);
+    CHECK(config.candidate_limit == 18);
+    CHECK(config.max_timing_score_loss == Catch::Approx(0.25));
+
+    std::filesystem::remove(temp_path);
+}
+
 TEST_CASE("optimizer config parser rejects unknown keys", "[optimization][config]") {
     const std::filesystem::path temp_path =
         std::filesystem::temp_directory_path() / "cadd0040_invalid_key.conf";

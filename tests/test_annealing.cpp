@@ -166,11 +166,12 @@ TEST_CASE("optimizer configs use legacy SA seconds override", "[optimization]") 
     CHECK(cadd0040::repair_recover_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::randomized_rcl_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::tabu_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::a6_tabu_repair_recover_config_from_environment().time_budget.count() == 7);
     unsetenv("CADD0040_SA_SECONDS");
 #endif
 }
 
-TEST_CASE("A1-A8 optimizer aliases are registered", "[optimization]") {
+TEST_CASE("optimizer aliases are registered", "[optimization]") {
     const std::vector<std::string> aliases = {
         "greedy-violation-path",
         "sa",
@@ -180,6 +181,7 @@ TEST_CASE("A1-A8 optimizer aliases are registered", "[optimization]") {
         "greedy-repair-recover",
         "greedy-randomized-rcl",
         "tabu",
+        "a6-tabu-repair-recover",
     };
     for (const auto& alias : aliases) {
         CHECK(cadd0040::make_optimizer(alias) != nullptr);
@@ -204,7 +206,7 @@ TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
     }
 }
 
-TEST_CASE("A1-A8 optimizers run and leave an evaluable tree", "[optimization]") {
+TEST_CASE("optimizers run and leave an evaluable tree", "[optimization]") {
 #ifndef _WIN32
     setenv("CADD0040_SA_SECONDS", "0", 1);
 #endif
@@ -218,6 +220,7 @@ TEST_CASE("A1-A8 optimizers run and leave an evaluable tree", "[optimization]") 
         "greedy-repair-recover",
         "greedy-randomized-rcl",
         "tabu",
+        "a6-tabu-repair-recover",
     };
     for (const auto& alias : aliases) {
         const auto buffer_library = make_buffer_library();

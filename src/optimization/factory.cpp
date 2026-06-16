@@ -11,6 +11,7 @@
 #include "optimization/milp/milp_optimizer.hpp"
 #include "optimization/optimizer.hpp"
 #include "optimization/randomized_rcl/randomized_rcl_optimizer.hpp"
+#include "optimization/repair_recover/a6_tabu_repair_recover_optimizer.hpp"
 #include "optimization/repair_recover/repair_recover_optimizer.hpp"
 #include "optimization/sa/annealing_optimizer.hpp"
 #include "optimization/sa/iterated_sa_optimizer.hpp"
@@ -36,6 +37,8 @@ const std::map<std::string, OptimizerCreator>& optimizer_registry() {
         {"greedy-repair-recover", [] { return std::make_unique<GreedyRepairRecoverOptimizer>(); }},
         {"greedy-randomized-rcl", [] { return std::make_unique<GreedyRandomizedRclOptimizer>(); }},
         {"tabu", [] { return std::make_unique<TabuOptimizer>(); }},
+        {"a6-tabu-repair-recover",
+         [] { return std::make_unique<A6TabuRepairRecoverOptimizer>(); }},
         {"milp", [] { return std::make_unique<MilpOptimizer>(); }},
         {"visual", [] { return std::make_unique<ClockTreeTraceOptimizer>(); }},
     };

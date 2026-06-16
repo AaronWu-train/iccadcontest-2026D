@@ -48,6 +48,7 @@ add_library(cadd0040_core
     src/optimization/optimizer_config.cpp
     src/optimization/optimizer.cpp
     src/optimization/randomized_rcl/randomized_rcl_optimizer.cpp
+    src/optimization/repair_recover/a6_tabu_repair_recover_optimizer.cpp
     src/optimization/repair_recover/repair_recover_optimizer.cpp
     src/optimization/timing_state.cpp
     src/optimization/sa/annealing_optimizer.cpp
