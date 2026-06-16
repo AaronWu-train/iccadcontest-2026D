@@ -599,11 +599,11 @@ aggregate_results() {
                 }
             }
             END {
-                printf "%-10s %8s %8s %12s %12s\n", "OPTIMIZER", "OK", "FAIL", "AVG_FINAL", "TOTAL_TIME"
-                printf "%-10s %8s %8s %12s %12s\n", "---------", "--", "----", "---------", "----------"
+                printf "%-20s %8s %8s %12s %12s\n", "OPTIMIZER", "OK", "FAIL", "AVG_FINAL", "TOTAL_TIME"
+                printf "%-20s %8s %8s %12s %12s\n", "---------", "--", "----", "---------", "----------"
                 for (opt in total) {
                     avg = (count_final[opt] > 0) ? sum_final[opt] / count_final[opt] : 0
-                    printf "%-10s %8d %8d %12.6f %12d\n", opt, ok[opt]+0, fail[opt]+0, avg, time[opt]+0
+                    printf "%-20s %8d %8d %12.6f %12d\n", opt, ok[opt]+0, fail[opt]+0, avg, time[opt]+0
                 }
             }
         ' "${results_tsv}"
