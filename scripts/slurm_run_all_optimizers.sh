@@ -400,57 +400,82 @@ count_log_files() {
     find "${LOG_DIR}" -mindepth 2 -maxdepth 3 -type f -name '*.log' 2>/dev/null | wc -l | tr -d ' '
 }
 
+sort_optimizer_rows() {
+    awk -F '\t' '
+        BEGIN { OFS = "\t" }
+        function optimizer_rank(opt) {
+            if (opt == "A1" || opt == "greedy-random") return 1
+            if (opt == "A2" || opt == "greedy-violation-path") return 2
+            if (opt == "A3" || opt == "greedy-upstream-window") return 3
+            if (opt == "A4" || opt == "greedy-critical-endpoint") return 4
+            if (opt == "A5" || opt == "greedy-union-pool") return 5
+            if (opt == "A6" || opt == "two-step-union-pool") return 6
+            if (opt == "A7" || opt == "sa-sampled-union-pool") return 7
+            if (opt == "A8" || opt == "isa-sampled-union-pool") return 8
+            if (opt == "A9" || opt == "tabu-union-pool") return 9
+            if (opt == "A10" || opt == "two-step-random") return 10
+            if (opt == "A11" || opt == "sa-random") return 11
+            if (opt == "A12" || opt == "isa-random") return 12
+            if (opt == "A13" || opt == "tabu-random") return 13
+            return 1000
+        }
+        { print optimizer_rank($1), $0 }
+    ' | sort -t $'\t' -k1,1n -k2,2 -k3,3 -k4,4 | cut -f2-
+}
+
 collect_results_from_meta() {
     find "${META_DIR}" -maxdepth 1 -type f -name '*.tsv' -print0 2>/dev/null |
         sort -z |
         xargs -0 cat 2>/dev/null |
-        sort -t $'\t' -k1,1 -k2,2 || true
+        sort_optimizer_rows || true
 }
 
 collect_results_from_logs() {
     local log_file optimizer testcase_name output_file seed_label seed_run seed_value
     local initial_score final_score status exit_code elapsed
 
-    while IFS= read -r log_file; do
-        [[ -z "${log_file}" ]] && continue
-        seed_label="$(basename "$(dirname "${log_file}")")"
-        testcase_name="$(basename "${log_file}" .log)"
-        if [[ "${seed_label}" == seed_* ]]; then
-            optimizer="$(basename "$(dirname "$(dirname "${log_file}")")")"
-            seed_value="${seed_label#seed_}"
-            seed_run="-"
-        else
-            optimizer="${seed_label}"
-            seed_value="-"
-            seed_run="-"
-        fi
-        if [[ "${seed_label}" == seed_* ]]; then
-            output_file="${OUTPUTS_DIR}/${optimizer}/${seed_label}/${testcase_name}/modified_clk_tree.structure"
-        else
-            output_file="${OUTPUTS_DIR}/${optimizer}/${testcase_name}/modified_clk_tree.structure"
-        fi
+    {
+        while IFS= read -r log_file; do
+            [[ -z "${log_file}" ]] && continue
+            seed_label="$(basename "$(dirname "${log_file}")")"
+            testcase_name="$(basename "${log_file}" .log)"
+            if [[ "${seed_label}" == seed_* ]]; then
+                optimizer="$(basename "$(dirname "$(dirname "${log_file}")")")"
+                seed_value="${seed_label#seed_}"
+                seed_run="-"
+            else
+                optimizer="${seed_label}"
+                seed_value="-"
+                seed_run="-"
+            fi
+            if [[ "${seed_label}" == seed_* ]]; then
+                output_file="${OUTPUTS_DIR}/${optimizer}/${seed_label}/${testcase_name}/modified_clk_tree.structure"
+            else
+                output_file="${OUTPUTS_DIR}/${optimizer}/${testcase_name}/modified_clk_tree.structure"
+            fi
 
-        initial_score="$(grep -E '^Initial Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
-        final_score="$(grep -E '^Final Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
-        initial_score="${initial_score:-"-"}"
-        final_score="${final_score:-"-"}"
-        elapsed="-"
-        exit_code="-"
+            initial_score="$(grep -E '^Initial Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
+            final_score="$(grep -E '^Final Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
+            initial_score="${initial_score:-"-"}"
+            final_score="${final_score:-"-"}"
+            elapsed="-"
+            exit_code="-"
 
-        if [[ -f "${output_file}" ]]; then
-            status="OK"
-            exit_code="0"
-        elif grep -qE '^SKIP ' "${log_file}"; then
-            status="SKIP"
-        else
-            status="FAIL"
-            exit_code="1"
-        fi
+            if [[ -f "${output_file}" ]]; then
+                status="OK"
+                exit_code="0"
+            elif grep -qE '^SKIP ' "${log_file}"; then
+                status="SKIP"
+            else
+                status="FAIL"
+                exit_code="1"
+            fi
 
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "${optimizer}" "${testcase_name}" "${seed_run}" "${seed_value}" "${initial_score}" \
-            "${final_score}" "${elapsed}" "${exit_code}" "${status}"
-    done < <(find "${LOG_DIR}" -mindepth 2 -maxdepth 3 -type f -name '*.log' 2>/dev/null | sort)
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "${optimizer}" "${testcase_name}" "${seed_run}" "${seed_value}" "${initial_score}" \
+                "${final_score}" "${elapsed}" "${exit_code}" "${status}"
+        done < <(find "${LOG_DIR}" -mindepth 2 -maxdepth 3 -type f -name '*.log' 2>/dev/null | sort)
+    } | sort_optimizer_rows
 }
 
 print_empty_run_diagnostics() {
@@ -538,7 +563,7 @@ aggregate_results() {
                     print opt, ok[opt]+0, fail[opt]+0, avg, time[opt]+0
                 }
             }
-        ' "${results_tsv}" | sort -t $'\t' -k1,1
+        ' "${results_tsv}" | sort_optimizer_rows
     } > "${BY_OPTIMIZER_TSV}"
     {
         printf 'TESTCASE\tBEST_FINAL\tOPTIMIZER\tSEED\n'
@@ -586,6 +611,8 @@ aggregate_results() {
         column -t -s $'\t' "${results_tsv}" 2>/dev/null || cat "${results_tsv}"
         echo
         echo "=== Per optimizer ==="
+        printf '%-20s %8s %8s %12s %12s\n' "OPTIMIZER" "OK" "FAIL" "AVG_FINAL" "TOTAL_TIME"
+        printf '%-20s %8s %8s %12s %12s\n' "---------" "--" "----" "---------" "----------"
         awk -F '\t' '
             NR == 1 { next }
             {
@@ -600,14 +627,13 @@ aggregate_results() {
                 }
             }
             END {
-                printf "%-20s %8s %8s %12s %12s\n", "OPTIMIZER", "OK", "FAIL", "AVG_FINAL", "TOTAL_TIME"
-                printf "%-20s %8s %8s %12s %12s\n", "---------", "--", "----", "---------", "----------"
                 for (opt in total) {
                     avg = (count_final[opt] > 0) ? sum_final[opt] / count_final[opt] : 0
-                    printf "%-20s %8d %8d %12.6f %12d\n", opt, ok[opt]+0, fail[opt]+0, avg, time[opt]+0
+                    printf "%s\t%d\t%d\t%.6f\t%d\n", opt, ok[opt]+0, fail[opt]+0, avg, time[opt]+0
                 }
             }
-        ' "${results_tsv}"
+        ' "${results_tsv}" | sort_optimizer_rows |
+            awk -F '\t' '{ printf "%-20s %8d %8d %12.6f %12d\n", $1, $2, $3, $4, $5 }'
         echo
         echo "=== Best final score per testcase (higher is better) ==="
         printf '%-12s %10s %-28s %s\n' "TESTCASE" "BEST" "OPTIMIZER" "SEED"
