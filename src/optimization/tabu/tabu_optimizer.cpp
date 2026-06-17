@@ -8,6 +8,7 @@
 #include <chrono>
 #include <deque>
 #include <limits>
+#include <random>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -77,6 +78,7 @@ bool tabu_active(const std::unordered_map<std::string, std::size_t>& tabu_until,
 
 CandidatePolicyConfig candidate_config_from_tabu(const TabuConfig& config) {
     CandidatePolicyConfig candidate;
+    candidate.random_candidate_limit = config.random_candidate_limit;
     candidate.violation_sample_limit = config.violation_sample_limit;
     candidate.critical_endpoint_limit = config.critical_endpoint_limit;
     candidate.upstream_window_depth = config.upstream_window_depth;
@@ -86,16 +88,37 @@ CandidatePolicyConfig candidate_config_from_tabu(const TabuConfig& config) {
     return candidate;
 }
 
+void build_candidates(const ClockTree& clock_tree, const TimingState& timing,
+                      const CandidatePolicyConfig& config, CandidatePolicy policy,
+                      std::mt19937& rng, std::vector<CandidateMove>& candidates) {
+    if (policy == CandidatePolicy::RandomActionSpace) {
+        for (std::size_t i = 0; i < config.random_candidate_limit; ++i) {
+            candidates.push_back(
+                sample_candidate_policy_move(clock_tree, timing, config, policy, rng));
+        }
+        return;
+    }
+    append_candidate_policy_moves(clock_tree, timing, config, policy, candidates);
+}
+
 }  // namespace
+
+TabuOptimizer::TabuOptimizer(CandidatePolicy policy, std::string_view config_section,
+                             std::string_view legacy_config_section)
+    : policy_(policy),
+      config_section_(config_section),
+      legacy_config_section_(legacy_config_section) {}
 
 void TabuOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                         const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const TabuConfig config = tabu_config_from_sources(context.optimizer_config);
+    const TabuConfig config =
+        tabu_config_from_sources(context.optimizer_config, config_section_, legacy_config_section_);
     const CandidatePolicyConfig candidate_config = candidate_config_from_tabu(config);
-    const std::string candidate_policy = candidate_policy_name(CandidatePolicy::UnionPool);
+    const std::string candidate_policy = candidate_policy_name(policy_);
     const std::string accept_policy = accept_policy_name(AcceptPolicy::TabuBestNonTabu);
+    std::mt19937 rng(config.seed);
     TimingState timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, timing.snapshot(), timing.metrics(),
                             timing.score(baseline_metrics)};
@@ -117,8 +140,7 @@ void TabuOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_gr
     for (std::size_t step = 0;
          step < config.max_steps && std::chrono::steady_clock::now() < deadline; ++step) {
         std::vector<CandidateMove> candidates;
-        append_candidate_policy_moves(clock_tree, timing, candidate_config,
-                                      CandidatePolicy::UnionPool, candidates);
+        build_candidates(clock_tree, timing, candidate_config, policy_, rng, candidates);
         dedupe_candidates(candidates, candidate_config.candidate_limit);
 
         bool found = false;

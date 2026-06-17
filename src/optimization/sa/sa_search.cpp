@@ -176,25 +176,23 @@ std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
     return steps;
 }
 
-std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
-                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                         DebugProgress& debug, double& current_score, SearchState& best_state,
-                         const std::chrono::steady_clock::time_point& start_time,
-                         const std::chrono::steady_clock::time_point& phase_deadline,
-                         std::chrono::seconds total_budget, double initial_temperature,
-                         double min_temperature, double cooling_factor,
-                         std::size_t restart_stale_iterations, double restart_score_gap,
-                         std::size_t greedy_polish_interval, std::size_t violation_sample_limit,
-                         std::size_t removal_candidate_limit, std::size_t& greedy_steps,
-                         std::size_t& accepted_moves, std::size_t& rejected_moves,
-                         std::size_t& restarts, const OptimizerContext& context,
-                         std::size_t& checkpoint_steps, std::string_view phase_name,
-                         int round_index, AcceptPolicy accept_policy_kind) {
+std::size_t run_sa_phase(
+    ClockTree& clock_tree, TimingState& timing, const BufferLibrary& buffer_library,
+    const Metrics& baseline_metrics, DebugProgress& debug, double& current_score,
+    SearchState& best_state, const std::chrono::steady_clock::time_point& start_time,
+    const std::chrono::steady_clock::time_point& phase_deadline, std::chrono::seconds total_budget,
+    double initial_temperature, double min_temperature, double cooling_factor,
+    std::size_t restart_stale_iterations, double restart_score_gap,
+    std::size_t greedy_polish_interval, std::size_t violation_sample_limit,
+    std::size_t removal_candidate_limit, std::size_t& greedy_steps, std::size_t& accepted_moves,
+    std::size_t& rejected_moves, std::size_t& restarts, const OptimizerContext& context,
+    std::size_t& checkpoint_steps, std::string_view phase_name, int round_index,
+    AcceptPolicy accept_policy_kind, CandidatePolicy proposal_policy) {
     std::size_t iteration = 0;
     std::size_t iterations_since_best = 0;
     const CandidatePolicyConfig proposals =
         candidate_config(violation_sample_limit, removal_candidate_limit);
-    const std::string candidate_policy = candidate_policy_name(CandidatePolicy::SampledUnionPool);
+    const std::string candidate_policy = candidate_policy_name(proposal_policy);
     const std::string accept_policy = accept_policy_name(accept_policy_kind);
 
     record_trace(context, clock_tree,
@@ -236,8 +234,8 @@ std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
             }
         }
 
-        const CandidateMove move = sample_candidate_policy_move(
-            clock_tree, timing, proposals, CandidatePolicy::SampledUnionPool, rng());
+        const CandidateMove move =
+            sample_candidate_policy_move(clock_tree, timing, proposals, proposal_policy, rng());
         const ClockTreeEdit edit = apply_candidate(clock_tree, timing, buffer_library, move);
         if (!edit) {
             ++iteration;

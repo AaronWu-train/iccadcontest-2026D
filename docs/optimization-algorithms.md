@@ -1,7 +1,7 @@
 # Optimization Algorithms
 
-This document summarizes the A1-A9 main experiment optimizers. `visual` is a trace and
-visualization tool, and `milp` remains runnable but is not part of the A1-A9 default matrix.
+This document summarizes the A1-A13 main experiment optimizers. `visual` is a trace and
+visualization tool, and `milp` remains runnable but is not part of the A1-A13 default matrix.
 
 ## Shared Model
 
@@ -49,7 +49,7 @@ Score = 0.5 * SS improvement + 0.25 * FF improvement + 0.25 * area improvement
 | `IteratedMetropolis` | Metropolis acceptance inside ISA rounds with greedy cleanup between rounds. |
 | `TabuBestNonTabu` | Accept the best legal non-tabu move; aspiration allows global-best improvements. |
 
-## A1-A9 Matrix
+## A1-A13 Matrix
 
 | ID | Alias | CandidatePolicy | AcceptPolicy |
 |----|-------|-----------------|--------------|
@@ -58,16 +58,21 @@ Score = 0.5 * SS improvement + 0.25 * FF improvement + 0.25 * area improvement
 | `A3` | `greedy-upstream-window` | `UpstreamWindow` | `BestScore` |
 | `A4` | `greedy-critical-endpoint` | `CriticalEndpoint` | `BestScore` |
 | `A5` | `greedy-union-pool` | `UnionPool` | `BestScore` |
-| `A6` | `two-step-optimize` | `UnionPool` | `TwoStepSlackThenScore` |
-| `A7` | `sa` | `SampledUnionPool` | `Metropolis` |
-| `A8` | `isa` | `SampledUnionPool` | `IteratedMetropolis` |
-| `A9` | `tabu` | `UnionPool` | `TabuBestNonTabu` |
+| `A6` | `two-step-union-pool` | `UnionPool` | `TwoStepSlackThenScore` |
+| `A7` | `sa-sampled-union-pool` | `SampledUnionPool` | `Metropolis` |
+| `A8` | `isa-sampled-union-pool` | `SampledUnionPool` | `IteratedMetropolis` |
+| `A9` | `tabu-union-pool` | `UnionPool` | `TabuBestNonTabu` |
+| `A10` | `two-step-random` | `RandomActionSpace` | `TwoStepSlackThenScore` |
+| `A11` | `sa-random` | `RandomActionSpace` | `Metropolis` |
+| `A12` | `isa-random` | `RandomActionSpace` | `IteratedMetropolis` |
+| `A13` | `tabu-random` | `RandomActionSpace` | `TabuBestNonTabu` |
 
 Numeric aliases are uppercase only. Config files should use descriptive aliases as section names.
+The short aliases `two-step-optimize`, `sa`, `isa`, and `tabu` remain accepted for A6-A9.
 
 ## Algorithm Notes
 
-## A1-A9 Flow Summary
+## A1-A13 Flow Summary
 
 | ID | Main flow |
 |----|-----------|
@@ -80,6 +85,10 @@ Numeric aliases are uppercase only. Config files should use descriptive aliases 
 | `A7` | Run bounded `ViolationPath + BestScore` warmup; run time-driven SA with one `SampledUnionPool` proposal per iteration and `Metropolis` acceptance; restore best state; run bounded final greedy polish. |
 | `A8` | Run bounded `ViolationPath + BestScore` warmup; split remaining time into ISA rounds; each round runs `SampledUnionPool + IteratedMetropolis`, restores best state, and runs a small greedy batch; finish with bounded final greedy polish. |
 | `A9` | Build `UnionPool`; evaluate candidates; accept the best non-tabu candidate, with aspiration for global-best improvements; repeat until `4096` iterations, no legal candidate, or time is up; restore the best seen tree. |
+| `A10` | Same two-step objective schedule as A6, but each step scores a random `RandomActionSpace` candidate set. |
+| `A11` | Same SA flow as A7, but the SA phase samples `RandomActionSpace` proposals. |
+| `A12` | Same ISA flow as A8, but each SA round samples `RandomActionSpace` proposals. |
+| `A13` | Same tabu flow as A9, but each step scores a random `RandomActionSpace` candidate set. |
 
 ### A1-A5 Greedy
 
@@ -95,31 +104,33 @@ Common cleanup remains bounded:
 A1 uses random action-space samples. A2-A4 use one focused insert policy plus inserted-buffer
 removal. A5 uses the full `UnionPool`.
 
-### A6 TwoStepOptimize
+### A6/A10 TwoStepOptimize
 
-A6 uses `UnionPool` for both phases:
+A6 uses `UnionPool` for both phases; A10 uses `RandomActionSpace` for both phases:
 
 - Phase 1 accepts the candidate with the best positive slack objective improvement.
 - Phase 2 accepts the candidate with the best positive total score improvement.
 
 The final output is the best normal-score tree seen across both phases.
 
-### A7 SA
+### A7/A11 SA
 
-A7 uses `SampledUnionPool` proposals during the SA phase. It accepts improving moves and accepts
-worse moves with `exp(delta / temperature)`. Greedy warmup and final polish are preserved as bounded
-BestScore cleanup phases.
+A7 uses `SampledUnionPool` proposals during the SA phase. A11 uses `RandomActionSpace` proposals.
+Both accept improving moves and accept worse moves with `exp(delta / temperature)`. Greedy warmup
+and final polish are preserved as bounded BestScore cleanup phases.
 
-### A8 ISA
+### A8/A12 ISA
 
-A8 runs multiple SA rounds with `SampledUnionPool + IteratedMetropolis`. Between rounds it restores
-the current best state and applies a small greedy cleanup batch. `isa` remains the default optimizer.
+A8 runs multiple SA rounds with `SampledUnionPool + IteratedMetropolis`; A12 uses
+`RandomActionSpace + IteratedMetropolis`. Between rounds it restores the current best state and
+applies a small greedy cleanup batch. `isa` remains the default optimizer.
 
-### A9 Tabu
+### A9/A13 Tabu
 
-A9 evaluates `UnionPool`, chooses the highest-score candidate that is not tabu, and records accepted
-moves in tabu memory for `tenure` steps. A tabu move can be accepted by aspiration if it improves the
-global best score. Worse moves may be accepted, but the final output is the best seen tree.
+A9 evaluates `UnionPool`; A13 evaluates `RandomActionSpace`. Both choose the highest-score
+candidate that is not tabu and record accepted moves in tabu memory for `tenure` steps. A tabu move
+can be accepted by aspiration if it improves the global best score. Worse moves may be accepted, but
+the final output is the best seen tree.
 
 ## Progress Trace Names
 

@@ -81,8 +81,10 @@ struct IsaConfig {
 
 struct TwoStepConfig {
     std::chrono::seconds time_budget{kDefaultOptimizerTimeBudget};
+    unsigned int seed = kDefaultRngSeed;
     std::size_t timing_steps = 2048;
     std::size_t score_steps = 2048;
+    std::size_t random_candidate_limit = 512;
     std::size_t violation_sample_limit = 32;
     std::size_t critical_endpoint_limit = 32;
     std::size_t upstream_window_depth = 4;
@@ -93,8 +95,10 @@ struct TwoStepConfig {
 
 struct TabuConfig {
     std::chrono::seconds time_budget{kDefaultOptimizerTimeBudget};
+    unsigned int seed = kDefaultRngSeed;
     std::size_t max_steps = 4096;
     std::size_t tenure = 128;
+    std::size_t random_candidate_limit = 512;
     std::size_t violation_sample_limit = 32;
     std::size_t critical_endpoint_limit = 32;
     std::size_t upstream_window_depth = 4;
@@ -108,10 +112,18 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
 GreedyConfig greedy_config_from_sources(const OptimizerConfigFile* config_file = nullptr,
                                         std::string_view section = "greedy-violation-path");
 MilpConfig milp_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
-SaConfig sa_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
-IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
-TwoStepConfig two_step_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
-TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file = nullptr);
+SaConfig sa_config_from_sources(const OptimizerConfigFile* config_file = nullptr,
+                                std::string_view section = "sa-sampled-union-pool",
+                                std::string_view legacy_section = "sa");
+IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file = nullptr,
+                                  std::string_view section = "isa-sampled-union-pool",
+                                  std::string_view legacy_section = "isa");
+TwoStepConfig two_step_config_from_sources(const OptimizerConfigFile* config_file = nullptr,
+                                           std::string_view section = "two-step-union-pool",
+                                           std::string_view legacy_section = "two-step-optimize");
+TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file = nullptr,
+                                    std::string_view section = "tabu-union-pool",
+                                    std::string_view legacy_section = "tabu");
 
 GreedyConfig greedy_config_from_environment();
 MilpConfig milp_config_from_environment();

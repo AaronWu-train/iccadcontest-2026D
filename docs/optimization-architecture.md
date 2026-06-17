@@ -167,10 +167,15 @@ Main optimizers:
 - `greedy-upstream-window`: A3 BestScore greedy using upstream endpoint windows.
 - `greedy-critical-endpoint`: A4 BestScore greedy from top critical endpoints.
 - `greedy-union-pool`: A5 BestScore greedy over the UnionPool candidate set.
-- `two-step-optimize`: A6 UnionPool with TwoStepSlackThenScore acceptance.
-- `sa`: A7 SampledUnionPool with Metropolis acceptance.
-- `isa`: A8 SampledUnionPool with iterated Metropolis rounds and default optimizer.
-- `tabu`: A9 UnionPool with tabu memory, aspiration, and best non-tabu acceptance.
+- `two-step-union-pool`: A6 UnionPool with TwoStepSlackThenScore acceptance.
+- `sa-sampled-union-pool`: A7 SampledUnionPool with Metropolis acceptance.
+- `isa-sampled-union-pool`: A8 SampledUnionPool with iterated Metropolis rounds and default optimizer.
+- `tabu-union-pool`: A9 UnionPool with tabu memory, aspiration, and best non-tabu acceptance.
+- `two-step-random`: A10 RandomActionSpace with TwoStepSlackThenScore acceptance.
+- `sa-random`: A11 RandomActionSpace with Metropolis acceptance.
+- `isa-random`: A12 RandomActionSpace with iterated Metropolis rounds.
+- `tabu-random`: A13 RandomActionSpace with tabu memory, aspiration, and best non-tabu acceptance.
+- `two-step-optimize`, `sa`, `isa`, and `tabu`: compatibility aliases for A6-A9.
 - `milp`: legacy MILP-inspired violation-driven heuristic; not a true MILP solver.
 - `visual`: visualization and trace tool, kept out of main architecture comparisons.
 
@@ -180,11 +185,11 @@ Source placement:
   undo helpers.
 - `optimization/greedy/greedy_optimizer.*`: A1-A5. One BestScore greedy class selected by
   `CandidatePolicy`.
-- `optimization/two_step/two_step_optimizer.*`: A6 TwoStepOptimize.
-- `optimization/sa/*`: A7 SA and A8 ISA.
-- `optimization/tabu/tabu_optimizer.*`: A9 Tabu.
+- `optimization/two_step/two_step_optimizer.*`: A6/A10 TwoStepOptimize.
+- `optimization/sa/*`: A7/A8/A11/A12 SA-family optimizers.
+- `optimization/tabu/tabu_optimizer.*`: A9/A13 Tabu.
 
-A6/A7/A8/A9 intentionally keep AcceptPolicy and search-loop logic local. Do not add another shared
+A6-A13 intentionally keep AcceptPolicy and search-loop logic local. Do not add another shared
 optimizer framework above `candidate_policy.*`.
 
 ## Parameters

@@ -49,6 +49,26 @@ cadd0040::Metrics metrics_from_timing(const cadd0040::TimingState& timing) {
     return timing.metrics();
 }
 
+cadd0040::OptimizerProgressEvent final_event_for_optimizer(const std::string& alias) {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree();
+    const auto data_path_graph = make_data_path_graph();
+    const cadd0040::Metrics baseline =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::OptimizerProgressEvent final_event;
+    cadd0040::OptimizerContext context{baseline, debug_progress};
+    context.progress_interval = 1;
+    context.progress_writer = [&](const cadd0040::OptimizerProgressEvent& event) {
+        if (event.phase == "final" && event.event == "final") {
+            final_event = event;
+        }
+    };
+    auto optimizer = cadd0040::make_optimizer(alias);
+    optimizer->run(clock_tree, data_path_graph, buffer_library, context);
+    return final_event;
+}
+
 }  // namespace
 
 TEST_CASE("TimingState initial metrics match full evaluation", "[timing]") {
@@ -167,7 +187,7 @@ TEST_CASE("optimizer configs use legacy SA seconds override", "[optimization]") 
 #endif
 }
 
-TEST_CASE("A1-A9 descriptive optimizer aliases are registered", "[optimization]") {
+TEST_CASE("A1-A13 descriptive optimizer aliases are registered", "[optimization]") {
     const std::vector<std::string> aliases = {
         "greedy-random",
         "greedy-violation-path",
@@ -175,18 +195,26 @@ TEST_CASE("A1-A9 descriptive optimizer aliases are registered", "[optimization]"
         "greedy-critical-endpoint",
         "greedy-union-pool",
         "two-step-optimize",
+        "two-step-union-pool",
+        "two-step-random",
         "sa",
+        "sa-sampled-union-pool",
+        "sa-random",
         "isa",
+        "isa-sampled-union-pool",
+        "isa-random",
         "tabu",
+        "tabu-union-pool",
+        "tabu-random",
     };
     for (const auto& alias : aliases) {
         CHECK(cadd0040::make_optimizer(alias) != nullptr);
     }
 }
 
-TEST_CASE("A1-A9 numeric optimizer aliases are registered", "[optimization]") {
+TEST_CASE("A1-A13 numeric optimizer aliases are registered", "[optimization]") {
     const std::vector<std::string> aliases = {
-        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9",
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13",
     };
     for (const auto& alias : aliases) {
         CHECK(cadd0040::make_optimizer(alias) != nullptr);
@@ -208,6 +236,8 @@ TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
         "anneal",
         "a1",
         "a9",
+        "a10",
+        "a13",
         "tabu-mixed",
     };
     for (const auto& alias : aliases) {
@@ -215,13 +245,13 @@ TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
     }
 }
 
-TEST_CASE("A1-A9 optimizers run and leave an evaluable tree", "[optimization]") {
+TEST_CASE("A1-A13 optimizers run and leave an evaluable tree", "[optimization]") {
 #ifndef _WIN32
     setenv("CADD0040_SA_SECONDS", "0", 1);
 #endif
 
     const std::vector<std::string> aliases = {
-        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9",
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13",
     };
     for (const auto& alias : aliases) {
         const auto buffer_library = make_buffer_library();
@@ -241,6 +271,45 @@ TEST_CASE("A1-A9 optimizers run and leave an evaluable tree", "[optimization]") 
         CHECK(clock_tree.contains_name("ROOT_CLK"));
         CHECK(clock_tree.contains_name("FF_L"));
         CHECK(clock_tree.contains_name("FF_C"));
+    }
+
+#ifndef _WIN32
+    unsetenv("CADD0040_SA_SECONDS");
+#endif
+}
+
+TEST_CASE("A6-A13 final progress reports expected policies", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "0", 1);
+#endif
+
+    struct ExpectedPolicy {
+        std::string alias;
+        std::string candidate_policy;
+        std::string accept_policy;
+    };
+    const std::vector<ExpectedPolicy> expected = {
+        {"A6", "union_pool", "two_step_slack_then_score"},
+        {"A7", "sampled_union_pool", "metropolis"},
+        {"A8", "sampled_union_pool", "iterated_metropolis"},
+        {"A9", "union_pool", "tabu_best_non_tabu"},
+        {"A10", "random_action_space", "two_step_slack_then_score"},
+        {"A11", "random_action_space", "metropolis"},
+        {"A12", "random_action_space", "iterated_metropolis"},
+        {"A13", "random_action_space", "tabu_best_non_tabu"},
+        {"two-step-union-pool", "union_pool", "two_step_slack_then_score"},
+        {"sa-sampled-union-pool", "sampled_union_pool", "metropolis"},
+        {"isa-sampled-union-pool", "sampled_union_pool", "iterated_metropolis"},
+        {"tabu-union-pool", "union_pool", "tabu_best_non_tabu"},
+        {"two-step-random", "random_action_space", "two_step_slack_then_score"},
+        {"sa-random", "random_action_space", "metropolis"},
+        {"isa-random", "random_action_space", "iterated_metropolis"},
+        {"tabu-random", "random_action_space", "tabu_best_non_tabu"},
+    };
+    for (const auto& entry : expected) {
+        const cadd0040::OptimizerProgressEvent event = final_event_for_optimizer(entry.alias);
+        CHECK(event.candidate_policy == entry.candidate_policy);
+        CHECK(event.accept_policy == entry.accept_policy);
     }
 
 #ifndef _WIN32

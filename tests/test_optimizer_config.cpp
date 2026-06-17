@@ -64,6 +64,33 @@ TEST_CASE("optimizer config sources apply only matching optimizer section",
     CHECK(sa.greedy_warmup_iterations == 256);
 }
 
+TEST_CASE("canonical optimizer config sections override legacy sections",
+          "[optimization][config]") {
+    const std::filesystem::path temp_path =
+        std::filesystem::temp_directory_path() / "cadd0040_canonical_sections.conf";
+    {
+        std::ofstream output(temp_path);
+        output << "[two-step-optimize]\n";
+        output << "timing_steps = 111\n";
+        output << "[two-step-union-pool]\n";
+        output << "timing_steps = 222\n";
+        output << "[sa]\n";
+        output << "greedy_warmup_iterations = 7\n";
+        output << "[sa-sampled-union-pool]\n";
+        output << "greedy_warmup_iterations = 9\n";
+        output << "[tabu]\n";
+        output << "max_steps = 333\n";
+        output << "[tabu-union-pool]\n";
+        output << "max_steps = 444\n";
+    }
+
+    const auto config_file = cadd0040::parse_optimizer_config_file(temp_path);
+    CHECK(cadd0040::two_step_config_from_sources(&config_file).timing_steps == 222);
+    CHECK(cadd0040::sa_config_from_sources(&config_file).greedy_warmup_iterations == 9);
+    CHECK(cadd0040::tabu_config_from_sources(&config_file).max_steps == 444);
+    std::filesystem::remove(temp_path);
+}
+
 TEST_CASE("optimizer config parser rejects unknown keys", "[optimization][config]") {
     const std::filesystem::path temp_path =
         std::filesystem::temp_directory_path() / "cadd0040_invalid_key.conf";

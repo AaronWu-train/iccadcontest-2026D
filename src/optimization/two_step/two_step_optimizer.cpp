@@ -8,6 +8,7 @@
 #include <chrono>
 #include <functional>
 #include <limits>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -81,6 +82,7 @@ double slack_objective(const Metrics& metrics) {
 
 CandidatePolicyConfig candidate_config_from_two_step(const TwoStepConfig& config) {
     CandidatePolicyConfig candidate;
+    candidate.random_candidate_limit = config.random_candidate_limit;
     candidate.violation_sample_limit = config.violation_sample_limit;
     candidate.critical_endpoint_limit = config.critical_endpoint_limit;
     candidate.upstream_window_depth = config.upstream_window_depth;
@@ -120,17 +122,39 @@ bool apply_choice(ClockTree& clock_tree, TimingState& timing, const BufferLibrar
            static_cast<bool>(apply_candidate(clock_tree, timing, buffer_library, choice.move));
 }
 
+void build_candidates(const ClockTree& clock_tree, const TimingState& timing,
+                      const CandidatePolicyConfig& config, CandidatePolicy policy,
+                      std::mt19937& rng, std::vector<CandidateMove>& candidates) {
+    if (policy == CandidatePolicy::RandomActionSpace) {
+        for (std::size_t i = 0; i < config.random_candidate_limit; ++i) {
+            candidates.push_back(
+                sample_candidate_policy_move(clock_tree, timing, config, policy, rng));
+        }
+        return;
+    }
+    append_candidate_policy_moves(clock_tree, timing, config, policy, candidates);
+}
+
 }  // namespace
+
+TwoStepOptimizeOptimizer::TwoStepOptimizeOptimizer(CandidatePolicy policy,
+                                                   std::string_view config_section,
+                                                   std::string_view legacy_config_section)
+    : policy_(policy),
+      config_section_(config_section),
+      legacy_config_section_(legacy_config_section) {}
 
 void TwoStepOptimizeOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                                    const BufferLibrary& buffer_library,
                                    const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const TwoStepConfig config = two_step_config_from_sources(context.optimizer_config);
+    const TwoStepConfig config = two_step_config_from_sources(
+        context.optimizer_config, config_section_, legacy_config_section_);
     const CandidatePolicyConfig candidate_config = candidate_config_from_two_step(config);
-    const std::string candidate_policy = candidate_policy_name(CandidatePolicy::UnionPool);
+    const std::string candidate_policy = candidate_policy_name(policy_);
     const std::string accept_policy = accept_policy_name(AcceptPolicy::TwoStepSlackThenScore);
+    std::mt19937 rng(config.seed);
     TimingState timing(clock_tree, data_path_graph, buffer_library);
     BestRunState best_state{clock_tree, timing.snapshot(), timing.metrics(),
                             timing.score(baseline_metrics)};
@@ -146,8 +170,7 @@ void TwoStepOptimizeOptimizer::run(ClockTree& clock_tree, const DataPathGraph& d
 
     for (; accepted_moves < config.timing_steps && std::chrono::steady_clock::now() < deadline;) {
         std::vector<CandidateMove> candidates;
-        append_candidate_policy_moves(clock_tree, timing, candidate_config,
-                                      CandidatePolicy::UnionPool, candidates);
+        build_candidates(clock_tree, timing, candidate_config, policy_, rng, candidates);
         dedupe_candidates(candidates, candidate_config.candidate_limit);
 
         const CandidateChoice choice = find_best_candidate_by_objective(
@@ -172,8 +195,7 @@ void TwoStepOptimizeOptimizer::run(ClockTree& clock_tree, const DataPathGraph& d
          score_steps < config.score_steps && std::chrono::steady_clock::now() < deadline;
          ++score_steps) {
         std::vector<CandidateMove> candidates;
-        append_candidate_policy_moves(clock_tree, timing, candidate_config,
-                                      CandidatePolicy::UnionPool, candidates);
+        build_candidates(clock_tree, timing, candidate_config, policy_, rng, candidates);
         dedupe_candidates(candidates, candidate_config.candidate_limit);
 
         const CandidateChoice choice = find_best_candidate_by_objective(

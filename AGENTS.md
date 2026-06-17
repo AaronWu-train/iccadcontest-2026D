@@ -26,7 +26,7 @@ CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
 
 Optional experiment config file (`--config`): INI `key = value` format. Global keys include
 `optimizer`, `seed`, and `time_budget_seconds`. Per-optimizer sections use the optimizer alias as
-the section name (for example `[isa]`). When present, config values override environment variables
+the section name (for example `[isa-sampled-union-pool]`). When present, config values override environment variables
 and the config `optimizer` key overrides `--optimizer`.
 
 | Variable | Purpose |
@@ -85,8 +85,8 @@ src/optimization/
 ├── candidate_policy.*  # shared CandidatePolicy action generation/apply/undo
 ├── sa/                 # simulated annealing
 ├── greedy/             # A1-A5 same BestScore greedy class
-├── two_step/           # A6 TwoStepOptimize
-├── tabu/               # A9 Tabu
+├── two_step/           # A6/A10 TwoStepOptimize
+├── tabu/               # A9/A13 Tabu
 └── milp/
 ```
 
@@ -113,11 +113,15 @@ Default CLI value: `isa` (`kDefaultOptimizerName` in `factory.hpp`).
 | `A3`, `greedy-upstream-window` | `GreedyOptimizer(UpstreamWindow)` |
 | `A4`, `greedy-critical-endpoint` | `GreedyOptimizer(CriticalEndpoint)` |
 | `A5`, `greedy-union-pool` | `GreedyOptimizer(UnionPool)` |
-| `A6`, `two-step-optimize` | `TwoStepOptimizeOptimizer` |
-| `A7`, `sa` | `AnnealingOptimizer` |
-| `A8`, `isa` | `IteratedSaOptimizer` |
-| `A9`, `tabu` | `TabuOptimizer` |
-| `milp` | `MilpOptimizer` (legacy runnable; not A1-A9 default) |
+| `A6`, `two-step-union-pool`, `two-step-optimize` | `TwoStepOptimizeOptimizer(UnionPool)` |
+| `A7`, `sa-sampled-union-pool`, `sa` | `AnnealingOptimizer(SampledUnionPool)` |
+| `A8`, `isa-sampled-union-pool`, `isa` | `IteratedSaOptimizer(SampledUnionPool)` |
+| `A9`, `tabu-union-pool`, `tabu` | `TabuOptimizer(UnionPool)` |
+| `A10`, `two-step-random` | `TwoStepOptimizeOptimizer(RandomActionSpace)` |
+| `A11`, `sa-random` | `AnnealingOptimizer(RandomActionSpace)` |
+| `A12`, `isa-random` | `IteratedSaOptimizer(RandomActionSpace)` |
+| `A13`, `tabu-random` | `TabuOptimizer(RandomActionSpace)` |
+| `milp` | `MilpOptimizer` (legacy runnable; not A1-A13 default) |
 | `visual` | `ClockTreeTraceOptimizer` (visualization/trace tool) |
 | `dummy` | `DummyOptimizer` (no-op, testing) |
 

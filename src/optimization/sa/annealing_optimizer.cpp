@@ -14,11 +14,19 @@
 
 namespace cadd0040 {
 
+AnnealingOptimizer::AnnealingOptimizer(CandidatePolicy proposal_policy,
+                                       std::string_view config_section,
+                                       std::string_view legacy_config_section)
+    : proposal_policy_(proposal_policy),
+      config_section_(config_section),
+      legacy_config_section_(legacy_config_section) {}
+
 void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                              const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
-    const SaConfig config = sa_config_from_sources(context.optimizer_config);
+    const SaConfig config =
+        sa_config_from_sources(context.optimizer_config, config_section_, legacy_config_section_);
     sa::set_rng_seed(config.seed);
 
     TimingState timing(clock_tree, data_path_graph, buffer_library);
@@ -56,7 +64,7 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
         config.min_temperature, config.cooling_factor, config.restart_stale_iterations,
         config.restart_score_gap, config.greedy_polish_interval, config.violation_sample_limit,
         config.removal_candidate_limit, greedy_steps, accepted_moves, rejected_moves, restarts,
-        context, checkpoint_steps, "sa_phase", -1, AcceptPolicy::Metropolis);
+        context, checkpoint_steps, "sa_phase", -1, AcceptPolicy::Metropolis, proposal_policy_);
 
     sa::restore_best(clock_tree, timing, current_score, best_state);
     greedy_steps +=
@@ -68,20 +76,19 @@ void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_pa
     context.write_checkpoint(best_state.tree);
     const double elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
-    const OptimizerProgressEvent final_event{
-        checkpoint_steps,
-        elapsed,
-        "final",
-        -1,
-        "final",
-        current_score,
-        best_state.score,
-        std::numeric_limits<double>::quiet_NaN(),
-        timing.metrics(),
-        accepted_moves,
-        rejected_moves,
-        candidate_policy_name(CandidatePolicy::SampledUnionPool),
-        accept_policy_name(AcceptPolicy::Metropolis)};
+    const OptimizerProgressEvent final_event{checkpoint_steps,
+                                             elapsed,
+                                             "final",
+                                             -1,
+                                             "final",
+                                             current_score,
+                                             best_state.score,
+                                             std::numeric_limits<double>::quiet_NaN(),
+                                             timing.metrics(),
+                                             accepted_moves,
+                                             rejected_moves,
+                                             candidate_policy_name(proposal_policy_),
+                                             accept_policy_name(AcceptPolicy::Metropolis)};
     context.maybe_record_progress(final_event, true);
     context.maybe_record_visual(best_state.tree, final_event, true);
 

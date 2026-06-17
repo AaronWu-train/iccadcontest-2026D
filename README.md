@@ -79,7 +79,7 @@ The default optimizer is `isa`.
 
 ## Optimizers
 
-Main A1-A9 experiment aliases:
+Main A1-A13 experiment aliases:
 
 | ID Alias | Descriptive Alias | CandidatePolicy | AcceptPolicy |
 |----------|-------------------|-----------------|--------------|
@@ -88,16 +88,21 @@ Main A1-A9 experiment aliases:
 | `A3` | `greedy-upstream-window` | `UpstreamWindow` | `BestScore` |
 | `A4` | `greedy-critical-endpoint` | `CriticalEndpoint` | `BestScore` |
 | `A5` | `greedy-union-pool` | `UnionPool` | `BestScore` |
-| `A6` | `two-step-optimize` | `UnionPool` | `TwoStepSlackThenScore` |
-| `A7` | `sa` | `SampledUnionPool` | `Metropolis` |
-| `A8` | `isa` | `SampledUnionPool` | `IteratedMetropolis` |
-| `A9` | `tabu` | `UnionPool` | `TabuBestNonTabu` |
+| `A6` | `two-step-union-pool` | `UnionPool` | `TwoStepSlackThenScore` |
+| `A7` | `sa-sampled-union-pool` | `SampledUnionPool` | `Metropolis` |
+| `A8` | `isa-sampled-union-pool` | `SampledUnionPool` | `IteratedMetropolis` |
+| `A9` | `tabu-union-pool` | `UnionPool` | `TabuBestNonTabu` |
+| `A10` | `two-step-random` | `RandomActionSpace` | `TwoStepSlackThenScore` |
+| `A11` | `sa-random` | `RandomActionSpace` | `Metropolis` |
+| `A12` | `isa-random` | `RandomActionSpace` | `IteratedMetropolis` |
+| `A13` | `tabu-random` | `RandomActionSpace` | `TabuBestNonTabu` |
 
 Numeric aliases are uppercase only. For example, `--optimizer A1` is valid;
 `--optimizer a1` is not registered.
 
 Additional registered aliases:
 
+- `two-step-optimize`, `sa`, `isa`, and `tabu`: compatibility aliases for A6-A9.
 - `milp`: legacy MILP-inspired heuristic, not a true MILP solver.
 - `visual`: clock-tree trace/visualization tool.
 - `dummy`: no-op optimizer used by tests.
@@ -133,7 +138,7 @@ CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
 
 ## Slurm Experiment Runs
 
-Run the canonical A1-A9 optimizer x testcase matrix:
+Run the canonical A1-A13 optimizer x testcase matrix:
 
 ```sh
 make release
@@ -155,8 +160,8 @@ Useful modes:
 ./scripts/slurm_run_all_optimizers.sh --local     # run sequentially without Slurm
 ./scripts/slurm_run_all_optimizers.sh --seed-runs 3
 ./scripts/slurm_run_all_optimizers.sh --seed 5000 --seed-runs 10
-OPTIMIZERS="isa tabu" ./scripts/slurm_run_all_optimizers.sh
-OPTIMIZERS="A1 A5 A9" ./scripts/slurm_run_all_optimizers.sh
+OPTIMIZERS="isa-sampled-union-pool tabu-random" ./scripts/slurm_run_all_optimizers.sh
+OPTIMIZERS="A1 A6 A10 A13" ./scripts/slurm_run_all_optimizers.sh
 SLURM_PARTITION=short SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
@@ -180,11 +185,11 @@ Use `--config <file>` for reproducible parameter sweeps. Config files use INI
 `key = value` syntax with optional optimizer sections:
 
 ```ini
-optimizer = isa
+optimizer = isa-sampled-union-pool
 seed = 1234
 time_budget_seconds = 60
 
-[isa]
+[isa-sampled-union-pool]
 rounds = 8
 greedy_round_iterations = 32
 initial_temperature = 0.08
@@ -285,7 +290,7 @@ python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
 |----------|---------|-------------|
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
 | `OPTIMIZER` | `isa` | Optimizer used by `run_all_testcases.sh` |
-| `OPTIMIZERS` | A1-A9 list | Optimizers used by `slurm_run_all_optimizers.sh` |
+| `OPTIMIZERS` | A1-A13 list | Optimizers used by `slurm_run_all_optimizers.sh` |
 | `CONFIG_DIR` | `config/` | Config root for `slurm_run_all_configs.sh` |
 | `CONFIGS` | all | Space-separated config basenames or filenames |
 | `TESTCASES_DIR` | `testcases/` | Testcase root for Slurm scripts |
@@ -342,7 +347,7 @@ Useful references:
 - [`docs/optimization-architecture.md`](docs/optimization-architecture.md):
   optimizer-side architecture.
 - [`docs/optimization-algorithms.md`](docs/optimization-algorithms.md):
-  A1-A9 algorithm descriptions.
+  A1-A13 algorithm descriptions.
 - [`docs/optimization-complexity.md`](docs/optimization-complexity.md):
   complexity and hot-path notes.
 - [`docs/optimization-experiment-parameters.md`](docs/optimization-experiment-parameters.md):

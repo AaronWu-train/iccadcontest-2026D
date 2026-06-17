@@ -251,10 +251,14 @@ void apply_two_step_section(TwoStepConfig& config,
         const std::string context = std::string(section) + "." + key;
         if (key == "time_budget_seconds") {
             apply_time_budget(config.time_budget, value, context);
+        } else if (key == "seed") {
+            config.seed = parse_uint(value, context);
         } else if (key == "timing_steps") {
             config.timing_steps = parse_size_t(value, context);
         } else if (key == "score_steps") {
             config.score_steps = parse_size_t(value, context);
+        } else if (key == "random_candidate_limit") {
+            config.random_candidate_limit = parse_size_t(value, context);
         } else if (key == "violation_sample_limit") {
             config.violation_sample_limit = parse_size_t(value, context);
         } else if (key == "critical_endpoint_limit") {
@@ -279,10 +283,14 @@ void apply_tabu_section(TabuConfig& config, const std::map<std::string, std::str
         const std::string context = std::string(section) + "." + key;
         if (key == "time_budget_seconds") {
             apply_time_budget(config.time_budget, value, context);
+        } else if (key == "seed") {
+            config.seed = parse_uint(value, context);
         } else if (key == "max_steps") {
             config.max_steps = parse_size_t(value, context);
         } else if (key == "tenure") {
             config.tenure = parse_size_t(value, context);
+        } else if (key == "random_candidate_limit") {
+            config.random_candidate_limit = parse_size_t(value, context);
         } else if (key == "violation_sample_limit") {
             config.violation_sample_limit = parse_size_t(value, context);
         } else if (key == "critical_endpoint_limit") {
@@ -380,16 +388,19 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
         } else if (section == "milp") {
             MilpConfig probe;
             apply_milp_section(probe, entries, section);
-        } else if (section == "sa") {
+        } else if (section == "sa" || section == "sa-sampled-union-pool" ||
+                   section == "sa-random") {
             SaConfig probe;
             apply_sa_section(probe, entries, section);
-        } else if (section == "isa") {
+        } else if (section == "isa" || section == "isa-sampled-union-pool" ||
+                   section == "isa-random") {
             IsaConfig probe;
             apply_isa_section(probe, entries, section);
-        } else if (section == "two-step-optimize") {
+        } else if (section == "two-step-optimize" || section == "two-step-union-pool" ||
+                   section == "two-step-random") {
             TwoStepConfig probe;
             apply_two_step_section(probe, entries, section);
-        } else if (section == "tabu") {
+        } else if (section == "tabu" || section == "tabu-union-pool" || section == "tabu-random") {
             TabuConfig probe;
             apply_tabu_section(probe, entries, section);
         } else {
@@ -427,7 +438,8 @@ MilpConfig milp_config_from_sources(const OptimizerConfigFile* config_file) {
     return config;
 }
 
-SaConfig sa_config_from_sources(const OptimizerConfigFile* config_file) {
+SaConfig sa_config_from_sources(const OptimizerConfigFile* config_file, std::string_view section,
+                                std::string_view legacy_section) {
     SaConfig config;
     apply_env_time_budget(config.time_budget);
     std::optional<unsigned int> seed = config.seed;
@@ -435,13 +447,20 @@ SaConfig sa_config_from_sources(const OptimizerConfigFile* config_file) {
     if (seed.has_value()) {
         config.seed = *seed;
     }
-    if (const auto* entries = section_entries(config_file, "sa"); entries != nullptr) {
-        apply_sa_section(config, *entries, "sa");
+    if (!legacy_section.empty()) {
+        if (const auto* entries = section_entries(config_file, legacy_section);
+            entries != nullptr) {
+            apply_sa_section(config, *entries, legacy_section);
+        }
+    }
+    if (const auto* entries = section_entries(config_file, section); entries != nullptr) {
+        apply_sa_section(config, *entries, section);
     }
     return config;
 }
 
-IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file) {
+IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file, std::string_view section,
+                                  std::string_view legacy_section) {
     IsaConfig config;
     apply_env_time_budget(config.time_budget);
     std::optional<unsigned int> seed = config.seed;
@@ -449,31 +468,57 @@ IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file) {
     if (seed.has_value()) {
         config.seed = *seed;
     }
-    if (const auto* entries = section_entries(config_file, "isa"); entries != nullptr) {
-        apply_isa_section(config, *entries, "isa");
+    if (!legacy_section.empty()) {
+        if (const auto* entries = section_entries(config_file, legacy_section);
+            entries != nullptr) {
+            apply_isa_section(config, *entries, legacy_section);
+        }
+    }
+    if (const auto* entries = section_entries(config_file, section); entries != nullptr) {
+        apply_isa_section(config, *entries, section);
     }
     return config;
 }
 
-TwoStepConfig two_step_config_from_sources(const OptimizerConfigFile* config_file) {
+TwoStepConfig two_step_config_from_sources(const OptimizerConfigFile* config_file,
+                                           std::string_view section,
+                                           std::string_view legacy_section) {
     TwoStepConfig config;
     apply_env_time_budget(config.time_budget);
-    std::optional<unsigned int> unused_seed;
-    apply_global_overrides(config.time_budget, unused_seed, config_file);
-    if (const auto* entries = section_entries(config_file, "two-step-optimize");
-        entries != nullptr) {
-        apply_two_step_section(config, *entries, "two-step-optimize");
+    std::optional<unsigned int> seed = config.seed;
+    apply_global_overrides(config.time_budget, seed, config_file);
+    if (seed.has_value()) {
+        config.seed = *seed;
+    }
+    if (!legacy_section.empty()) {
+        if (const auto* entries = section_entries(config_file, legacy_section);
+            entries != nullptr) {
+            apply_two_step_section(config, *entries, legacy_section);
+        }
+    }
+    if (const auto* entries = section_entries(config_file, section); entries != nullptr) {
+        apply_two_step_section(config, *entries, section);
     }
     return config;
 }
 
-TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file) {
+TabuConfig tabu_config_from_sources(const OptimizerConfigFile* config_file,
+                                    std::string_view section, std::string_view legacy_section) {
     TabuConfig config;
     apply_env_time_budget(config.time_budget);
-    std::optional<unsigned int> unused_seed;
-    apply_global_overrides(config.time_budget, unused_seed, config_file);
-    if (const auto* entries = section_entries(config_file, "tabu"); entries != nullptr) {
-        apply_tabu_section(config, *entries, "tabu");
+    std::optional<unsigned int> seed = config.seed;
+    apply_global_overrides(config.time_budget, seed, config_file);
+    if (seed.has_value()) {
+        config.seed = *seed;
+    }
+    if (!legacy_section.empty()) {
+        if (const auto* entries = section_entries(config_file, legacy_section);
+            entries != nullptr) {
+            apply_tabu_section(config, *entries, legacy_section);
+        }
+    }
+    if (const auto* entries = section_entries(config_file, section); entries != nullptr) {
+        apply_tabu_section(config, *entries, section);
     }
     return config;
 }

@@ -10,7 +10,7 @@
 #   SLURM_PARTITION=short ./scripts/slurm_run_all_optimizers.sh
 #   ./scripts/slurm_run_all_optimizers.sh --wait   # block until done, then aggregate
 #   ./scripts/slurm_run_all_optimizers.sh --local  # no Slurm, run sequentially
-#   OPTIMIZERS="A1 A5 A9" ./scripts/slurm_run_all_optimizers.sh
+#   OPTIMIZERS="A1 A6 A10 A13" ./scripts/slurm_run_all_optimizers.sh
 #   OUTPUT_DIR=slurm_runs/20260606_120000 ./scripts/slurm_run_all_optimizers.sh --aggregate-only
 #
 # Typical Slurm workflow:
@@ -33,7 +33,7 @@
 #   BUILD_DIR                        CMake build directory (default: build-release)
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
-#   OPTIMIZERS                       Space-separated list (default: A1-A9 experiment matrix)
+#   OPTIMIZERS                       Space-separated list (default: A1-A13 experiment matrix)
 #   CADD0040_SEED                    First RNG seed for seed-aware optimizers (default: 2026)
 #   CADD0040_SEED_RUNS               Number of consecutive seeds per experiment (default: 10)
 #   CADD0040_SA_SECONDS              Optimizer time budget (default: 570)
@@ -70,7 +70,7 @@ SLURM_MEM="${SLURM_MEM:-4G}"
 SLURM_CPUS="${SLURM_CPUS:-1}"
 
 # Canonical optimizer names (skip registry aliases to avoid duplicate runs).
-OPTIMIZERS="${OPTIMIZERS:-greedy-random greedy-violation-path greedy-upstream-window greedy-critical-endpoint greedy-union-pool two-step-optimize sa isa tabu}"
+OPTIMIZERS="${OPTIMIZERS:-greedy-random greedy-violation-path greedy-upstream-window greedy-critical-endpoint greedy-union-pool two-step-union-pool sa-sampled-union-pool isa-sampled-union-pool tabu-union-pool two-step-random sa-random isa-random tabu-random}"
 
 RUN_MODE="slurm"
 SLURM_WAIT=0
