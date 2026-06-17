@@ -40,7 +40,7 @@
 #   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
 #   CADD0040_PROGRESS_TRACE          1 to write numeric event TSV traces (default: 0)
 #   CADD0040_PROGRESS_STEPS          Numeric event trace step interval (default: 256)
-#   CADD0040_VISUAL_TRACE            1 to write clock-tree frame traces (default: 0)
+#   CADD0040_VISUAL_TRACE            1 to write clock-tree frame traces (default: 1)
 #   CADD0040_VISUAL_TRACE_STEPS      Visual frame trace step interval (default: 256)
 #   CADD0040_DEBUG_PROGRESS          1 to enable debug stderr status (default: 0)
 #   CADD0040_DEBUG_PROGRESS_INTERVAL Debug stderr status interval seconds (default: 30)
@@ -63,7 +63,7 @@ DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-0}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-30}"
 PROGRESS_TRACE="${CADD0040_PROGRESS_TRACE:-0}"
 PROGRESS_STEPS="${CADD0040_PROGRESS_STEPS:-256}"
-VISUAL_TRACE="${CADD0040_VISUAL_TRACE:-0}"
+VISUAL_TRACE="${CADD0040_VISUAL_TRACE:-1}"
 VISUAL_TRACE_STEPS="${CADD0040_VISUAL_TRACE_STEPS:-256}"
 SLURM_TIME="${SLURM_TIME:-00:11:00}"
 SLURM_MEM="${SLURM_MEM:-4G}"
