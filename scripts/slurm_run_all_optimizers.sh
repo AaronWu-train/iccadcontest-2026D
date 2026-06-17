@@ -68,6 +68,7 @@ VISUAL_TRACE_STEPS="${CADD0040_VISUAL_TRACE_STEPS:-256}"
 SLURM_TIME="${SLURM_TIME:-00:11:00}"
 SLURM_MEM="${SLURM_MEM:-4G}"
 SLURM_CPUS="${SLURM_CPUS:-1}"
+SLURM_PARTITION="${SLURM_PARTITION:-short}"
 
 # Canonical optimizer names (skip registry aliases to avoid duplicate runs).
 OPTIMIZERS="${OPTIMIZERS:-greedy-random greedy-violation-path greedy-upstream-window greedy-critical-endpoint greedy-union-pool two-step-union-pool sa-sampled-union-pool isa-sampled-union-pool tabu-union-pool two-step-random sa-random isa-random tabu-random}"
