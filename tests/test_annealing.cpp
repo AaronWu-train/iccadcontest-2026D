@@ -161,25 +161,32 @@ TEST_CASE("optimizer configs use legacy SA seconds override", "[optimization]") 
     CHECK(cadd0040::milp_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::sa_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::isa_config_from_environment().time_budget.count() == 7);
-    CHECK(cadd0040::critical_endpoint_config_from_environment().time_budget.count() == 7);
-    CHECK(cadd0040::upstream_window_config_from_environment().time_budget.count() == 7);
-    CHECK(cadd0040::repair_recover_config_from_environment().time_budget.count() == 7);
-    CHECK(cadd0040::randomized_rcl_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::two_step_config_from_environment().time_budget.count() == 7);
     CHECK(cadd0040::tabu_config_from_environment().time_budget.count() == 7);
     unsetenv("CADD0040_SA_SECONDS");
 #endif
 }
 
-TEST_CASE("A1-A8 optimizer aliases are registered", "[optimization]") {
+TEST_CASE("A1-A9 descriptive optimizer aliases are registered", "[optimization]") {
     const std::vector<std::string> aliases = {
+        "greedy-random",
         "greedy-violation-path",
+        "greedy-upstream-window",
+        "greedy-critical-endpoint",
+        "greedy-union-pool",
+        "two-step-optimize",
         "sa",
         "isa",
-        "greedy-critical-endpoint",
-        "greedy-upstream-window",
-        "greedy-repair-recover",
-        "greedy-randomized-rcl",
         "tabu",
+    };
+    for (const auto& alias : aliases) {
+        CHECK(cadd0040::make_optimizer(alias) != nullptr);
+    }
+}
+
+TEST_CASE("A1-A9 numeric optimizer aliases are registered", "[optimization]") {
+    const std::vector<std::string> aliases = {
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9",
     };
     for (const auto& alias : aliases) {
         CHECK(cadd0040::make_optimizer(alias) != nullptr);
@@ -194,9 +201,13 @@ TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
         "greedy-root-window",
         "greedy-timing-area",
         "greedy-grasp",
+        "greedy-repair-recover",
+        "greedy-randomized-rcl",
         "sa-basic",
         "isa-basic",
         "anneal",
+        "a1",
+        "a9",
         "tabu-mixed",
     };
     for (const auto& alias : aliases) {
@@ -204,20 +215,13 @@ TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
     }
 }
 
-TEST_CASE("A1-A8 optimizers run and leave an evaluable tree", "[optimization]") {
+TEST_CASE("A1-A9 optimizers run and leave an evaluable tree", "[optimization]") {
 #ifndef _WIN32
     setenv("CADD0040_SA_SECONDS", "0", 1);
 #endif
 
     const std::vector<std::string> aliases = {
-        "greedy-violation-path",
-        "sa",
-        "isa",
-        "greedy-critical-endpoint",
-        "greedy-upstream-window",
-        "greedy-repair-recover",
-        "greedy-randomized-rcl",
-        "tabu",
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9",
     };
     for (const auto& alias : aliases) {
         const auto buffer_library = make_buffer_library();

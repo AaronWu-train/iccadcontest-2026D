@@ -82,11 +82,11 @@ Applies when editing `src/optimization/`.
 src/optimization/
 ├── optimizer.hpp       # OptimizerContext { baseline_metrics, debug_progress, checkpoint writer }
 ├── factory.cpp         # register optimizer aliases
+├── candidate_policy.*  # shared CandidatePolicy action generation/apply/undo
 ├── sa/                 # simulated annealing
-├── greedy/             # A1/A4/A5 same best-improvement greedy class
-├── repair_recover/     # A6 Greedy-RepairRecover
-├── randomized_rcl/     # A7 Greedy-RandomizedRCL
-├── tabu/               # A8 Tabu
+├── greedy/             # A1-A5 same BestScore greedy class
+├── two_step/           # A6 TwoStepOptimize
+├── tabu/               # A9 Tabu
 └── milp/
 ```
 
@@ -108,15 +108,16 @@ Default CLI value: `isa` (`kDefaultOptimizerName` in `factory.hpp`).
 
 | Alias | Class |
 |-------|-------|
-| `greedy-violation-path` | `GreedyOptimizer(ViolationPath)` |
-| `sa` | `AnnealingOptimizer` |
-| `isa` | `IteratedSaOptimizer` |
-| `greedy-critical-endpoint` | `GreedyOptimizer(CriticalEndpoint)` |
-| `greedy-upstream-window` | `GreedyOptimizer(UpstreamWindow)` |
-| `greedy-repair-recover` | `GreedyRepairRecoverOptimizer` |
-| `greedy-randomized-rcl` | `GreedyRandomizedRclOptimizer` |
-| `tabu` | `TabuOptimizer` |
-| `milp` | `MilpOptimizer` (legacy runnable; not A1-A8 default) |
+| `A1`, `greedy-random` | `GreedyOptimizer(RandomActionSpace)` |
+| `A2`, `greedy-violation-path` | `GreedyOptimizer(ViolationPath)` |
+| `A3`, `greedy-upstream-window` | `GreedyOptimizer(UpstreamWindow)` |
+| `A4`, `greedy-critical-endpoint` | `GreedyOptimizer(CriticalEndpoint)` |
+| `A5`, `greedy-union-pool` | `GreedyOptimizer(UnionPool)` |
+| `A6`, `two-step-optimize` | `TwoStepOptimizeOptimizer` |
+| `A7`, `sa` | `AnnealingOptimizer` |
+| `A8`, `isa` | `IteratedSaOptimizer` |
+| `A9`, `tabu` | `TabuOptimizer` |
+| `milp` | `MilpOptimizer` (legacy runnable; not A1-A9 default) |
 | `visual` | `ClockTreeTraceOptimizer` (visualization/trace tool) |
 | `dummy` | `DummyOptimizer` (no-op, testing) |
 
@@ -130,9 +131,10 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 - Output traversal skips dead inserted nodes.
 - `TimingState` owns timing/score cache only. Do not put random move generation, greedy policy, or SA Metropolis logic in it.
 - Reversible edits must call both `TimingState::undo(edit)` and `ClockTree::undo(edit)` when rejected.
-- Do not add cross-optimizer helper layers for candidate policy or search policy.
-- A1/A4/A5 may share `GreedyOptimizer` because they are the same best-improvement greedy and only
-  differ by candidate generation. A6/A7/A8 must keep their helpers local to their own folders.
+- `candidate_policy.*` is the only shared action-generation/apply/undo layer.
+- A1-A5 share `GreedyOptimizer` because they are the same BestScore greedy and only differ by
+  `CandidatePolicy`.
+- A6/A7/A8/A9 keep their AcceptPolicy/search loops local to their own folders.
 - New optimizer `.cpp` files must be added to `cadd0040_core` in `CMakeLists.txt`, registered in `factory.cpp`, and covered by tests.
 
 ### Tuning

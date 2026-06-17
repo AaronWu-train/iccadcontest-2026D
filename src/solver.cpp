@@ -109,7 +109,7 @@ std::string json_escape(const std::string& value) {
 void write_progress_header(std::ostream& output) {
     output << "optimizer\ttestcase\tstep\telapsed_sec\tphase\tround\tevent\tcurrent_score"
               "\tbest_score\tdelta_score\ttns_ss\twns_ss\ttns_ff\twns_ff\tarea"
-              "\taccepted_moves\trejected_moves\tcandidate_policy\n";
+              "\taccepted_moves\trejected_moves\tcandidate_policy\taccept_policy\n";
 }
 
 void write_progress_event(std::ostream& output, const std::string& optimizer_name,
@@ -120,7 +120,8 @@ void write_progress_event(std::ostream& output, const std::string& optimizer_nam
            << event.best_score << '\t' << event.delta_score << '\t' << event.metrics.tns_ss << '\t'
            << event.metrics.wns_ss << '\t' << event.metrics.tns_ff << '\t' << event.metrics.wns_ff
            << '\t' << event.metrics.area << '\t' << event.accepted_moves << '\t'
-           << event.rejected_moves << '\t' << event.candidate_policy << '\n';
+           << event.rejected_moves << '\t' << event.candidate_policy << '\t' << event.accept_policy
+           << '\n';
 }
 
 void write_visual_frames(const std::filesystem::path& path,
@@ -141,6 +142,9 @@ void write_visual_frames(const std::filesystem::path& path,
         output << "      \"phase\": \"" << json_escape(event.phase) << "\",\n";
         output << "      \"status\": \"" << json_escape(event.event) << "\",\n";
         output << "      \"move\": \"" << json_escape(event.candidate_policy) << "\",\n";
+        output << "      \"candidate_policy\": \"" << json_escape(event.candidate_policy)
+               << "\",\n";
+        output << "      \"accept_policy\": \"" << json_escape(event.accept_policy) << "\",\n";
         output << "      \"score\": " << event.best_score << ",\n";
         output << "      \"tns_ss\": " << event.metrics.tns_ss << ",\n";
         output << "      \"wns_ss\": " << event.metrics.wns_ss << ",\n";

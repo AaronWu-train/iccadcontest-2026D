@@ -79,18 +79,22 @@ The default optimizer is `isa`.
 
 ## Optimizers
 
-Main A1-A8 experiment aliases:
+Main A1-A9 experiment aliases:
 
-| ID | Alias | Role |
-|----|-------|------|
-| A1 | `greedy-violation-path` | Best-improvement greedy from violated path endpoints |
-| A2 | `sa` | Single simulated annealing flow |
-| A3 | `isa` | Iterated simulated annealing; default |
-| A4 | `greedy-critical-endpoint` | Greedy candidates from top critical endpoints |
-| A5 | `greedy-upstream-window` | Greedy candidates from upstream endpoint windows |
-| A6 | `greedy-repair-recover` | Timing repair followed by area recovery |
-| A7 | `greedy-randomized-rcl` | Randomized greedy top-k move selection with restarts |
-| A8 | `tabu` | Tabu search with aspiration |
+| ID Alias | Descriptive Alias | CandidatePolicy | AcceptPolicy |
+|----------|-------------------|-----------------|--------------|
+| `A1` | `greedy-random` | `RandomActionSpace` | `BestScore` |
+| `A2` | `greedy-violation-path` | `ViolationPath` | `BestScore` |
+| `A3` | `greedy-upstream-window` | `UpstreamWindow` | `BestScore` |
+| `A4` | `greedy-critical-endpoint` | `CriticalEndpoint` | `BestScore` |
+| `A5` | `greedy-union-pool` | `UnionPool` | `BestScore` |
+| `A6` | `two-step-optimize` | `UnionPool` | `TwoStepSlackThenScore` |
+| `A7` | `sa` | `SampledUnionPool` | `Metropolis` |
+| `A8` | `isa` | `SampledUnionPool` | `IteratedMetropolis` |
+| `A9` | `tabu` | `UnionPool` | `TabuBestNonTabu` |
+
+Numeric aliases are uppercase only. For example, `--optimizer A1` is valid;
+`--optimizer a1` is not registered.
 
 Additional registered aliases:
 
@@ -129,7 +133,7 @@ CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
 
 ## Slurm Experiment Runs
 
-Run the canonical A1-A8 optimizer x testcase matrix:
+Run the canonical A1-A9 optimizer x testcase matrix:
 
 ```sh
 make release
@@ -152,6 +156,7 @@ Useful modes:
 ./scripts/slurm_run_all_optimizers.sh --seed-runs 3
 ./scripts/slurm_run_all_optimizers.sh --seed 5000 --seed-runs 10
 OPTIMIZERS="isa tabu" ./scripts/slurm_run_all_optimizers.sh
+OPTIMIZERS="A1 A5 A9" ./scripts/slurm_run_all_optimizers.sh
 SLURM_PARTITION=short SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
@@ -226,7 +231,8 @@ in debug builds it prints periodic status lines only when
 `CADD0040_DEBUG_PROGRESS=1`.
 
 `CADD0040_PROGRESS_TRACE` writes lightweight optimizer events and metrics to a
-TSV file. This is the input for `scripts/plot_optimizer_progress.py`.
+TSV file. Rows include both `candidate_policy` and `accept_policy`, and this is
+the input for `scripts/plot_optimizer_progress.py`.
 
 `CADD0040_VISUAL_TRACE` samples clock-tree snapshots into JSON. This is heavier
 than the TSV trace and should be enabled only for selected runs.
@@ -279,7 +285,7 @@ python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
 |----------|---------|-------------|
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
 | `OPTIMIZER` | `isa` | Optimizer used by `run_all_testcases.sh` |
-| `OPTIMIZERS` | A1-A8 list | Optimizers used by `slurm_run_all_optimizers.sh` |
+| `OPTIMIZERS` | A1-A9 list | Optimizers used by `slurm_run_all_optimizers.sh` |
 | `CONFIG_DIR` | `config/` | Config root for `slurm_run_all_configs.sh` |
 | `CONFIGS` | all | Space-separated config basenames or filenames |
 | `TESTCASES_DIR` | `testcases/` | Testcase root for Slurm scripts |
@@ -336,7 +342,7 @@ Useful references:
 - [`docs/optimization-architecture.md`](docs/optimization-architecture.md):
   optimizer-side architecture.
 - [`docs/optimization-algorithms.md`](docs/optimization-algorithms.md):
-  A1-A8 algorithm descriptions.
+  A1-A9 algorithm descriptions.
 - [`docs/optimization-complexity.md`](docs/optimization-complexity.md):
   complexity and hot-path notes.
 - [`docs/optimization-experiment-parameters.md`](docs/optimization-experiment-parameters.md):

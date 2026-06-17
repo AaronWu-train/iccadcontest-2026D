@@ -5,8 +5,12 @@ This document defines the default experiment matrix and lightweight logging rule
 ## Fairness Rules
 
 - Main experiments use the same edit operations: insert buffer, remove inserted buffer, resize buffer.
-- Algorithm differences are limited to candidate policy, search framework, objective schedule, and local-optimum escape.
-- All A1-A8 optimizers use the same default wall-clock budget: `570s`.
+- Algorithm differences are expressed as `CandidatePolicy` plus `AcceptPolicy`.
+- All A1-A9 optimizers use the same default wall-clock budget: `570s`.
+- Bounded candidate-set optimizers use the same default candidate cap: `candidate_limit=4096`.
+- Shared UnionPool family limits default to `violation_sample_limit=32`,
+  `critical_endpoint_limit=32`, `upstream_window_depth=4`, `removal_candidate_limit=512`, and
+  `resize_node_limit=1024` where the policy uses that action family.
 - `CADD0040_SA_SECONDS` overrides the time budget for every optimizer when no config file is used.
 - `--config <file>` loads an INI experiment file. Config values override environment variables.
   The config `optimizer` key overrides CLI `--optimizer`.
@@ -14,34 +18,39 @@ This document defines the default experiment matrix and lightweight logging rule
 - Numeric event traces and visual frame traces are off by default.
 - Full Slurm runs should keep `CADD0040_DEBUG_PROGRESS=0`, `CADD0040_PROGRESS_TRACE=0`, and `CADD0040_VISUAL_TRACE=0`.
 
-## A1-A8 Matrix
+## A1-A9 Matrix
 
-| ID | Alias | Name | Framework | Main Difference |
-|----|-------|------|-----------|-----------------|
-| A1 | `greedy-violation-path` | Greedy-ViolationPath | Greedy | Worst violated path endpoint candidate |
-| A2 | `sa` | SA | SA | Single SA phase with Metropolis accept |
-| A3 | `isa` | ISA | ISA | Multi-round SA plus greedy batch |
-| A4 | `greedy-critical-endpoint` | Greedy-CriticalEndpoint | Greedy | Candidate edges from top critical endpoints |
-| A5 | `greedy-upstream-window` | Greedy-UpstreamWindow | Greedy | Candidate edges from upstream endpoint window |
-| A6 | `greedy-repair-recover` | Greedy-RepairRecover | Greedy | Timing repair stage, then area recovery stage |
-| A7 | `greedy-randomized-rcl` | Greedy-RandomizedRCL | Randomized Greedy | Top-k positive move sampling plus restart |
-| A8 | `tabu` | Tabu | Tabu Search | Best non-tabu move with aspiration; worse moves allowed |
+| ID | Descriptive Alias | CandidatePolicy | AcceptPolicy |
+|----|-------------------|-----------------|--------------|
+| `A1` | `greedy-random` | `RandomActionSpace` | `BestScore` |
+| `A2` | `greedy-violation-path` | `ViolationPath` | `BestScore` |
+| `A3` | `greedy-upstream-window` | `UpstreamWindow` | `BestScore` |
+| `A4` | `greedy-critical-endpoint` | `CriticalEndpoint` | `BestScore` |
+| `A5` | `greedy-union-pool` | `UnionPool` | `BestScore` |
+| `A6` | `two-step-optimize` | `UnionPool` | `TwoStepSlackThenScore` |
+| `A7` | `sa` | `SampledUnionPool` | `Metropolis` |
+| `A8` | `isa` | `SampledUnionPool` | `IteratedMetropolis` |
+| `A9` | `tabu` | `UnionPool` | `TabuBestNonTabu` |
 
-`milp` remains runnable, but it is not part of the A1-A8 default experiment matrix. Old aliases are
+Numeric aliases are uppercase only. Config sections should use descriptive aliases.
+`milp` remains runnable, but it is not part of the A1-A9 default experiment matrix. Old aliases are
 not registered.
 
 ## Default Parameters
 
 | Optimizer | Time | Main parameters |
 |-----------|------|-----------------|
-| A1 Greedy-ViolationPath | `570s` | `max_steps=4096`, `max_resize_polish_steps=96`, `max_polish_phases=64`, `violation_sample_limit=32`, `removal_candidate_limit=512` |
-| A2 SA | `570s` | `greedy_warmup=256`, `final_greedy_polish=32`, `initial_temperature=0.08`, `cooling_factor=0.01`, `restart_stale=2500` |
-| A3 ISA | `570s` | `greedy_warmup=256`, `rounds=16`, `round_greedy=16`, `final_greedy_polish=32`, `restart_stale=2500` |
-| A4 Greedy-CriticalEndpoint | `570s` | `critical_endpoint_limit=32`, `removal_candidate_limit=512`, resize polish same as A1 |
-| A5 Greedy-UpstreamWindow | `570s` | `violation_sample_limit=32`, `upstream_window_depth=4`, `removal_candidate_limit=512`, resize polish same as A1 |
-| A6 Greedy-RepairRecover | `570s` | `timing_steps=4096`, `area_steps=4096`, `upstream_window_depth=4`, `removal_candidate_limit=1024` |
-| A7 Greedy-RandomizedRCL | `570s` | `restart_count=16`, `steps_per_restart=512`, `top_k=8`, `seed=2026` |
-| A8 Tabu | `570s` | `max_steps=8192`, `tabu_tenure=128`, `candidate_limit=4096`, `upstream_window_depth=4` |
+| A1-A5 Greedy | `570s` | `max_steps=4096`, `candidate_limit=4096`, `max_resize_polish_steps=96`, `max_polish_phases=64` |
+| A6 TwoStepOptimize | `570s` | `timing_steps=2048`, `score_steps=2048`, total accepted-step cap `4096`, `candidate_limit=4096` |
+| A7 SA | `570s` | `greedy_warmup=256`, `final_greedy_polish=32`, `initial_temperature=0.08`, `cooling_factor=0.01`, `restart_stale=2500` |
+| A8 ISA | `570s` | `greedy_warmup=256`, `rounds=16`, `round_greedy=16`, `final_greedy_polish=32`, `restart_stale=2500` |
+| A9 Tabu | `570s` | `max_steps=4096`, `tabu_tenure=128`, `candidate_limit=4096` |
+
+Action-budget comparison:
+
+- A1-A6 and A9 use a `4096` accepted-step or iteration cap, plus the common `570s` wall-clock cap.
+- A7/A8 SA phases are time-driven and sample one `SampledUnionPool` proposal per SA iteration.
+  Their bounded greedy warmup/polish batches use `256` and `32` steps by default.
 
 ## What To Record
 
@@ -90,7 +99,7 @@ Columns:
 
 ```text
 optimizer testcase step elapsed_sec phase round event current_score best_score delta_score
-tns_ss wns_ss tns_ff wns_ff area accepted_moves rejected_moves candidate_policy
+tns_ss wns_ss tns_ff wns_ff area accepted_moves rejected_moves candidate_policy accept_policy
 ```
 
 Numeric event trace recording rules:
@@ -150,10 +159,13 @@ rounds = 8
 greedy_round_iterations = 32
 initial_temperature = 0.08
 
-[greedy-randomized-rcl]
-restart_count = 16
-steps_per_restart = 512
-top_k = 8
+[greedy-union-pool]
+max_steps = 2048
+candidate_limit = 4096
+
+[two-step-optimize]
+timing_steps = 2048
+score_steps = 2048
 ```
 
 Precedence when `--config` is present:
@@ -167,7 +179,7 @@ The config `optimizer` key overrides CLI `--optimizer`.
 
 ## Recommended Commands
 
-Smoke all A1-A8 locally:
+Smoke all A1-A9 locally:
 
 ```sh
 make release

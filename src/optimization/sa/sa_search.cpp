@@ -6,215 +6,37 @@
 #include "optimization/sa/sa_search.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "optimization/candidate_policy.hpp"
 #include "optimization/optimizer_config.hpp"
 
 namespace cadd0040 {
 namespace sa {
 namespace {
 
-struct CandidateMove {
-    enum class Kind {
-        Insert,
-        Remove,
-        Resize,
-    };
-
-    Kind kind = Kind::Insert;
-    EdgeId edge_id = kInvalidEdgeId;
-    NodeId node_id = kInvalidNodeId;
-    int cell_idx = -1;
-};
-
-std::string next_buffer_name(const ClockTree& clock_tree) {
-    std::size_t index = 0;
-    while (clock_tree.contains_name("NEW_BUF_" + std::to_string(index))) {
-        ++index;
-    }
-    return "NEW_BUF_" + std::to_string(index);
-}
-
-EdgeId incoming_edge(const ClockTree& clock_tree, NodeId node_id) {
-    if (!clock_tree.contains_node_id(node_id)) {
-        return kInvalidEdgeId;
-    }
-    const NodeId parent = clock_tree.node(node_id).parent_id;
-    return parent == kInvalidNodeId ? kInvalidEdgeId : clock_tree.edge_between(parent, node_id);
-}
-
-ClockTreeEdit apply_candidate(ClockTree& clock_tree, TimingState& timing,
-                              const BufferLibrary& buffer_library, const CandidateMove& move) {
-    ClockTreeEdit edit;
-    switch (move.kind) {
-        case CandidateMove::Kind::Insert:
-            if (move.cell_idx < 0) {
-                return {};
-            }
-            edit = clock_tree.insert_buffer_on_edge(
-                move.edge_id, next_buffer_name(clock_tree),
-                timing.cells()[static_cast<std::size_t>(move.cell_idx)].name, buffer_library);
-            break;
-        case CandidateMove::Kind::Remove:
-            edit = clock_tree.remove_inserted_buffer(move.node_id);
-            break;
-        case CandidateMove::Kind::Resize:
-            if (move.cell_idx < 0) {
-                return {};
-            }
-            edit = clock_tree.resize_buffer(
-                move.node_id, timing.cells()[static_cast<std::size_t>(move.cell_idx)].name,
-                buffer_library);
-            break;
-    }
-    if (edit) {
-        timing.apply(edit);
-    }
-    return edit;
-}
-
-void undo_candidate(ClockTree& clock_tree, TimingState& timing, const ClockTreeEdit& edit) {
-    timing.undo(edit);
-    clock_tree.undo(edit);
-}
-
-EdgeId random_edge(const ClockTree& clock_tree) {
-    const auto edges = clock_tree.active_edge_ids();
-    if (edges.empty()) {
-        return kInvalidEdgeId;
-    }
-    std::uniform_int_distribution<std::size_t> dist(0, edges.size() - 1);
-    return edges[dist(rng())];
-}
-
-NodeId random_buffer_node(const ClockTree& clock_tree) {
-    const auto buffers = clock_tree.buffer_nodes();
-    if (buffers.empty()) {
-        return kInvalidNodeId;
-    }
-    std::uniform_int_distribution<std::size_t> dist(0, buffers.size() - 1);
-    return buffers[dist(rng())];
-}
-
-NodeId random_inserted_buffer(const ClockTree& clock_tree) {
-    std::vector<NodeId> candidates;
-    for (const NodeId node_id : clock_tree.buffer_nodes()) {
-        if (clock_tree.node(node_id).origin == NodeOrigin::Inserted) {
-            candidates.push_back(node_id);
-        }
-    }
-    if (candidates.empty()) {
-        return kInvalidNodeId;
-    }
-    std::uniform_int_distribution<std::size_t> dist(0, candidates.size() - 1);
-    return candidates[dist(rng())];
-}
-
-int random_valid_cell_for_buffer(const ClockTree& clock_tree, const TimingState& timing,
-                                 NodeId node_id) {
-    if (!clock_tree.contains_node_id(node_id)) {
-        return -1;
-    }
-    const auto& node = clock_tree.node(node_id);
-    std::vector<int> valid_cells;
-    for (int cell_idx = 0; cell_idx < static_cast<int>(timing.cell_count()); ++cell_idx) {
-        if (timing.cell_supports_fanout(cell_idx, node.child_ids.size()) &&
-            timing.cells()[static_cast<std::size_t>(cell_idx)].name != node.cell_type) {
-            valid_cells.push_back(cell_idx);
-        }
-    }
-    if (valid_cells.empty()) {
-        return -1;
-    }
-    std::uniform_int_distribution<std::size_t> dist(0, valid_cells.size() - 1);
-    return valid_cells[dist(rng())];
-}
-
-int pick_insert_cell(const TimingState& timing) {
-    std::uniform_real_distribution<double> cell_dist(0.0, 1.0);
-    if (cell_dist(rng()) < 0.75) {
-        const int smallest = timing.smallest_cell_for_fanout(1);
-        if (smallest >= 0) {
-            return smallest;
-        }
-    }
-    const auto cells = timing.cells_for_fanout_by_area(1);
-    if (cells.empty()) {
-        return -1;
-    }
-    std::uniform_int_distribution<std::size_t> dist(0, cells.size() - 1);
-    return cells[dist(rng())];
-}
-
-EdgeId random_guided_insert_edge(const ClockTree& clock_tree, const TimingState& timing) {
-    std::vector<std::size_t> violating_paths;
-    for (std::size_t path_idx = 0; path_idx < timing.path_count(); ++path_idx) {
-        if (timing.ss_slack()[path_idx] < 0.0 || timing.ff_slack()[path_idx] < 0.0) {
-            violating_paths.push_back(path_idx);
-        }
-    }
-    if (violating_paths.empty()) {
-        return random_edge(clock_tree);
-    }
-
-    std::uniform_int_distribution<std::size_t> path_dist(0, violating_paths.size() - 1);
-    const std::size_t path_idx = violating_paths[path_dist(rng())];
-    const auto& path = timing.paths()[path_idx];
-    std::vector<EdgeId> target_edges;
-    if (timing.ss_slack()[path_idx] < 0.0) {
-        const EdgeId edge = incoming_edge(clock_tree, path.capture_ff);
-        if (edge != kInvalidEdgeId) {
-            target_edges.push_back(edge);
-        }
-    }
-    if (timing.ff_slack()[path_idx] < 0.0) {
-        const EdgeId edge = incoming_edge(clock_tree, path.launch_ff);
-        if (edge != kInvalidEdgeId) {
-            target_edges.push_back(edge);
-        }
-    }
-    if (target_edges.empty()) {
-        return random_edge(clock_tree);
-    }
-    std::uniform_int_distribution<std::size_t> edge_dist(0, target_edges.size() - 1);
-    return target_edges[edge_dist(rng())];
-}
-
-CandidateMove random_move(const ClockTree& clock_tree, const TimingState& timing) {
-    std::uniform_real_distribution<double> kind_dist(0.0, 1.0);
-    const double roll = kind_dist(rng());
-
-    if (roll < 0.45) {
-        return CandidateMove{CandidateMove::Kind::Insert,
-                             random_guided_insert_edge(clock_tree, timing), kInvalidNodeId,
-                             pick_insert_cell(timing)};
-    }
-    if (roll < 0.55) {
-        return CandidateMove{CandidateMove::Kind::Insert, random_edge(clock_tree), kInvalidNodeId,
-                             pick_insert_cell(timing)};
-    }
-    if (roll < 0.80) {
-        return CandidateMove{CandidateMove::Kind::Remove, kInvalidEdgeId,
-                             random_inserted_buffer(clock_tree), -1};
-    }
-
-    const NodeId node_id = random_buffer_node(clock_tree);
-    return CandidateMove{CandidateMove::Kind::Resize, kInvalidEdgeId, node_id,
-                         random_valid_cell_for_buffer(clock_tree, timing, node_id)};
+CandidatePolicyConfig candidate_config(std::size_t violation_sample_limit,
+                                       std::size_t removal_candidate_limit) {
+    CandidatePolicyConfig config;
+    config.violation_sample_limit = violation_sample_limit;
+    config.removal_candidate_limit = removal_candidate_limit;
+    return config;
 }
 
 bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
-                        const std::vector<CandidateMove>& candidates,
+                        std::vector<CandidateMove>& candidates,
                         const std::chrono::steady_clock::time_point& deadline) {
     const double before_score = timing.score(baseline_metrics);
     double best_delta = 0.0;
     CandidateMove best_move;
 
+    dedupe_candidates(candidates);
     for (const auto& candidate : candidates) {
         if (std::chrono::steady_clock::now() >= deadline) {
             break;
@@ -231,10 +53,7 @@ bool try_best_candidate(ClockTree& clock_tree, TimingState& timing,
         undo_candidate(clock_tree, timing, edit);
     }
 
-    if (best_delta <= 0.0) {
-        return false;
-    }
-    if (std::chrono::steady_clock::now() >= deadline) {
+    if (best_delta <= 0.0 || std::chrono::steady_clock::now() >= deadline) {
         return false;
     }
     return static_cast<bool>(apply_candidate(clock_tree, timing, buffer_library, best_move));
@@ -244,70 +63,12 @@ bool apply_one_greedy_step(ClockTree& clock_tree, TimingState& timing,
                            const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
                            std::size_t violation_sample_limit, std::size_t removal_candidate_limit,
                            const std::chrono::steady_clock::time_point& deadline) {
-    std::vector<std::size_t> violating_paths;
-    for (std::size_t path_idx = 0; path_idx < timing.path_count(); ++path_idx) {
-        if (std::chrono::steady_clock::now() >= deadline) {
-            return false;
-        }
-        if (timing.ss_slack()[path_idx] < 0.0 || timing.ff_slack()[path_idx] < 0.0) {
-            violating_paths.push_back(path_idx);
-        }
-    }
-    std::sort(violating_paths.begin(), violating_paths.end(),
-              [&](std::size_t lhs, std::size_t rhs) {
-                  const double lhs_violation =
-                      std::min(timing.ss_slack()[lhs], 0.0) + std::min(timing.ff_slack()[lhs], 0.0);
-                  const double rhs_violation =
-                      std::min(timing.ss_slack()[rhs], 0.0) + std::min(timing.ff_slack()[rhs], 0.0);
-                  return lhs_violation < rhs_violation;
-              });
-
-    const auto fanout1_cells = timing.cells_for_fanout_by_area(1);
     std::vector<CandidateMove> candidates;
-    const std::size_t sample_count =
-        std::min<std::size_t>(violating_paths.size(), violation_sample_limit);
-    for (std::size_t sample = 0; sample < sample_count; ++sample) {
-        if (std::chrono::steady_clock::now() >= deadline) {
-            break;
-        }
-        const std::size_t path_idx = violating_paths[sample];
-        const auto& path = timing.paths()[path_idx];
-        std::vector<EdgeId> target_edges;
-        if (timing.ss_slack()[path_idx] < 0.0) {
-            const EdgeId edge = incoming_edge(clock_tree, path.capture_ff);
-            if (edge != kInvalidEdgeId) {
-                target_edges.push_back(edge);
-            }
-        }
-        if (timing.ff_slack()[path_idx] < 0.0) {
-            const EdgeId edge = incoming_edge(clock_tree, path.launch_ff);
-            if (edge != kInvalidEdgeId) {
-                target_edges.push_back(edge);
-            }
-        }
-        for (const EdgeId edge : target_edges) {
-            for (const int cell_idx : fanout1_cells) {
-                candidates.push_back(
-                    CandidateMove{CandidateMove::Kind::Insert, edge, kInvalidNodeId, cell_idx});
-            }
-        }
-    }
-
-    std::size_t removal_candidates = 0;
-    for (const NodeId node_id : clock_tree.buffer_nodes()) {
-        if (std::chrono::steady_clock::now() >= deadline) {
-            break;
-        }
-        if (clock_tree.node(node_id).origin != NodeOrigin::Inserted) {
-            continue;
-        }
-        candidates.push_back(
-            CandidateMove{CandidateMove::Kind::Remove, kInvalidEdgeId, node_id, -1});
-        if (++removal_candidates >= removal_candidate_limit) {
-            break;
-        }
-    }
-
+    const CandidatePolicyConfig config =
+        candidate_config(violation_sample_limit, removal_candidate_limit);
+    append_candidate_policy_moves(clock_tree, timing, config, CandidatePolicy::ViolationPath,
+                                  candidates);
+    append_remove_candidates(clock_tree, removal_candidate_limit, candidates);
     return try_best_candidate(clock_tree, timing, buffer_library, baseline_metrics, candidates,
                               deadline);
 }
@@ -317,7 +78,7 @@ OptimizerProgressEvent make_event(const std::chrono::steady_clock::time_point& s
                                   std::string event, const TimingState& timing,
                                   const Metrics& baseline_metrics, const SearchState& best_state,
                                   std::size_t accepted_moves, std::size_t rejected_moves,
-                                  std::string candidate_policy,
+                                  std::string candidate_policy, std::string accept_policy,
                                   double delta_score = std::numeric_limits<double>::quiet_NaN()) {
     const double elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
@@ -332,7 +93,8 @@ OptimizerProgressEvent make_event(const std::chrono::steady_clock::time_point& s
                                   timing.metrics(),
                                   accepted_moves,
                                   rejected_moves,
-                                  std::move(candidate_policy)};
+                                  std::move(candidate_policy),
+                                  std::move(accept_policy)};
 }
 
 void record_trace(const OptimizerContext& context, const ClockTree& clock_tree,
@@ -379,11 +141,13 @@ std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
                              std::size_t& accepted_moves, std::size_t& rejected_moves,
                              const OptimizerContext& context, std::size_t& checkpoint_steps) {
     std::size_t steps = 0;
-    record_trace(
-        context, clock_tree,
-        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_start", timing,
-                   baseline_metrics, best_state, accepted_moves, rejected_moves, "endpoint"),
-        true);
+    const std::string candidate_policy = candidate_policy_name(CandidatePolicy::ViolationPath);
+    const std::string accept_policy = accept_policy_name(AcceptPolicy::BestScore);
+    record_trace(context, clock_tree,
+                 make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_start",
+                            timing, baseline_metrics, best_state, accepted_moves, rejected_moves,
+                            candidate_policy, accept_policy),
+                 true);
     for (; steps < max_steps && std::chrono::steady_clock::now() < deadline; ++steps) {
         const double before_score = timing.score(baseline_metrics);
         if (!apply_one_greedy_step(clock_tree, timing, buffer_library, baseline_metrics,
@@ -400,36 +164,44 @@ std::size_t run_greedy_batch(ClockTree& clock_tree, TimingState& timing,
         record_trace(context, best_state.tree,
                      make_event(start_time, checkpoint_steps, phase_name, round_index,
                                 best_updated ? "best_update" : "accepted", timing, baseline_metrics,
-                                best_state, accepted_moves, rejected_moves, "endpoint", delta),
+                                best_state, accepted_moves, rejected_moves, candidate_policy,
+                                accept_policy, delta),
                      best_updated);
     }
-    record_trace(
-        context, best_state.tree,
-        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_end", timing,
-                   baseline_metrics, best_state, accepted_moves, rejected_moves, "endpoint"),
-        true);
+    record_trace(context, best_state.tree,
+                 make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_end",
+                            timing, baseline_metrics, best_state, accepted_moves, rejected_moves,
+                            candidate_policy, accept_policy),
+                 true);
     return steps;
 }
 
-std::size_t run_sa_phase(
-    ClockTree& clock_tree, TimingState& timing, const BufferLibrary& buffer_library,
-    const Metrics& baseline_metrics, DebugProgress& debug, double& current_score,
-    SearchState& best_state, const std::chrono::steady_clock::time_point& start_time,
-    const std::chrono::steady_clock::time_point& phase_deadline, std::chrono::seconds total_budget,
-    double initial_temperature, double min_temperature, double cooling_factor,
-    std::size_t restart_stale_iterations, double restart_score_gap,
-    std::size_t greedy_polish_interval, std::size_t violation_sample_limit,
-    std::size_t removal_candidate_limit, std::size_t& greedy_steps, std::size_t& accepted_moves,
-    std::size_t& rejected_moves, std::size_t& restarts, const OptimizerContext& context,
-    std::size_t& checkpoint_steps, std::string_view phase_name, int round_index) {
+std::size_t run_sa_phase(ClockTree& clock_tree, TimingState& timing,
+                         const BufferLibrary& buffer_library, const Metrics& baseline_metrics,
+                         DebugProgress& debug, double& current_score, SearchState& best_state,
+                         const std::chrono::steady_clock::time_point& start_time,
+                         const std::chrono::steady_clock::time_point& phase_deadline,
+                         std::chrono::seconds total_budget, double initial_temperature,
+                         double min_temperature, double cooling_factor,
+                         std::size_t restart_stale_iterations, double restart_score_gap,
+                         std::size_t greedy_polish_interval, std::size_t violation_sample_limit,
+                         std::size_t removal_candidate_limit, std::size_t& greedy_steps,
+                         std::size_t& accepted_moves, std::size_t& rejected_moves,
+                         std::size_t& restarts, const OptimizerContext& context,
+                         std::size_t& checkpoint_steps, std::string_view phase_name,
+                         int round_index, AcceptPolicy accept_policy_kind) {
     std::size_t iteration = 0;
     std::size_t iterations_since_best = 0;
+    const CandidatePolicyConfig proposals =
+        candidate_config(violation_sample_limit, removal_candidate_limit);
+    const std::string candidate_policy = candidate_policy_name(CandidatePolicy::SampledUnionPool);
+    const std::string accept_policy = accept_policy_name(accept_policy_kind);
 
-    record_trace(
-        context, clock_tree,
-        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_start", timing,
-                   baseline_metrics, best_state, accepted_moves, rejected_moves, "sa_mixed"),
-        true);
+    record_trace(context, clock_tree,
+                 make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_start",
+                            timing, baseline_metrics, best_state, accepted_moves, rejected_moves,
+                            candidate_policy, accept_policy),
+                 true);
 
     while (std::chrono::steady_clock::now() < phase_deadline) {
         const auto now = std::chrono::steady_clock::now();
@@ -453,16 +225,19 @@ std::size_t run_sa_phase(
                 ++accepted_moves;
                 ++checkpoint_steps;
                 context.maybe_checkpoint(best_state.tree, checkpoint_steps);
-                record_trace(context, best_state.tree,
-                             make_event(start_time, checkpoint_steps, phase_name, round_index,
-                                        best_updated ? "best_update" : "greedy_polish", timing,
-                                        baseline_metrics, best_state, accepted_moves,
-                                        rejected_moves, "sa_greedy_polish"),
-                             best_updated);
+                record_trace(
+                    context, best_state.tree,
+                    make_event(start_time, checkpoint_steps, phase_name, round_index,
+                               best_updated ? "best_update" : "greedy_polish", timing,
+                               baseline_metrics, best_state, accepted_moves, rejected_moves,
+                               candidate_policy_name(CandidatePolicy::ViolationPath),
+                               accept_policy_name(AcceptPolicy::BestScore)),
+                    best_updated);
             }
         }
 
-        const CandidateMove move = random_move(clock_tree, timing);
+        const CandidateMove move = sample_candidate_policy_move(
+            clock_tree, timing, proposals, CandidatePolicy::SampledUnionPool, rng());
         const ClockTreeEdit edit = apply_candidate(clock_tree, timing, buffer_library, move);
         if (!edit) {
             ++iteration;
@@ -502,7 +277,7 @@ std::size_t run_sa_phase(
             record_trace(context, best_state.tree,
                          make_event(start_time, checkpoint_steps, phase_name, round_index,
                                     "restart", timing, baseline_metrics, best_state, accepted_moves,
-                                    rejected_moves, "sa_mixed"),
+                                    rejected_moves, candidate_policy, accept_policy),
                          true);
         }
 
@@ -514,15 +289,15 @@ std::size_t run_sa_phase(
                      make_event(start_time, checkpoint_steps, phase_name, round_index,
                                 best_updated ? "best_update" : (accept ? "accepted" : "rejected"),
                                 timing, baseline_metrics, best_state, accepted_moves,
-                                rejected_moves, "sa_mixed", delta),
+                                rejected_moves, candidate_policy, accept_policy, delta),
                      best_updated);
     }
 
-    record_trace(
-        context, best_state.tree,
-        make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_end", timing,
-                   baseline_metrics, best_state, accepted_moves, rejected_moves, "sa_mixed"),
-        true);
+    record_trace(context, best_state.tree,
+                 make_event(start_time, checkpoint_steps, phase_name, round_index, "phase_end",
+                            timing, baseline_metrics, best_state, accepted_moves, rejected_moves,
+                            candidate_policy, accept_policy),
+                 true);
     return iteration;
 }
 

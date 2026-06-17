@@ -1,6 +1,6 @@
 /**
- * @file repair_recover_optimizer.hpp
- * @brief A6 Greedy-RepairRecover optimizer.
+ * @file two_step_optimizer.hpp
+ * @brief A6 TwoStepOptimize optimizer.
  */
 
 #pragma once
@@ -9,7 +9,7 @@
 
 namespace cadd0040 {
 
-class GreedyRepairRecoverOptimizer : public Optimizer {
+class TwoStepOptimizeOptimizer : public Optimizer {
 public:
     void run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
              const BufferLibrary& buffer_library, const OptimizerContext& context) override;

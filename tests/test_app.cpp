@@ -71,6 +71,18 @@ TEST_CASE("parse_arguments accepts an explicit optimizer") {
     CHECK(config.optimizer_name == cadd0040::kDefaultOptimizerName);
 }
 
+TEST_CASE("parse_arguments accepts numeric optimizer alias") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--optimizer",
+        "A1",
+    });
+
+    CHECK(config.optimizer_name == "A1");
+}
+
 TEST_CASE("parse_arguments accepts a global optimizer seed") {
     const auto config = parse_arguments({
         "cadd0040",

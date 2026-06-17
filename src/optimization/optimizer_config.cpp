@@ -126,6 +126,8 @@ void apply_greedy_section(GreedyConfig& config, const std::map<std::string, std:
         const std::string context = std::string(section) + "." + key;
         if (key == "time_budget_seconds") {
             apply_time_budget(config.time_budget, value, context);
+        } else if (key == "seed") {
+            config.seed = parse_uint(value, context);
         } else if (key == "max_steps") {
             config.max_steps = parse_size_t(value, context);
         } else if (key == "max_resize_polish_steps") {
@@ -134,10 +136,18 @@ void apply_greedy_section(GreedyConfig& config, const std::map<std::string, std:
             config.max_resize_nodes_per_step = parse_size_t(value, context);
         } else if (key == "max_polish_phases") {
             config.max_polish_phases = parse_size_t(value, context);
+        } else if (key == "random_candidate_limit") {
+            config.random_candidate_limit = parse_size_t(value, context);
         } else if (key == "violation_sample_limit") {
             config.violation_sample_limit = parse_size_t(value, context);
+        } else if (key == "critical_endpoint_limit") {
+            config.critical_endpoint_limit = parse_size_t(value, context);
+        } else if (key == "upstream_window_depth") {
+            config.upstream_window_depth = parse_size_t(value, context);
         } else if (key == "removal_candidate_limit") {
             config.removal_candidate_limit = parse_size_t(value, context);
+        } else if (key == "candidate_limit") {
+            config.candidate_limit = parse_size_t(value, context);
         } else {
             throw_unknown_key(section, key);
         }
@@ -234,104 +244,29 @@ void apply_isa_section(IsaConfig& config, const std::map<std::string, std::strin
     }
 }
 
-void apply_critical_endpoint_section(CriticalEndpointConfig& config,
-                                     const std::map<std::string, std::string>& entries,
-                                     std::string_view section) {
-    for (const auto& [key, value] : entries) {
-        const std::string context = std::string(section) + "." + key;
-        if (key == "time_budget_seconds") {
-            apply_time_budget(config.time_budget, value, context);
-        } else if (key == "max_steps") {
-            config.max_steps = parse_size_t(value, context);
-        } else if (key == "max_resize_polish_steps") {
-            config.max_resize_polish_steps = parse_size_t(value, context);
-        } else if (key == "max_resize_nodes_per_step") {
-            config.max_resize_nodes_per_step = parse_size_t(value, context);
-        } else if (key == "max_polish_phases") {
-            config.max_polish_phases = parse_size_t(value, context);
-        } else if (key == "critical_endpoint_limit") {
-            config.critical_endpoint_limit = parse_size_t(value, context);
-        } else if (key == "removal_candidate_limit") {
-            config.removal_candidate_limit = parse_size_t(value, context);
-        } else {
-            throw_unknown_key(section, key);
-        }
-    }
-}
-
-void apply_upstream_window_section(UpstreamWindowConfig& config,
-                                   const std::map<std::string, std::string>& entries,
-                                   std::string_view section) {
-    for (const auto& [key, value] : entries) {
-        const std::string context = std::string(section) + "." + key;
-        if (key == "time_budget_seconds") {
-            apply_time_budget(config.time_budget, value, context);
-        } else if (key == "max_steps") {
-            config.max_steps = parse_size_t(value, context);
-        } else if (key == "max_resize_polish_steps") {
-            config.max_resize_polish_steps = parse_size_t(value, context);
-        } else if (key == "max_resize_nodes_per_step") {
-            config.max_resize_nodes_per_step = parse_size_t(value, context);
-        } else if (key == "max_polish_phases") {
-            config.max_polish_phases = parse_size_t(value, context);
-        } else if (key == "violation_sample_limit") {
-            config.violation_sample_limit = parse_size_t(value, context);
-        } else if (key == "upstream_window_depth") {
-            config.upstream_window_depth = parse_size_t(value, context);
-        } else if (key == "removal_candidate_limit") {
-            config.removal_candidate_limit = parse_size_t(value, context);
-        } else {
-            throw_unknown_key(section, key);
-        }
-    }
-}
-
-void apply_repair_recover_section(RepairRecoverConfig& config,
-                                  const std::map<std::string, std::string>& entries,
-                                  std::string_view section) {
+void apply_two_step_section(TwoStepConfig& config,
+                            const std::map<std::string, std::string>& entries,
+                            std::string_view section) {
     for (const auto& [key, value] : entries) {
         const std::string context = std::string(section) + "." + key;
         if (key == "time_budget_seconds") {
             apply_time_budget(config.time_budget, value, context);
         } else if (key == "timing_steps") {
             config.timing_steps = parse_size_t(value, context);
-        } else if (key == "area_steps") {
-            config.area_steps = parse_size_t(value, context);
+        } else if (key == "score_steps") {
+            config.score_steps = parse_size_t(value, context);
         } else if (key == "violation_sample_limit") {
             config.violation_sample_limit = parse_size_t(value, context);
+        } else if (key == "critical_endpoint_limit") {
+            config.critical_endpoint_limit = parse_size_t(value, context);
         } else if (key == "upstream_window_depth") {
             config.upstream_window_depth = parse_size_t(value, context);
         } else if (key == "removal_candidate_limit") {
             config.removal_candidate_limit = parse_size_t(value, context);
-        } else if (key == "max_timing_score_loss") {
-            config.max_timing_score_loss = parse_double(value, context);
-        } else {
-            throw_unknown_key(section, key);
-        }
-    }
-}
-
-void apply_randomized_rcl_section(RandomizedRclConfig& config,
-                                  const std::map<std::string, std::string>& entries,
-                                  std::string_view section) {
-    for (const auto& [key, value] : entries) {
-        const std::string context = std::string(section) + "." + key;
-        if (key == "time_budget_seconds") {
-            apply_time_budget(config.time_budget, value, context);
-        } else if (key == "seed") {
-            config.seed = parse_uint(value, context);
-        } else if (key == "restart_count") {
-            config.restart_count = parse_size_t(value, context);
-        } else if (key == "steps_per_restart") {
-            config.steps_per_restart = parse_size_t(value, context);
-        } else if (key == "top_k") {
-            config.top_k = parse_size_t(value, context);
-        } else if (key == "violation_sample_limit") {
-            config.violation_sample_limit = parse_size_t(value, context);
-        } else if (key == "removal_candidate_limit") {
-            config.removal_candidate_limit = parse_size_t(value, context);
-        } else if (key == "final_resize_polish_steps") {
-            config.final_resize_polish_steps = parse_size_t(value, context);
+        } else if (key == "resize_node_limit") {
+            config.resize_node_limit = parse_size_t(value, context);
+        } else if (key == "candidate_limit") {
+            config.candidate_limit = parse_size_t(value, context);
         } else {
             throw_unknown_key(section, key);
         }
@@ -437,7 +372,9 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
     }
 
     for (const auto& [section, entries] : config_file.sections) {
-        if (section == "greedy-violation-path") {
+        if (section == "greedy-random" || section == "greedy-violation-path" ||
+            section == "greedy-upstream-window" || section == "greedy-critical-endpoint" ||
+            section == "greedy-union-pool") {
             GreedyConfig probe;
             apply_greedy_section(probe, entries, section);
         } else if (section == "milp") {
@@ -449,18 +386,9 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
         } else if (section == "isa") {
             IsaConfig probe;
             apply_isa_section(probe, entries, section);
-        } else if (section == "greedy-critical-endpoint") {
-            CriticalEndpointConfig probe;
-            apply_critical_endpoint_section(probe, entries, section);
-        } else if (section == "greedy-upstream-window") {
-            UpstreamWindowConfig probe;
-            apply_upstream_window_section(probe, entries, section);
-        } else if (section == "greedy-repair-recover") {
-            RepairRecoverConfig probe;
-            apply_repair_recover_section(probe, entries, section);
-        } else if (section == "greedy-randomized-rcl") {
-            RandomizedRclConfig probe;
-            apply_randomized_rcl_section(probe, entries, section);
+        } else if (section == "two-step-optimize") {
+            TwoStepConfig probe;
+            apply_two_step_section(probe, entries, section);
         } else if (section == "tabu") {
             TabuConfig probe;
             apply_tabu_section(probe, entries, section);
@@ -473,14 +401,17 @@ OptimizerConfigFile parse_optimizer_config_file(const std::filesystem::path& pat
     return config_file;
 }
 
-GreedyConfig greedy_config_from_sources(const OptimizerConfigFile* config_file) {
+GreedyConfig greedy_config_from_sources(const OptimizerConfigFile* config_file,
+                                        std::string_view section) {
     GreedyConfig config;
     apply_env_time_budget(config.time_budget);
-    std::optional<unsigned int> unused_seed;
-    apply_global_overrides(config.time_budget, unused_seed, config_file);
-    if (const auto* entries = section_entries(config_file, "greedy-violation-path");
-        entries != nullptr) {
-        apply_greedy_section(config, *entries, "greedy-violation-path");
+    std::optional<unsigned int> seed = config.seed;
+    apply_global_overrides(config.time_budget, seed, config_file);
+    if (seed.has_value()) {
+        config.seed = *seed;
+    }
+    if (const auto* entries = section_entries(config_file, section); entries != nullptr) {
+        apply_greedy_section(config, *entries, section);
     }
     return config;
 }
@@ -524,54 +455,14 @@ IsaConfig isa_config_from_sources(const OptimizerConfigFile* config_file) {
     return config;
 }
 
-CriticalEndpointConfig critical_endpoint_config_from_sources(
-    const OptimizerConfigFile* config_file) {
-    CriticalEndpointConfig config;
+TwoStepConfig two_step_config_from_sources(const OptimizerConfigFile* config_file) {
+    TwoStepConfig config;
     apply_env_time_budget(config.time_budget);
     std::optional<unsigned int> unused_seed;
     apply_global_overrides(config.time_budget, unused_seed, config_file);
-    if (const auto* entries = section_entries(config_file, "greedy-critical-endpoint");
+    if (const auto* entries = section_entries(config_file, "two-step-optimize");
         entries != nullptr) {
-        apply_critical_endpoint_section(config, *entries, "greedy-critical-endpoint");
-    }
-    return config;
-}
-
-UpstreamWindowConfig upstream_window_config_from_sources(const OptimizerConfigFile* config_file) {
-    UpstreamWindowConfig config;
-    apply_env_time_budget(config.time_budget);
-    std::optional<unsigned int> unused_seed;
-    apply_global_overrides(config.time_budget, unused_seed, config_file);
-    if (const auto* entries = section_entries(config_file, "greedy-upstream-window");
-        entries != nullptr) {
-        apply_upstream_window_section(config, *entries, "greedy-upstream-window");
-    }
-    return config;
-}
-
-RepairRecoverConfig repair_recover_config_from_sources(const OptimizerConfigFile* config_file) {
-    RepairRecoverConfig config;
-    apply_env_time_budget(config.time_budget);
-    std::optional<unsigned int> unused_seed;
-    apply_global_overrides(config.time_budget, unused_seed, config_file);
-    if (const auto* entries = section_entries(config_file, "greedy-repair-recover");
-        entries != nullptr) {
-        apply_repair_recover_section(config, *entries, "greedy-repair-recover");
-    }
-    return config;
-}
-
-RandomizedRclConfig randomized_rcl_config_from_sources(const OptimizerConfigFile* config_file) {
-    RandomizedRclConfig config;
-    apply_env_time_budget(config.time_budget);
-    std::optional<unsigned int> seed = config.seed;
-    apply_global_overrides(config.time_budget, seed, config_file);
-    if (seed.has_value()) {
-        config.seed = *seed;
-    }
-    if (const auto* entries = section_entries(config_file, "greedy-randomized-rcl");
-        entries != nullptr) {
-        apply_randomized_rcl_section(config, *entries, "greedy-randomized-rcl");
+        apply_two_step_section(config, *entries, "two-step-optimize");
     }
     return config;
 }
@@ -595,21 +486,7 @@ SaConfig sa_config_from_environment() { return sa_config_from_sources(nullptr); 
 
 IsaConfig isa_config_from_environment() { return isa_config_from_sources(nullptr); }
 
-CriticalEndpointConfig critical_endpoint_config_from_environment() {
-    return critical_endpoint_config_from_sources(nullptr);
-}
-
-UpstreamWindowConfig upstream_window_config_from_environment() {
-    return upstream_window_config_from_sources(nullptr);
-}
-
-RepairRecoverConfig repair_recover_config_from_environment() {
-    return repair_recover_config_from_sources(nullptr);
-}
-
-RandomizedRclConfig randomized_rcl_config_from_environment() {
-    return randomized_rcl_config_from_sources(nullptr);
-}
+TwoStepConfig two_step_config_from_environment() { return two_step_config_from_sources(nullptr); }
 
 TabuConfig tabu_config_from_environment() { return tabu_config_from_sources(nullptr); }
 

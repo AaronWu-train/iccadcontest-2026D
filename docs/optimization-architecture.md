@@ -162,27 +162,30 @@ family. Greedy, MILP-inspired, SA, and ISA should remain easy to change independ
 
 Main optimizers:
 
-- `greedy-violation-path`: best-improvement greedy using violated path endpoints.
-- `sa`: single simulated annealing flow.
-- `isa`: iterated simulated annealing flow and default optimizer.
-- `greedy-critical-endpoint`: same greedy framework, candidates from top critical endpoints.
-- `greedy-upstream-window`: same greedy framework, candidates from upstream endpoint windows.
-- `greedy-repair-recover`: timing repair followed by area recovery.
-- `greedy-randomized-rcl`: randomized greedy top-k move selection with restarts.
-- `tabu`: tabu search with aspiration and memory-based local-optimum escape.
+- `greedy-random`: A1 BestScore greedy over random action-space samples.
+- `greedy-violation-path`: A2 BestScore greedy using violated path endpoints.
+- `greedy-upstream-window`: A3 BestScore greedy using upstream endpoint windows.
+- `greedy-critical-endpoint`: A4 BestScore greedy from top critical endpoints.
+- `greedy-union-pool`: A5 BestScore greedy over the UnionPool candidate set.
+- `two-step-optimize`: A6 UnionPool with TwoStepSlackThenScore acceptance.
+- `sa`: A7 SampledUnionPool with Metropolis acceptance.
+- `isa`: A8 SampledUnionPool with iterated Metropolis rounds and default optimizer.
+- `tabu`: A9 UnionPool with tabu memory, aspiration, and best non-tabu acceptance.
 - `milp`: legacy MILP-inspired violation-driven heuristic; not a true MILP solver.
 - `visual`: visualization and trace tool, kept out of main architecture comparisons.
 
 Source placement:
 
-- `optimization/greedy/greedy_optimizer.*`: A1/A4/A5. One best-improvement greedy class,
-  selected by `GreedyCandidatePolicy`.
-- `optimization/repair_recover/repair_recover_optimizer.*`: A6 Greedy-RepairRecover.
-- `optimization/randomized_rcl/randomized_rcl_optimizer.*`: A7 Greedy-RandomizedRCL.
-- `optimization/tabu/tabu_optimizer.*`: A8 Tabu.
+- `optimization/candidate_policy.*`: shared CandidatePolicy move generation, dedupe, apply, and
+  undo helpers.
+- `optimization/greedy/greedy_optimizer.*`: A1-A5. One BestScore greedy class selected by
+  `CandidatePolicy`.
+- `optimization/two_step/two_step_optimizer.*`: A6 TwoStepOptimize.
+- `optimization/sa/*`: A7 SA and A8 ISA.
+- `optimization/tabu/tabu_optimizer.*`: A9 Tabu.
 
-A6/A7/A8 intentionally keep local candidate structs and local apply/undo helpers. Do not add a
-shared optimizer helper layer for these policies.
+A6/A7/A8/A9 intentionally keep AcceptPolicy and search-loop logic local. Do not add another shared
+optimizer framework above `candidate_policy.*`.
 
 ## Parameters
 
@@ -194,10 +197,7 @@ Use:
 - `MilpConfig`
 - `SaConfig`
 - `IsaConfig`
-- `CriticalEndpointConfig`
-- `UpstreamWindowConfig`
-- `RepairRecoverConfig`
-- `RandomizedRclConfig`
+- `TwoStepConfig`
 - `TabuConfig`
 
 Defaults should not be scattered through optimizer bodies. Environment overrides belong in

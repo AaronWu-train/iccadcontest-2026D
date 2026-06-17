@@ -33,6 +33,7 @@ struct OptimizerProgressEvent {
     std::size_t accepted_moves = 0;
     std::size_t rejected_moves = 0;
     std::string candidate_policy;
+    std::string accept_policy;
 };
 
 struct OptimizerContext {

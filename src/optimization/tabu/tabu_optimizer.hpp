@@ -1,6 +1,6 @@
 /**
  * @file tabu_optimizer.hpp
- * @brief A8 Tabu optimizer.
+ * @brief A9 Tabu optimizer.
  */
 
 #pragma once
