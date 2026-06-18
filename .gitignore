@@ -73,9 +73,11 @@ Testing/
 
 # Slurm batch runs (scripts/slurm_run_all_optimizers.sh)
 slurm_runs/
+config_runs/
 
 # If you are mac user, you should know
 *.DS_Store
 
 !testcases/**/buf.lib
 dist/
+.understand-anything/

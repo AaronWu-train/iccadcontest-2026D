@@ -1,0 +1,13 @@
+Clock Period : 1.0
+#Path       launch DFF    ->  capture DFF      data path delay
+----------------------------------------------------------------------------
+Path1 :     FF_A ->  FF_H     1.15
+Path2 :     FF_H ->  FF_A     0.50
+Path3 :     FF_B ->  FF_F     0.97
+Path4 :     FF_C ->  FF_I     1.04
+Path5 :     FF_J ->  FF_D     0.88
+Path6 :     FF_E ->  FF_G     0.99
+Path7 :     FF_F ->  FF_C     0.93
+Path8 :     FF_G ->  FF_J     1.01
+Path9 :     FF_I ->  FF_B     0.91
+Path10 :    FF_D ->  FF_E     0.94

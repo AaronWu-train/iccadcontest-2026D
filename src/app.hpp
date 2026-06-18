@@ -6,8 +6,11 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <utility>
+
+#include "optimization/optimizer_config.hpp"
 
 namespace cadd0040 {
 
@@ -15,6 +18,7 @@ struct AppConfig {
     std::filesystem::path testcase_dir;
     std::filesystem::path output_file;
     std::string optimizer_name;
+    std::optional<OptimizerConfigFile> optimizer_config;
 
     std::filesystem::path clk_tree_path;
     std::filesystem::path buflib_path;
@@ -24,14 +28,20 @@ struct AppConfig {
     AppConfig() = default;
 
     AppConfig(std::filesystem::path testcase_dir, std::filesystem::path output_file,
-              std::string optimizer_name)
+              std::string optimizer_name,
+              std::optional<OptimizerConfigFile> optimizer_config = std::nullopt)
         : testcase_dir(std::move(testcase_dir)),
           output_file(std::move(output_file)),
           optimizer_name(std::move(optimizer_name)),
+          optimizer_config(std::move(optimizer_config)),
           clk_tree_path(this->testcase_dir / "clk_tree.structure"),
           buflib_path(this->testcase_dir / "buf.lib"),
           ss_delay_path(this->testcase_dir / "SS_delay.rpt"),
           ff_delay_path(this->testcase_dir / "FF_delay.rpt") {}
+
+    const OptimizerConfigFile* optimizer_config_ptr() const {
+        return optimizer_config.has_value() ? &optimizer_config.value() : nullptr;
+    }
 };
 
 AppConfig parse_arguments(int argc, char** argv);

@@ -42,14 +42,19 @@ add_library(cadd0040_core
     src/debug_progress.cpp
     src/evaluation.cpp
     src/parser.cpp
+    src/optimization/candidate_policy.cpp
     src/optimization/factory.cpp
     src/optimization/greedy/greedy_optimizer.cpp
     src/optimization/milp/milp_optimizer.cpp
+    src/optimization/optimizer_config.cpp
     src/optimization/optimizer.cpp
+    src/optimization/timing_state.cpp
     src/optimization/sa/annealing_optimizer.cpp
     src/optimization/sa/iterated_sa_optimizer.cpp
-    src/optimization/sa/sa_common.cpp
-    src/optimization/sa/skew_model.cpp
+    src/optimization/sa/sa_search.cpp
+    src/optimization/tabu/tabu_optimizer.cpp
+    src/optimization/two_step/two_step_optimizer.cpp
+    src/optimization/visual/clock_tree_trace_optimizer.cpp
     src/solver.cpp
 )
 

@@ -1,0 +1,17 @@
+cell (BUF_TINY) {
+    SIZE 0.2 BY 1.0
+    SS_DELAY 0.12 0.14
+    FF_DELAY 0.005 0.006
+}
+
+cell (BUF_MID) {
+    SIZE 2.0 BY 1.0
+    SS_DELAY 0.09 0.11
+    FF_DELAY 0.04 0.05
+}
+
+cell (BUF_FAST) {
+    SIZE 4.0 BY 1.0
+    SS_DELAY 0.04 0.06
+    FF_DELAY 0.018 0.025
+}

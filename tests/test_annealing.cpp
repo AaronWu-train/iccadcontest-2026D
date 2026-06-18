@@ -1,14 +1,21 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
+#include <string>
+#include <vector>
 
 #ifndef _WIN32
 #include <cstdlib>
 #endif
 
 #include "evaluation.hpp"
+#include "optimization/factory.hpp"
+#include "optimization/greedy/greedy_optimizer.hpp"
+#include "optimization/milp/milp_optimizer.hpp"
+#include "optimization/optimizer_config.hpp"
 #include "optimization/sa/annealing_optimizer.hpp"
 #include "optimization/sa/iterated_sa_optimizer.hpp"
-#include "optimization/sa/skew_model.hpp"
+#include "optimization/timing_state.hpp"
 
 namespace {
 
@@ -38,32 +45,41 @@ cadd0040::DataPathGraph make_data_path_graph() {
     return graph;
 }
 
-int cell_index_by_name(const cadd0040::SkewModel& model, const std::string& cell_name) {
-    for (int cell_idx = 0; cell_idx < static_cast<int>(model.cell_count()); ++cell_idx) {
-        if (model.cells()[static_cast<std::size_t>(cell_idx)].name == cell_name) {
-            return cell_idx;
-        }
-    }
-    return -1;
+cadd0040::Metrics metrics_from_timing(const cadd0040::TimingState& timing) {
+    return timing.metrics();
 }
 
-cadd0040::Metrics metrics_from_model(const cadd0040::SkewModel& model) {
-    const auto model_metrics = model.metrics();
-    return cadd0040::Metrics{model_metrics.tns_ss, model_metrics.wns_ss, model_metrics.tns_ff,
-                             model_metrics.wns_ff, model_metrics.area};
+cadd0040::OptimizerProgressEvent final_event_for_optimizer(const std::string& alias) {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree();
+    const auto data_path_graph = make_data_path_graph();
+    const cadd0040::Metrics baseline =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::OptimizerProgressEvent final_event;
+    cadd0040::OptimizerContext context{baseline, debug_progress};
+    context.progress_interval = 1;
+    context.progress_writer = [&](const cadd0040::OptimizerProgressEvent& event) {
+        if (event.phase == "final" && event.event == "final") {
+            final_event = event;
+        }
+    };
+    auto optimizer = cadd0040::make_optimizer(alias);
+    optimizer->run(clock_tree, data_path_graph, buffer_library, context);
+    return final_event;
 }
 
 }  // namespace
 
-TEST_CASE("SkewModel incremental metrics match full evaluation", "[annealing]") {
+TEST_CASE("TimingState initial metrics match full evaluation", "[timing]") {
     const auto buffer_library = make_buffer_library();
     auto clock_tree = make_clock_tree();
     const auto data_path_graph = make_data_path_graph();
 
-    cadd0040::SkewModel model(clock_tree, data_path_graph, buffer_library);
+    cadd0040::TimingState timing(clock_tree, data_path_graph, buffer_library);
     const cadd0040::Metrics evaluated =
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
-    const cadd0040::Metrics modeled = metrics_from_model(model);
+    const cadd0040::Metrics modeled = metrics_from_timing(timing);
 
     CHECK(modeled.tns_ss == Catch::Approx(evaluated.tns_ss));
     CHECK(modeled.wns_ss == Catch::Approx(evaluated.wns_ss));
@@ -72,35 +88,50 @@ TEST_CASE("SkewModel incremental metrics match full evaluation", "[annealing]") 
     CHECK(modeled.area == Catch::Approx(evaluated.area));
 }
 
-TEST_CASE("SkewModel insert move updates metrics consistently", "[annealing]") {
+TEST_CASE("TimingState applies and undoes clock tree edits consistently", "[timing]") {
     const auto buffer_library = make_buffer_library();
     auto clock_tree = make_clock_tree();
     const auto data_path_graph = make_data_path_graph();
+    cadd0040::TimingState timing(clock_tree, data_path_graph, buffer_library);
 
-    cadd0040::SkewModel model(clock_tree, data_path_graph, buffer_library);
+    const cadd0040::NodeId parent = clock_tree.node_id("BUF_C");
+    const cadd0040::NodeId child = clock_tree.node_id("FF_C");
+    const cadd0040::EdgeId edge = clock_tree.edge_between(parent, child);
+    REQUIRE(edge != cadd0040::kInvalidEdgeId);
 
-    std::size_t capture_edge_idx = model.edge_count();
-    for (std::size_t edge_idx = 0; edge_idx < model.edge_count(); ++edge_idx) {
-        const auto& edge = model.tree_edges()[edge_idx];
-        if (model.node_names()[edge.child_idx] == "FF_C") {
-            capture_edge_idx = edge_idx;
-            break;
-        }
-    }
-    REQUIRE(capture_edge_idx < model.edge_count());
+    const auto insert_edit =
+        clock_tree.insert_buffer_on_edge(edge, "NEW_BUF_0", "SMALL", buffer_library);
+    REQUIRE(insert_edit);
+    timing.apply(insert_edit);
 
-    const int small_cell_idx = cell_index_by_name(model, "SMALL");
-    REQUIRE(small_cell_idx >= 0);
+    cadd0040::Metrics evaluated = cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    cadd0040::Metrics modeled = timing.metrics();
+    CHECK(modeled.tns_ss == Catch::Approx(evaluated.tns_ss));
+    CHECK(modeled.wns_ss == Catch::Approx(evaluated.wns_ss));
+    CHECK(modeled.tns_ff == Catch::Approx(evaluated.tns_ff));
+    CHECK(modeled.wns_ff == Catch::Approx(evaluated.wns_ff));
+    CHECK(modeled.area == Catch::Approx(evaluated.area));
 
-    cadd0040::SkewMove move{cadd0040::SkewMoveKind::Insert, capture_edge_idx, 0, small_cell_idx};
-    REQUIRE(model.try_move(move));
+    const auto resize_edit =
+        clock_tree.resize_buffer(clock_tree.node_id("NEW_BUF_0"), "LARGE", buffer_library);
+    REQUIRE(resize_edit);
+    timing.apply(resize_edit);
 
-    clock_tree.insert_buffer("BUF_C", "FF_C", "NEW_BUF_0", "SMALL", buffer_library);
+    evaluated = cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    modeled = timing.metrics();
+    CHECK(modeled.tns_ss == Catch::Approx(evaluated.tns_ss));
+    CHECK(modeled.wns_ss == Catch::Approx(evaluated.wns_ss));
+    CHECK(modeled.tns_ff == Catch::Approx(evaluated.tns_ff));
+    CHECK(modeled.wns_ff == Catch::Approx(evaluated.wns_ff));
+    CHECK(modeled.area == Catch::Approx(evaluated.area));
 
-    const cadd0040::Metrics evaluated =
-        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
-    const cadd0040::Metrics modeled = metrics_from_model(model);
+    timing.undo(resize_edit);
+    clock_tree.undo(resize_edit);
+    timing.undo(insert_edit);
+    clock_tree.undo(insert_edit);
 
+    evaluated = cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    modeled = timing.metrics();
     CHECK(modeled.tns_ss == Catch::Approx(evaluated.tns_ss));
     CHECK(modeled.wns_ss == Catch::Approx(evaluated.wns_ss));
     CHECK(modeled.tns_ff == Catch::Approx(evaluated.tns_ff));
@@ -108,38 +139,234 @@ TEST_CASE("SkewModel insert move updates metrics consistently", "[annealing]") {
     CHECK(modeled.area == Catch::Approx(evaluated.area));
 }
 
-TEST_CASE("SkewModel restore preserves snapshot metrics", "[annealing]") {
+TEST_CASE("TimingState applies and undoes inserted buffer removal", "[timing]") {
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree();
+    const auto data_path_graph = make_data_path_graph();
+    cadd0040::TimingState timing(clock_tree, data_path_graph, buffer_library);
+
+    const auto insert_edit = clock_tree.insert_buffer_on_edge(
+        clock_tree.edge_between(clock_tree.node_id("BUF_C"), clock_tree.node_id("FF_C")),
+        "NEW_BUF_0", "SMALL", buffer_library);
+    REQUIRE(insert_edit);
+    timing.apply(insert_edit);
+
+    const auto remove_edit = clock_tree.remove_inserted_buffer(clock_tree.node_id("NEW_BUF_0"));
+    REQUIRE(remove_edit);
+    timing.apply(remove_edit);
+
+    cadd0040::Metrics evaluated = cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    cadd0040::Metrics modeled = timing.metrics();
+    CHECK(modeled.tns_ss == Catch::Approx(evaluated.tns_ss));
+    CHECK(modeled.wns_ss == Catch::Approx(evaluated.wns_ss));
+    CHECK(modeled.tns_ff == Catch::Approx(evaluated.tns_ff));
+    CHECK(modeled.wns_ff == Catch::Approx(evaluated.wns_ff));
+    CHECK(modeled.area == Catch::Approx(evaluated.area));
+
+    timing.undo(remove_edit);
+    clock_tree.undo(remove_edit);
+    evaluated = cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    modeled = timing.metrics();
+    CHECK(modeled.tns_ss == Catch::Approx(evaluated.tns_ss));
+    CHECK(modeled.wns_ss == Catch::Approx(evaluated.wns_ss));
+    CHECK(modeled.tns_ff == Catch::Approx(evaluated.tns_ff));
+    CHECK(modeled.wns_ff == Catch::Approx(evaluated.wns_ff));
+    CHECK(modeled.area == Catch::Approx(evaluated.area));
+}
+
+TEST_CASE("optimizer configs use legacy SA seconds override", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "7", 1);
+    CHECK(cadd0040::greedy_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::milp_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::sa_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::isa_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::two_step_config_from_environment().time_budget.count() == 7);
+    CHECK(cadd0040::tabu_config_from_environment().time_budget.count() == 7);
+    unsetenv("CADD0040_SA_SECONDS");
+#endif
+}
+
+TEST_CASE("A1-A13 descriptive optimizer aliases are registered", "[optimization]") {
+    const std::vector<std::string> aliases = {
+        "greedy-random",
+        "greedy-violation-path",
+        "greedy-upstream-window",
+        "greedy-critical-endpoint",
+        "greedy-union-pool",
+        "two-step-optimize",
+        "two-step-union-pool",
+        "two-step-random",
+        "sa",
+        "sa-sampled-union-pool",
+        "sa-random",
+        "isa",
+        "isa-sampled-union-pool",
+        "isa-random",
+        "tabu",
+        "tabu-union-pool",
+        "tabu-random",
+    };
+    for (const auto& alias : aliases) {
+        CHECK(cadd0040::make_optimizer(alias) != nullptr);
+    }
+}
+
+TEST_CASE("A1-A13 numeric optimizer aliases are registered", "[optimization]") {
+    const std::vector<std::string> aliases = {
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13",
+    };
+    for (const auto& alias : aliases) {
+        CHECK(cadd0040::make_optimizer(alias) != nullptr);
+    }
+}
+
+TEST_CASE("old optimizer aliases are not registered", "[optimization]") {
+    const std::vector<std::string> aliases = {
+        "greedy",
+        "greedy-endpoint",
+        "greedy-critical-ff",
+        "greedy-root-window",
+        "greedy-timing-area",
+        "greedy-grasp",
+        "greedy-repair-recover",
+        "greedy-randomized-rcl",
+        "sa-basic",
+        "isa-basic",
+        "anneal",
+        "a1",
+        "a9",
+        "a10",
+        "a13",
+        "tabu-mixed",
+    };
+    for (const auto& alias : aliases) {
+        CHECK_THROWS(cadd0040::make_optimizer(alias));
+    }
+}
+
+TEST_CASE("A1-A13 optimizers run and leave an evaluable tree", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "0", 1);
+#endif
+
+    const std::vector<std::string> aliases = {
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13",
+    };
+    for (const auto& alias : aliases) {
+        const auto buffer_library = make_buffer_library();
+        auto clock_tree = make_clock_tree();
+        const auto data_path_graph = make_data_path_graph();
+        const cadd0040::Metrics baseline =
+            cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+
+        cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+        cadd0040::OptimizerContext context{baseline, debug_progress};
+        auto optimizer = cadd0040::make_optimizer(alias);
+        optimizer->run(clock_tree, data_path_graph, buffer_library, context);
+
+        const cadd0040::Metrics final_metrics =
+            cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+        CHECK(std::isfinite(cadd0040::score(final_metrics, baseline)));
+        CHECK(clock_tree.contains_name("ROOT_CLK"));
+        CHECK(clock_tree.contains_name("FF_L"));
+        CHECK(clock_tree.contains_name("FF_C"));
+    }
+
+#ifndef _WIN32
+    unsetenv("CADD0040_SA_SECONDS");
+#endif
+}
+
+TEST_CASE("A6-A13 final progress reports expected policies", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "0", 1);
+#endif
+
+    struct ExpectedPolicy {
+        std::string alias;
+        std::string candidate_policy;
+        std::string accept_policy;
+    };
+    const std::vector<ExpectedPolicy> expected = {
+        {"A6", "union_pool", "two_step_slack_then_score"},
+        {"A7", "sampled_union_pool", "metropolis"},
+        {"A8", "sampled_union_pool", "iterated_metropolis"},
+        {"A9", "union_pool", "tabu_best_non_tabu"},
+        {"A10", "random_action_space", "two_step_slack_then_score"},
+        {"A11", "random_action_space", "metropolis"},
+        {"A12", "random_action_space", "iterated_metropolis"},
+        {"A13", "random_action_space", "tabu_best_non_tabu"},
+        {"two-step-union-pool", "union_pool", "two_step_slack_then_score"},
+        {"sa-sampled-union-pool", "sampled_union_pool", "metropolis"},
+        {"isa-sampled-union-pool", "sampled_union_pool", "iterated_metropolis"},
+        {"tabu-union-pool", "union_pool", "tabu_best_non_tabu"},
+        {"two-step-random", "random_action_space", "two_step_slack_then_score"},
+        {"sa-random", "random_action_space", "metropolis"},
+        {"isa-random", "random_action_space", "iterated_metropolis"},
+        {"tabu-random", "random_action_space", "tabu_best_non_tabu"},
+    };
+    for (const auto& entry : expected) {
+        const cadd0040::OptimizerProgressEvent event = final_event_for_optimizer(entry.alias);
+        CHECK(event.candidate_policy == entry.candidate_policy);
+        CHECK(event.accept_policy == entry.accept_policy);
+    }
+
+#ifndef _WIN32
+    unsetenv("CADD0040_SA_SECONDS");
+#endif
+}
+
+TEST_CASE("GreedyOptimizer improves or preserves score on tiny testcase", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "2", 1);
+#endif
+
     const auto buffer_library = make_buffer_library();
     auto clock_tree = make_clock_tree();
     const auto data_path_graph = make_data_path_graph();
 
-    cadd0040::SkewModel model(clock_tree, data_path_graph, buffer_library);
+    const cadd0040::Metrics baseline =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    const double baseline_score = cadd0040::score(baseline, baseline);
 
-    std::size_t capture_edge_idx = model.edge_count();
-    for (std::size_t edge_idx = 0; edge_idx < model.edge_count(); ++edge_idx) {
-        const auto& edge = model.tree_edges()[edge_idx];
-        if (model.node_names()[edge.child_idx] == "FF_C") {
-            capture_edge_idx = edge_idx;
-            break;
-        }
-    }
-    REQUIRE(capture_edge_idx < model.edge_count());
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::OptimizerContext context{baseline, debug_progress};
 
-    const int small_cell_idx = cell_index_by_name(model, "SMALL");
-    REQUIRE(small_cell_idx >= 0);
+    cadd0040::GreedyOptimizer optimizer;
+    optimizer.run(clock_tree, data_path_graph, buffer_library, context);
 
-    cadd0040::SkewMove move{cadd0040::SkewMoveKind::Insert, capture_edge_idx, 0, small_cell_idx};
-    REQUIRE(model.try_move(move));
+    const cadd0040::Metrics final_metrics =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    const double final_score = cadd0040::score(final_metrics, baseline);
 
-    const cadd0040::SkewModelState snapshot = model.snapshot();
-    model.restore(snapshot);
-    const cadd0040::Metrics restored = metrics_from_model(model);
+    CHECK(final_score >= baseline_score - 1e-9);
+}
 
-    CHECK(restored.tns_ss == Catch::Approx(snapshot.metrics.tns_ss));
-    CHECK(restored.wns_ss == Catch::Approx(snapshot.metrics.wns_ss));
-    CHECK(restored.tns_ff == Catch::Approx(snapshot.metrics.tns_ff));
-    CHECK(restored.wns_ff == Catch::Approx(snapshot.metrics.wns_ff));
-    CHECK(restored.area == Catch::Approx(snapshot.metrics.area));
+TEST_CASE("MilpOptimizer improves or preserves score on tiny testcase", "[optimization]") {
+#ifndef _WIN32
+    setenv("CADD0040_SA_SECONDS", "2", 1);
+#endif
+
+    const auto buffer_library = make_buffer_library();
+    auto clock_tree = make_clock_tree();
+    const auto data_path_graph = make_data_path_graph();
+
+    const cadd0040::Metrics baseline =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    const double baseline_score = cadd0040::score(baseline, baseline);
+
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::OptimizerContext context{baseline, debug_progress};
+
+    cadd0040::MilpOptimizer optimizer;
+    optimizer.run(clock_tree, data_path_graph, buffer_library, context);
+
+    const cadd0040::Metrics final_metrics =
+        cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
+    const double final_score = cadd0040::score(final_metrics, baseline);
+
+    CHECK(final_score >= baseline_score - 1e-9);
 }
 
 TEST_CASE("AnnealingOptimizer improves or preserves score on tiny testcase", "[annealing]") {
