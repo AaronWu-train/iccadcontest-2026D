@@ -64,7 +64,7 @@ Example:
 ./build/cadd0040 \
   testcases/testcase0 \
   testcases/testcase0/modified_clk_tree.structure \
-  --optimizer isa \
+  --optimizer tabu-random \
   --seed 1234
 ```
 
@@ -75,7 +75,7 @@ Each testcase directory must contain:
 - `SS_delay.rpt`
 - `FF_delay.rpt`
 
-The default optimizer is `isa`.
+The default optimizer is `tabu-random`.
 
 ## Optimizers
 
@@ -289,7 +289,7 @@ python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
-| `OPTIMIZER` | `isa` | Optimizer used by `run_all_testcases.sh` |
+| `OPTIMIZER` | `tabu-random` | Optimizer used by `run_all_testcases.sh` |
 | `OPTIMIZERS` | A1-A13 list | Optimizers used by `slurm_run_all_optimizers.sh` |
 | `CONFIG_DIR` | `config/` | Config root for `slurm_run_all_configs.sh` |
 | `CONFIGS` | all | Space-separated config basenames or filenames |

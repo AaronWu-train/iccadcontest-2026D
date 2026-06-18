@@ -123,7 +123,7 @@ and final polish are preserved as bounded BestScore cleanup phases.
 
 A8 runs multiple SA rounds with `SampledUnionPool + IteratedMetropolis`; A12 uses
 `RandomActionSpace + IteratedMetropolis`. Between rounds it restores the current best state and
-applies a small greedy cleanup batch. `isa` remains the default optimizer.
+applies a small greedy cleanup batch.
 
 ### A9/A13 Tabu
 

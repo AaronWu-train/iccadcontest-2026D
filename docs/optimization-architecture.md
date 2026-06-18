@@ -169,7 +169,7 @@ Main optimizers:
 - `greedy-union-pool`: A5 BestScore greedy over the UnionPool candidate set.
 - `two-step-union-pool`: A6 UnionPool with TwoStepSlackThenScore acceptance.
 - `sa-sampled-union-pool`: A7 SampledUnionPool with Metropolis acceptance.
-- `isa-sampled-union-pool`: A8 SampledUnionPool with iterated Metropolis rounds and default optimizer.
+- `isa-sampled-union-pool`: A8 SampledUnionPool with iterated Metropolis rounds.
 - `tabu-union-pool`: A9 UnionPool with tabu memory, aspiration, and best non-tabu acceptance.
 - `two-step-random`: A10 RandomActionSpace with TwoStepSlackThenScore acceptance.
 - `sa-random`: A11 RandomActionSpace with Metropolis acceptance.

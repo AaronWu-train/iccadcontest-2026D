@@ -104,7 +104,7 @@ writer, debug, and compatibility paths.
 
 ### Optimizer registration (`factory.cpp`)
 
-Default CLI value: `isa` (`kDefaultOptimizerName` in `factory.hpp`).
+Default CLI value: `tabu-random` (`kDefaultOptimizerName` in `factory.hpp`).
 
 | Alias | Class |
 |-------|-------|

@@ -23,7 +23,7 @@ from typing import Any, Iterable
 OPTIMIZERS: list[tuple[str, str, str]] = [
     ("A1", "greedy-violation-path", "Best-improvement greedy from violated path endpoints"),
     ("A2", "sa", "Single simulated annealing flow"),
-    ("A3", "isa", "Iterated simulated annealing; default"),
+    ("A3", "isa", "Iterated simulated annealing"),
     ("A4", "greedy-critical-endpoint", "Greedy candidates from top critical endpoints"),
     ("A5", "greedy-upstream-window", "Greedy candidates from upstream endpoint windows"),
     ("A6", "greedy-repair-recover", "Timing repair followed by area recovery"),
