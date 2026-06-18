@@ -6,164 +6,96 @@
 #include "optimization/sa/annealing_optimizer.hpp"
 
 #include <chrono>
-#include <cmath>
-#include <cstdlib>
-#include <random>
+#include <limits>
 
-#include "optimization/sa/sa_common.hpp"
-#include "optimization/sa/skew_model.hpp"
+#include "optimization/optimizer_config.hpp"
+#include "optimization/sa/sa_search.hpp"
+#include "optimization/timing_state.hpp"
 
 namespace cadd0040 {
-namespace {
 
-constexpr std::chrono::seconds kAnnealingTimeBudget{540};
-constexpr double kInitialTemperature = 0.08;
-constexpr double kMinTemperature = 1e-6;
-constexpr double kCoolingFactor = 0.01;
-constexpr std::size_t kGreedyWarmupIterations = 256;
-constexpr std::size_t kFinalGreedyPolishIterations = 64;
-constexpr std::size_t kRestartStaleIterations = 2500;
-constexpr double kRestartScoreGap = 0.05;
-constexpr std::size_t kGreedyPolishInterval = 250;
-
-using sa::materialize;
-using sa::maybe_update_best;
-using sa::metrics_from_skew;
-using sa::random_move;
-using sa::restart_from_best;
-using sa::rng;
-
-}  // namespace
+AnnealingOptimizer::AnnealingOptimizer(CandidatePolicy proposal_policy,
+                                       std::string_view config_section,
+                                       std::string_view legacy_config_section)
+    : proposal_policy_(proposal_policy),
+      config_section_(config_section),
+      legacy_config_section_(legacy_config_section) {}
 
 void AnnealingOptimizer::run(ClockTree& clock_tree, const DataPathGraph& data_path_graph,
                              const BufferLibrary& buffer_library, const OptimizerContext& context) {
     const Metrics& baseline_metrics = context.baseline_metrics;
     DebugProgress& debug = context.debug_progress;
+    const SaConfig config =
+        sa_config_from_sources(context.optimizer_config, config_section_, legacy_config_section_);
+    sa::set_rng_seed(config.seed);
 
-    SkewModel model(clock_tree, data_path_graph, buffer_library);
+    TimingState timing(clock_tree, data_path_graph, buffer_library);
 
     debug.log([&](std::ostream& os) {
-        os << "AnnealingOptimizer: baseline score = " << model.score(baseline_metrics) << '\n';
+        os << "AnnealingOptimizer: baseline score = " << timing.score(baseline_metrics) << '\n';
     });
 
-    model.apply_greedy_warmup(baseline_metrics, kGreedyWarmupIterations);
+    sa::SearchState best_state{clock_tree, timing.snapshot(), timing.metrics(),
+                               timing.score(baseline_metrics)};
 
-    double current_score = model.score(baseline_metrics);
-    SkewModelState best_state = model.snapshot();
-    double best_score = current_score;
-    Metrics best_metrics = metrics_from_skew(best_state.metrics);
+    const auto start_time = std::chrono::steady_clock::now();
+    const auto deadline = start_time + config.time_budget;
+
+    std::size_t greedy_steps = 0;
+    std::size_t checkpoint_steps = 0;
+    std::size_t accepted_moves = 0;
+    std::size_t rejected_moves = 0;
+    greedy_steps +=
+        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
+                             config.greedy_warmup_iterations, config.violation_sample_limit,
+                             config.removal_candidate_limit, deadline, start_time, "warmup", -1,
+                             accepted_moves, rejected_moves, context, checkpoint_steps);
+    double current_score = timing.score(baseline_metrics);
 
     debug.log([&](std::ostream& os) {
         os << "AnnealingOptimizer: after warmup score = " << current_score << '\n';
     });
 
-    std::chrono::seconds time_budget = kAnnealingTimeBudget;
-    if (const char* env_seconds = std::getenv("CADD0040_SA_SECONDS")) {
-        time_budget = std::chrono::seconds(std::stoll(env_seconds));
-    }
-
-    const auto start_time = std::chrono::steady_clock::now();
-    const auto deadline = start_time + time_budget;
-
-    std::size_t accepted_moves = 0;
-    std::size_t rejected_moves = 0;
-    std::size_t iteration = 0;
-    std::size_t iterations_since_best = 0;
     std::size_t restarts = 0;
-    std::size_t greedy_polish_steps = 0;
 
-    while (std::chrono::steady_clock::now() < deadline) {
-        const auto now = std::chrono::steady_clock::now();
-        const double elapsed = std::chrono::duration<double>(now - start_time).count();
-        const double budget = static_cast<double>(time_budget.count());
-        const double progress = std::min(1.0, elapsed / budget);
-        const double temperature =
-            std::max(kMinTemperature, kInitialTemperature * std::pow(kCoolingFactor, progress));
+    const std::size_t iterations = sa::run_sa_phase(
+        clock_tree, timing, buffer_library, baseline_metrics, debug, current_score, best_state,
+        start_time, deadline, config.time_budget, config.initial_temperature,
+        config.min_temperature, config.cooling_factor, config.restart_stale_iterations,
+        config.restart_score_gap, config.greedy_polish_interval, config.violation_sample_limit,
+        config.removal_candidate_limit, greedy_steps, accepted_moves, rejected_moves, restarts,
+        context, checkpoint_steps, "sa_phase", -1, AcceptPolicy::Metropolis, proposal_policy_);
 
-        if (iteration > 0 && iteration % kGreedyPolishInterval == 0) {
-            if (model.apply_one_greedy_step(baseline_metrics)) {
-                ++greedy_polish_steps;
-                maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
-                                  best_metrics);
-                iterations_since_best = 0;
-            }
-        }
-
-        SkewMove move = random_move(model);
-        if (move.kind == SkewMoveKind::Resize && move.cell_idx < 0) {
-            ++iteration;
-            continue;
-        }
-        if (move.kind == SkewMoveKind::Insert && move.cell_idx < 0) {
-            ++iteration;
-            continue;
-        }
-
-        if (!model.try_move(move)) {
-            ++iteration;
-            continue;
-        }
-
-        const double new_score = model.score(baseline_metrics);
-        const double delta = new_score - current_score;
-        bool accept = delta > 0.0;
-
-        if (!accept && temperature > kMinTemperature) {
-            std::uniform_real_distribution<double> accept_dist(0.0, 1.0);
-            const double probability = std::exp(delta / temperature);
-            accept = accept_dist(rng()) < probability;
-        }
-
-        if (accept) {
-            current_score = new_score;
-            ++accepted_moves;
-            if (new_score > best_score) {
-                best_score = new_score;
-                best_state = model.snapshot();
-                best_metrics = metrics_from_skew(best_state.metrics);
-                iterations_since_best = 0;
-            } else {
-                ++iterations_since_best;
-            }
-        } else {
-            model.undo_move(move);
-            ++rejected_moves;
-            ++iterations_since_best;
-        }
-
-        if (iterations_since_best >= kRestartStaleIterations ||
-            current_score < best_score - kRestartScoreGap) {
-            restart_from_best(model, current_score, best_score, best_state);
-            iterations_since_best = 0;
-            ++restarts;
-        }
-
-        debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
-
-        ++iteration;
-    }
-
-    model.restore(best_state);
-    current_score = best_score;
-    for (std::size_t polish = 0; polish < kFinalGreedyPolishIterations; ++polish) {
-        if (!model.apply_one_greedy_step(baseline_metrics)) {
-            break;
-        }
-        ++greedy_polish_steps;
-        maybe_update_best(model, baseline_metrics, current_score, best_score, best_state,
-                          best_metrics);
-    }
-
-    materialize(clock_tree, best_state, model, buffer_library);
-
-    model.restore(best_state);
+    sa::restore_best(clock_tree, timing, current_score, best_state);
+    greedy_steps +=
+        sa::run_greedy_batch(clock_tree, timing, buffer_library, baseline_metrics, best_state,
+                             config.final_greedy_polish_iterations, config.violation_sample_limit,
+                             config.removal_candidate_limit, deadline, start_time, "final_polish",
+                             -1, accepted_moves, rejected_moves, context, checkpoint_steps);
+    sa::restore_best(clock_tree, timing, current_score, best_state);
+    context.write_checkpoint(best_state.tree);
+    const double elapsed =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
+    const OptimizerProgressEvent final_event{checkpoint_steps,
+                                             elapsed,
+                                             "final",
+                                             -1,
+                                             "final",
+                                             current_score,
+                                             best_state.score,
+                                             std::numeric_limits<double>::quiet_NaN(),
+                                             timing.metrics(),
+                                             accepted_moves,
+                                             rejected_moves,
+                                             candidate_policy_name(proposal_policy_),
+                                             accept_policy_name(AcceptPolicy::Metropolis)};
+    context.maybe_record_progress(final_event, true);
+    context.maybe_record_visual(best_state.tree, final_event, true);
 
     debug.log([&](std::ostream& os) {
-        const double final_score = model.score(baseline_metrics);
-        os << "AnnealingOptimizer: iterations = " << iteration << ", accepted = " << accepted_moves
+        os << "AnnealingOptimizer: iterations = " << iterations << ", accepted = " << accepted_moves
            << ", rejected = " << rejected_moves << ", restarts = " << restarts
-           << ", greedy_polish = " << greedy_polish_steps << ", best score = " << best_score
-           << ", restored score = " << final_score << '\n';
+           << ", greedy_polish = " << greedy_steps << ", best score = " << best_state.score << '\n';
     });
 }
 

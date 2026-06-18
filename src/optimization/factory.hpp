@@ -9,7 +9,7 @@
 
 namespace cadd0040 {
 
-inline constexpr std::string_view kDefaultOptimizerName = "isa";
+inline constexpr std::string_view kDefaultOptimizerName = "tabu-random";
 
 std::unique_ptr<Optimizer> make_optimizer(std::string_view name);
 

@@ -34,6 +34,8 @@ public:
 private:
     void load_input();
     void write_output(const ClockTree& clock_tree, const std::filesystem::path& output_path);
+    void write_output_atomically(const ClockTree& clock_tree,
+                                 const std::filesystem::path& output_path);
 
     AppConfig config_;
     BufferLibrary buffer_library_;

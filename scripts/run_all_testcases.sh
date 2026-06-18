@@ -8,19 +8,36 @@
 #
 # Environment:
 #   BUILD_DIR                        Path to CMake build directory (default: build-release)
-#   CADD0040_SA_SECONDS              SA time budget in seconds (default: 540, contest limit)
-#   OPTIMIZER                        --optimizer value (default: anneal)
-#   CADD0040_DEBUG_PROGRESS            Set to 0 to disable periodic best-score progress (default: on)
-#   CADD0040_DEBUG_PROGRESS_INTERVAL Progress interval in seconds (default: 15)
+#   CADD0040_SA_SECONDS              Optimizer time budget in seconds (default: 570)
+#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
+#   OPTIMIZER                        --optimizer value (default: tabu-random)
+#   CADD0040_REPORT_METRICS          Set to 0 to suppress per-run score lines (default: on)
+#   CADD0040_DEBUG_PROGRESS          Set to 0 to disable debug stderr status (default: on)
+#   CADD0040_DEBUG_PROGRESS_INTERVAL Debug stderr status interval in seconds (default: 15)
 
 set -euo pipefail
 
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h | --help)
+            sed -n '2,17p' "$0" | sed 's/^# \?//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1 (try --help)" >&2
+            exit 1
+            ;;
+    esac
+done
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-${ROOT}/build}"
+BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${ROOT}/testcases"
-OPTIMIZER="${OPTIMIZER:-anneal}"
-SA_SECONDS="${CADD0040_SA_SECONDS:-540}"
+OPTIMIZER="${OPTIMIZER:-tabu-random}"
+SA_SECONDS="${CADD0040_SA_SECONDS:-570}"
+CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-4096}"
+REPORT_METRICS="${CADD0040_REPORT_METRICS:-1}"
 DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-1}"
 DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-15}"
 
@@ -50,9 +67,9 @@ echo "  binary   : ${BINARY}"
 echo "  optimizer: ${OPTIMIZER}"
 echo "  SA budget: ${SA_SECONDS}s"
 if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
-    echo "  progress : every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
+    echo "  debug log: every ${DEBUG_PROGRESS_INTERVAL}s (best score)"
 else
-    echo "  progress : off"
+    echo "  debug log: off"
 fi
 echo "  cases    : ${#TESTCASES[@]}"
 echo "========================================"
@@ -81,7 +98,11 @@ for testcase_path in "${TESTCASES[@]}"; do
     log_file="$(mktemp)"
     start_ns="$(date +%s)"
 
-    run_env=(CADD0040_SA_SECONDS="${SA_SECONDS}")
+    run_env=(
+        CADD0040_SA_SECONDS="${SA_SECONDS}"
+        CADD0040_CHECKPOINT_STEPS="${CHECKPOINT_STEPS}"
+        CADD0040_REPORT_METRICS="${REPORT_METRICS}"
+    )
     if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
         run_env+=(CADD0040_DEBUG_PROGRESS=1 "CADD0040_DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}")
         echo ">>> ${testcase_name}" >&2
