@@ -35,6 +35,7 @@ OPT_ROLE = {alias: role for _oid, alias, role in OPTIMIZERS}
 OPT_ORDER = [alias for _oid, alias, _role in OPTIMIZERS]
 TIE_EPSILON = 0.005
 METRIC_COLUMNS = ["tns_ss", "wns_ss", "tns_ff", "wns_ff"]
+GROUP_AVERAGE_MAX_ELAPSED_SEC = 550.0
 GROUP_AVERAGE_SPECS = [
     (
         "fig16_19_greedy",
@@ -58,7 +59,6 @@ GROUP_AVERAGE_SPECS = [
             "tabu-random",
             "sa-random",
             "isa-random",
-            "isa-sampled-union-pool",
             "two-step-random",
         ],
         {
@@ -89,7 +89,7 @@ GROUP_AVERAGE_SPECS = [
             "tabu-random",
             "tabu-union-pool",
             "isa-random",
-            "isa-union-pool",
+            "isa-sampled-union-pool",
         ],
         {
             "best": "fig28_best_four_average_best_score_progress",
@@ -643,7 +643,11 @@ def compute_progress_binned(progress_rows: list[ProgressRow], bins: int) -> list
     return out
 
 
-def common_horizon(progress_rows: list[ProgressRow], optimizers: list[str] | None = None) -> tuple[float, list[str]]:
+def common_horizon(
+    progress_rows: list[ProgressRow],
+    optimizers: list[str] | None = None,
+    max_elapsed_sec: float | None = None,
+) -> tuple[float, list[str]]:
     selected = set(optimizers or [])
     by_optimizer: dict[str, list[float]] = defaultdict(list)
     for row in progress_rows:
@@ -654,7 +658,10 @@ def common_horizon(progress_rows: list[ProgressRow], optimizers: list[str] | Non
     present = ordered_optimizers(by_optimizer.keys())
     if not present:
         return math.nan, []
-    return min(max(values) for values in by_optimizer.values()), present
+    horizon = min(max(values) for values in by_optimizer.values())
+    if max_elapsed_sec is not None:
+        horizon = min(horizon, max_elapsed_sec)
+    return horizon, present
 
 
 def compute_progress_all_testcases_average(
@@ -663,8 +670,9 @@ def compute_progress_all_testcases_average(
     bins: int,
     selected_optimizers: list[str] | None = None,
     figure_group: str = "all",
+    max_elapsed_sec: float | None = None,
 ) -> list[dict[str, Any]]:
-    horizon, present_optimizers = common_horizon(progress_rows, selected_optimizers)
+    horizon, present_optimizers = common_horizon(progress_rows, selected_optimizers, max_elapsed_sec)
     if math.isnan(horizon):
         return []
     by_optimizer: dict[str, list[ProgressRow]] = defaultdict(list)
@@ -715,8 +723,9 @@ def compute_timing_all_testcases_average(
     bins: int,
     selected_optimizers: list[str] | None = None,
     figure_group: str = "all",
+    max_elapsed_sec: float | None = None,
 ) -> list[dict[str, Any]]:
-    horizon, present_optimizers = common_horizon(progress_rows, selected_optimizers)
+    horizon, present_optimizers = common_horizon(progress_rows, selected_optimizers, max_elapsed_sec)
     if math.isnan(horizon):
         return []
     out: list[dict[str, Any]] = []
@@ -741,8 +750,9 @@ def compute_normalized_objective_progress(
     bins: int,
     selected_optimizers: list[str] | None = None,
     figure_group: str = "all",
+    max_elapsed_sec: float | None = None,
 ) -> list[dict[str, Any]]:
-    horizon, present_optimizers = common_horizon(progress_rows, selected_optimizers)
+    horizon, present_optimizers = common_horizon(progress_rows, selected_optimizers, max_elapsed_sec)
     if math.isnan(horizon):
         return []
     grouped = group_progress(progress_rows)
@@ -1825,6 +1835,7 @@ def write_markdown(
                 "q25-q75 bands over testcase medians. This avoids averaging raw scores with different testcase scales.",
                 "Average progress figures are truncated to the common elapsed-time horizon shared by the optimizers in that "
                 "figure before binning, so plotted curves have equal-length comparable data.",
+                f"Group comparison figures `fig16`-`fig31` additionally discard rows with `elapsed_sec > {GROUP_AVERAGE_MAX_ELAPSED_SEC:g}`.",
                 "",
                 "## All-Testcase Average Timing Progress",
                 "",
@@ -2028,11 +2039,22 @@ def run_report(args: argparse.Namespace) -> tuple[int, int, int, Path]:
             )
         progress_all_testcases_average.extend(
             compute_progress_all_testcases_average(
-                data.progress_rows, best, args.time_bins, available, figure_group
+                data.progress_rows,
+                best,
+                args.time_bins,
+                available,
+                figure_group,
+                GROUP_AVERAGE_MAX_ELAPSED_SEC,
             )
         )
         normalized_objective_progress.extend(
-            compute_normalized_objective_progress(data.progress_rows, args.time_bins, available, figure_group)
+            compute_normalized_objective_progress(
+                data.progress_rows,
+                args.time_bins,
+                available,
+                figure_group,
+                GROUP_AVERAGE_MAX_ELAPSED_SEC,
+            )
         )
     optimizer_summary = compute_optimizer_summary(final_rows, time_to_feasible, time_to_gap, thresholds)
     gap_matrix = compute_gap_matrix(final_rows)
