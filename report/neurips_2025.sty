@@ -112,14 +112,15 @@
 \fi
 
 % set page geometry
-\usepackage[verbose=true,letterpaper]{geometry}
+\usepackage[verbose=true,a4paper]{geometry}
 \AtBeginDocument{
   \newgeometry{
-    textheight=9in,
-    textwidth=6.5in,
-    top=1in,
+    left=0.85in,
+    right=0.85in,
+    top=0.9in,
+    bottom=0.9in,
     headheight=12pt,
-    headsep=25pt,
+    headsep=18pt,
     footskip=30pt
   }
   \@ifpackageloaded{fullpage}
