@@ -81,3 +81,10 @@ config_runs/
 !testcases/**/buf.lib
 dist/
 .understand-anything/
+
+
+# log files of run
+20260616_131538/
+20260617_215949/
+20260617_230843/
+20260618_091340/

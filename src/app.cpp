@@ -8,6 +8,7 @@
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
@@ -39,9 +40,21 @@ unsigned int parse_seed_option(const std::string& seed_text) {
     return static_cast<unsigned int>(parsed);
 }
 
+std::chrono::seconds parse_seconds_option(const std::string& seconds_text) {
+    if (seconds_text.empty() ||
+        !std::all_of(seconds_text.begin(), seconds_text.end(),
+                     [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
+        throw std::runtime_error("--seconds must be a non-negative integer");
+    }
+
+    return std::chrono::seconds{std::stoll(seconds_text)};
+}
+
 void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
                        std::filesystem::path& output_file, std::string& optimizer_name,
-                       std::filesystem::path& config_file, std::string& seed_text) {
+                       std::filesystem::path& config_file, std::string& seed_text,
+                       std::string& seconds_text, bool& debug_output,
+                       std::filesystem::path& progress_dir, std::size_t& progress_steps) {
     app.add_option("testcase_dir", testcase_dir,
                    "Directory containing clk_tree.structure, buf.lib, "
                    "SS_delay.rpt, and FF_delay.rpt")
@@ -61,6 +74,18 @@ void configure_cli_app(CLI::App& app, std::filesystem::path& testcase_dir,
 
     app.add_option("--seed", seed_text, "Global optimizer RNG seed for seed-aware optimizers")
         ->check(CLI::NonNegativeNumber);
+
+    app.add_option("--seconds", seconds_text, "Global optimizer time budget in seconds")
+        ->check(CLI::NonNegativeNumber);
+
+    app.add_flag("--debug", debug_output, "Enable debug optimizer progress output");
+
+    app.add_option("--progress-dir", progress_dir, "Directory to write progress.tsv");
+
+    app.add_option("--progress-steps", progress_steps,
+                   "Logical step interval for progress.tsv rows")
+        ->default_val(kDefaultProgressSteps)
+        ->check(CLI::PositiveNumber);
 }
 
 }  // namespace
@@ -71,9 +96,14 @@ AppConfig parse_arguments(int argc, char** argv) {
     std::string optimizer_name;
     std::filesystem::path config_file;
     std::string seed_text;
+    std::string seconds_text;
+    bool debug_output = false;
+    std::filesystem::path progress_dir;
+    std::size_t progress_steps = kDefaultProgressSteps;
 
     CLI::App app{"ICCAD Contest 2026 Problem D solver", program_name(argv[0])};
-    configure_cli_app(app, testcase_dir, output_file, optimizer_name, config_file, seed_text);
+    configure_cli_app(app, testcase_dir, output_file, optimizer_name, config_file, seed_text,
+                      seconds_text, debug_output, progress_dir, progress_steps);
 
     try {
         app.parse(argc, argv);
@@ -97,8 +127,18 @@ AppConfig parse_arguments(int argc, char** argv) {
         }
         optimizer_config->seed = parse_seed_option(seed_text);
     }
+    if (!seconds_text.empty()) {
+        if (!optimizer_config.has_value()) {
+            optimizer_config.emplace();
+        }
+        optimizer_config->time_budget = parse_seconds_option(seconds_text);
+    }
 
-    return AppConfig(testcase_dir, output_file, optimizer_name, std::move(optimizer_config));
+    return AppConfig(testcase_dir, output_file, optimizer_name, std::move(optimizer_config),
+                     DebugProgress::from_debug_flag(debug_output),
+                     progress_dir.empty() ? std::optional<std::filesystem::path>{}
+                                          : std::optional<std::filesystem::path>{progress_dir},
+                     progress_steps);
 }
 
 int run(const AppConfig& config) {

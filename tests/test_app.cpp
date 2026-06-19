@@ -97,6 +97,49 @@ TEST_CASE("parse_arguments accepts a global optimizer seed") {
     CHECK(cadd0040::isa_config_from_sources(config.optimizer_config_ptr()).seed == 4321u);
 }
 
+TEST_CASE("parse_arguments accepts a global optimizer time budget") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--seconds",
+        "42",
+    });
+
+    REQUIRE(config.optimizer_config.has_value());
+    REQUIRE(config.optimizer_config->time_budget.has_value());
+    CHECK(config.optimizer_config->time_budget->count() == 42);
+    CHECK(cadd0040::sa_config_from_sources(config.optimizer_config_ptr()).time_budget.count() ==
+          42);
+}
+
+TEST_CASE("parse_arguments accepts debug output flag") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--debug",
+    });
+
+    CHECK(config.debug_progress.enabled());
+}
+
+TEST_CASE("parse_arguments accepts progress output options") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--progress-dir",
+        "progress/testcase0",
+        "--progress-steps",
+        "64",
+    });
+
+    REQUIRE(config.progress_dir.has_value());
+    CHECK(*config.progress_dir == std::filesystem::path{"progress/testcase0"});
+    CHECK(config.progress_steps == 64);
+}
+
 TEST_CASE("parse_arguments uses argv[0] only as the program name") {
     const auto config = parse_arguments({
         "cadd0040-alpha",

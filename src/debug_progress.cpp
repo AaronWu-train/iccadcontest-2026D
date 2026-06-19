@@ -6,44 +6,13 @@
 #include "debug_progress.hpp"
 
 #include <cmath>
-#include <cstdlib>
 #include <iostream>
 #include <limits>
-#include <string_view>
 
 namespace cadd0040 {
 namespace {
 
 constexpr double kDefaultIntervalSeconds = 30.0;
-
-#ifndef NDEBUG
-constexpr const char* kEnableEnvVar = "CADD0040_DEBUG_PROGRESS";
-constexpr const char* kIntervalEnvVar = "CADD0040_DEBUG_PROGRESS_INTERVAL";
-
-bool env_flag_enabled(const char* name) {
-    const char* value = std::getenv(name);
-    if (value == nullptr || *value == '\0') {
-        return false;
-    }
-
-    const std::string_view flag(value);
-    return flag == "1" || flag == "true" || flag == "yes" || flag == "on";
-}
-
-double env_interval_seconds(const char* name, double default_value) {
-    const char* value = std::getenv(name);
-    if (value == nullptr || *value == '\0') {
-        return default_value;
-    }
-
-    try {
-        const double parsed = std::stod(value);
-        return parsed > 0.0 ? parsed : default_value;
-    } catch (...) {
-        return default_value;
-    }
-}
-#endif
 
 bool should_emit_report(const DebugProgress& reporter, double elapsed_seconds) {
     if (!reporter.enabled()) {
@@ -62,12 +31,12 @@ bool should_emit_report(const DebugProgress& reporter, double elapsed_seconds) {
 DebugProgress::DebugProgress(bool enabled, double interval_seconds)
     : enabled_(enabled), interval_seconds_(interval_seconds) {}
 
-DebugProgress DebugProgress::from_environment() {
+DebugProgress DebugProgress::from_debug_flag(bool enabled) {
 #ifdef NDEBUG
+    (void)enabled;
     return DebugProgress(false, kDefaultIntervalSeconds);
 #else
-    return DebugProgress(env_flag_enabled(kEnableEnvVar),
-                         env_interval_seconds(kIntervalEnvVar, kDefaultIntervalSeconds));
+    return DebugProgress(enabled, kDefaultIntervalSeconds);
 #endif
 }
 

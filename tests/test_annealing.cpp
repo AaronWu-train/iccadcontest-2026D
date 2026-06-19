@@ -55,7 +55,7 @@ cadd0040::OptimizerProgressEvent final_event_for_optimizer(const std::string& al
     const auto data_path_graph = make_data_path_graph();
     const cadd0040::Metrics baseline =
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
-    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_debug_flag(false);
     cadd0040::OptimizerProgressEvent final_event;
     cadd0040::OptimizerContext context{baseline, debug_progress};
     context.progress_interval = 1;
@@ -260,7 +260,7 @@ TEST_CASE("A1-A13 optimizers run and leave an evaluable tree", "[optimization]")
         const cadd0040::Metrics baseline =
             cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
 
-        cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+        cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_debug_flag(false);
         cadd0040::OptimizerContext context{baseline, debug_progress};
         auto optimizer = cadd0040::make_optimizer(alias);
         optimizer->run(clock_tree, data_path_graph, buffer_library, context);
@@ -330,7 +330,7 @@ TEST_CASE("GreedyOptimizer improves or preserves score on tiny testcase", "[opti
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
     const double baseline_score = cadd0040::score(baseline, baseline);
 
-    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_debug_flag(false);
     cadd0040::OptimizerContext context{baseline, debug_progress};
 
     cadd0040::GreedyOptimizer optimizer;
@@ -356,7 +356,7 @@ TEST_CASE("MilpOptimizer improves or preserves score on tiny testcase", "[optimi
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
     const double baseline_score = cadd0040::score(baseline, baseline);
 
-    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_debug_flag(false);
     cadd0040::OptimizerContext context{baseline, debug_progress};
 
     cadd0040::MilpOptimizer optimizer;
@@ -382,7 +382,7 @@ TEST_CASE("AnnealingOptimizer improves or preserves score on tiny testcase", "[a
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
     const double baseline_score = cadd0040::score(baseline, baseline);
 
-    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_debug_flag(false);
     cadd0040::OptimizerContext context{baseline, debug_progress};
 
     cadd0040::AnnealingOptimizer optimizer;
@@ -411,7 +411,7 @@ TEST_CASE("IteratedSaOptimizer improves or preserves score on tiny testcase", "[
         cadd0040::evaluate(clock_tree, data_path_graph, buffer_library);
     const double baseline_score = cadd0040::score(baseline, baseline);
 
-    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_environment();
+    cadd0040::DebugProgress debug_progress = cadd0040::DebugProgress::from_debug_flag(false);
     cadd0040::OptimizerContext context{baseline, debug_progress};
 
     cadd0040::IteratedSaOptimizer optimizer;

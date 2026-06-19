@@ -25,7 +25,7 @@
 namespace cadd0040 {
 namespace {
 
-constexpr std::size_t kDefaultCheckpointInterval = 4096;
+constexpr std::size_t kDefaultCheckpointInterval = 1024;
 constexpr std::size_t kDefaultTraceInterval = 256;
 
 struct VisualTraceFrame {
@@ -62,15 +62,6 @@ std::filesystem::path env_path_or_default(const char* variable_name,
         return default_value;
     }
     return std::filesystem::path{value};
-}
-
-bool metrics_report_enabled() {
-    const char* value = std::getenv("CADD0040_REPORT_METRICS");
-    return value != nullptr && value[0] == '1' && value[1] == '\0';
-}
-
-std::size_t checkpoint_interval_from_environment() {
-    return env_size_or_default("CADD0040_CHECKPOINT_STEPS", kDefaultCheckpointInterval);
 }
 
 std::string clock_tree_text(const ClockTree& clock_tree) {
@@ -196,9 +187,13 @@ int Solver::run() {
     try {
         load_input();
 
-        DebugProgress debug_progress = DebugProgress::from_environment();
+        DebugProgress debug_progress = config_.debug_progress;
         const Metrics baseline_metrics = evaluate(clock_tree_, data_path_graph_, buffer_library_);
-        const bool report_metrics = metrics_report_enabled();
+#ifdef NDEBUG
+        constexpr bool report_metrics = false;
+#else
+        constexpr bool report_metrics = true;
+#endif
 
         if (report_metrics) {
             std::cout << "Initial baseline metrics: " << baseline_metrics << '\n';
@@ -209,7 +204,7 @@ int Solver::run() {
 
         const std::string optimizer_name = config_.optimizer_name;
         const std::string testcase_name = config_.testcase_dir.filename().string();
-        const std::size_t checkpoint_interval = checkpoint_interval_from_environment();
+        constexpr std::size_t checkpoint_interval = kDefaultCheckpointInterval;
         auto checkpoint_writer = [&](const ClockTree& checkpoint_tree) {
             try {
                 write_output_atomically(checkpoint_tree, config_.output_file);
@@ -221,14 +216,10 @@ int Solver::run() {
         };
 
         std::ofstream progress_output;
-        const bool progress_trace_enabled = env_flag_enabled("CADD0040_PROGRESS_TRACE");
-        const std::size_t progress_interval =
-            env_size_or_default("CADD0040_PROGRESS_STEPS", kDefaultTraceInterval);
+        const bool progress_trace_enabled = config_.progress_dir.has_value();
+        const std::size_t progress_interval = config_.progress_steps;
         if (progress_trace_enabled) {
-            const auto default_progress_dir =
-                std::filesystem::path{"progress_trace"} / optimizer_name / testcase_name;
-            const auto progress_dir =
-                env_path_or_default("CADD0040_PROGRESS_DIR", default_progress_dir);
+            const auto progress_dir = *config_.progress_dir;
             std::filesystem::create_directories(progress_dir);
             progress_output.open(progress_dir / "progress.tsv");
             if (!progress_output) {

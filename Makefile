@@ -1,4 +1,4 @@
-.PHONY: all configure build release test run format clean
+.PHONY: all configure build release rocky8 test run format clean
 
 all: build
 
@@ -25,11 +25,14 @@ release:
 	cmake -S . -B $(RELEASE_DIR) $(CMAKE_GENERATOR) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(RELEASE_DIR) --parallel $(JOBS)
 
+rocky8:
+	./scripts/docker-build-rocky8.sh
+
 test: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
 run: build
-	BUILD_DIR=$(BUILD_DIR) ./scripts/run_all_testcases.sh
+	./scripts/run_all_testcases.sh --build-dir $(BUILD_DIR)
 
 format:
 	clang-format -i src/*.cpp src/*.hpp tests/*.cpp

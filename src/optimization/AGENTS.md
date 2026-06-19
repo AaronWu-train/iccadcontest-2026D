@@ -4,10 +4,9 @@ Follow root [`AGENTS.md`](../../AGENTS.md): **DebugProgress** and **Optimization
 
 Architecture details:
 
-- [`docs/optimization-architecture.md`](../../docs/optimization-architecture.md)
-- [`docs/optimization-algorithms.md`](../../docs/optimization-algorithms.md)
-- [`docs/optimization-complexity.md`](../../docs/optimization-complexity.md)
-- [`docs/optimization-experiment-parameters.md`](../../docs/optimization-experiment-parameters.md)
+- [`docs/architecture.md`](../../docs/architecture.md)
+- [`docs/optimizers.md`](../../docs/optimizers.md)
+- [`docs/experiments.md`](../../docs/experiments.md)
 
 Local rules:
 

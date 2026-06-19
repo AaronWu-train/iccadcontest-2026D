@@ -16,11 +16,11 @@ namespace cadd0040 {
  * @brief Controls optional stderr debug output.
  *
  * Release builds (NDEBUG) are always disabled.
- * Debug builds honor CADD0040_DEBUG_PROGRESS=1 and CADD0040_DEBUG_PROGRESS_INTERVAL.
+ * Debug builds emit only when the CLI enables debug output.
  */
 class DebugProgress {
 public:
-    static DebugProgress from_environment();
+    static DebugProgress from_debug_flag(bool enabled);
 
     [[nodiscard]] bool enabled() const { return enabled_; }
     [[nodiscard]] double interval_seconds() const { return interval_seconds_; }
