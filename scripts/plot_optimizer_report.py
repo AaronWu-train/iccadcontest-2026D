@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate auditable report plots for A1-A8 optimizer experiments."""
+"""Generate auditable report plots for optimizer experiments."""
 
 from __future__ import annotations
 
