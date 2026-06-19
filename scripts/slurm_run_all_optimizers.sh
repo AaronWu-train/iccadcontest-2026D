@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Submit Slurm array jobs: every canonical optimizer × every testcase.
-# Submits in the background like normal sbatch usage; aggregate when jobs finish.
+# Run every selected optimizer against every testcase.
+# Default mode submits a Slurm array job and aggregates after jobs finish.
 #
 # Usage:
-#   ./scripts/slurm_run_all_optimizers.sh
-#   ./scripts/slurm_run_all_optimizers.sh --seed 1234
-#   ./scripts/slurm_run_all_optimizers.sh --seed-runs 3
-#   CADD0040_SEED=1234 ./scripts/slurm_run_all_optimizers.sh
-#   SLURM_PARTITION=short ./scripts/slurm_run_all_optimizers.sh
-#   ./scripts/slurm_run_all_optimizers.sh --wait   # block until done, then aggregate
-#   ./scripts/slurm_run_all_optimizers.sh --local  # no Slurm, run sequentially
-#   OPTIMIZERS="A1 A6 A10 A13" ./scripts/slurm_run_all_optimizers.sh
+#   ./scripts/slurm_run_all_optimizers.sh [options]
+#
+# Common commands:
+#   ./scripts/slurm_run_all_optimizers.sh --wait
+#   ./scripts/slurm_run_all_optimizers.sh --local
+#   ./scripts/slurm_run_all_optimizers.sh --seed 5000 --seed-runs 10
 #   OUTPUT_DIR=slurm_runs/20260606_120000 ./scripts/slurm_run_all_optimizers.sh --aggregate-only
 #
-# Typical Slurm workflow:
-#   1. ./scripts/slurm_run_all_optimizers.sh
-#   2. squeue -j <job_id>          # check progress (job_id printed on submit)
-#   3. OUTPUT_DIR=... ./scripts/slurm_run_all_optimizers.sh --aggregate-only
+# Options:
+#   --seed N            First RNG seed (default: 2026)
+#   --seed-runs N       Number of consecutive seeds (default: 10)
+#   --wait              Wait for Slurm jobs, then aggregate
+#   --local             Run sequentially without Slurm
+#   --aggregate-only    Aggregate an existing OUTPUT_DIR
+#   --force             Allow overwriting an existing OUTPUT_DIR
+#   -h, --help          Show this help
 #
 # Output layout (after aggregation):
 #   logs/<optimizer>/seed_<seed>/<testcase>.log
@@ -33,8 +35,6 @@
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
 #   OPTIMIZERS                       Space-separated list (default: A1-A13 experiment matrix)
-#   CADD0040_SEED                    First RNG seed for seed-aware optimizers (default: 2026)
-#   CADD0040_SEED_RUNS               Number of consecutive seeds per experiment (default: 10)
 #   CADD0040_SA_SECONDS              Optimizer time budget (default: 570)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings
 #   SLURM_TIME                       Job time limit (default: 00:11:00)
@@ -47,8 +47,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT}/build}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${TESTCASES_DIR:-${ROOT}/testcases}"
-SEED="${CADD0040_SEED:-2026}"
-SEED_RUNS="${CADD0040_SEED_RUNS:-10}"
+SEED=2026
+SEED_RUNS=10
 SA_SECONDS="${CADD0040_SA_SECONDS:-570}"
 PROGRESS_STEPS=256
 SLURM_TIME="${SLURM_TIME:-00:11:00}"
@@ -102,7 +102,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '2,42p' "$0" | sed 's/^# //; s/^#$//'
+            awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
             exit 0
             ;;
         *)

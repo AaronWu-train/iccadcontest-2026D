@@ -115,24 +115,24 @@ Numeric progress trace recording rules:
 
 ## Plotting
 
-Generate step-score and time-score plots from a run directory:
+Generate report plots and derived tables from a run directory:
 
 ```sh
-python3 scripts/plot_optimizer_progress.py \
+python3 scripts/plot_optimizer_report.py \
   --run-dir slurm_runs/20260616_120000 \
-  --y best_score \
-  --out-dir slurm_runs/20260616_120000/plots
+  --out-dir slurm_runs/20260616_120000/report_plots
 ```
 
 Outputs:
 
 ```text
-plots/by_testcase/<testcase>_best_score_vs_step.png
-plots/by_testcase/<testcase>_best_score_vs_time.png
-plots/by_run/<optimizer>__<testcase>_phases.png
+report_plots/figures/*.png
+report_plots/figures/*.pdf
+report_plots/tables/*.tsv
+report_plots/RUN_AUDIT.json
 ```
 
-If no `progress.tsv` exists, the script prints a clear message and exits successfully.
+If no `progress.tsv` exists, progress-derived figures are skipped with a warning.
 
 ## Experiment Config File
 

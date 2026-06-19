@@ -164,9 +164,8 @@ SLURM_PARTITION=short SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
 `slurm_run_all_optimizers.sh` runs each optimizer/testcase experiment across
-consecutive seeds. The default is 10 runs starting from seed `2026`; `--seed`
-or `CADD0040_SEED` changes the first seed, and `--seed-runs` or
-`CADD0040_SEED_RUNS` changes the count.
+consecutive seeds. The default is 10 runs starting from seed `2026`; use
+`--seed` to change the first seed and `--seed-runs` to change the count.
 
 The aggregated run directory contains:
 
@@ -236,7 +235,7 @@ to stdout, while release builds suppress them.
 
 `--progress-dir` writes lightweight optimizer events and metrics to a TSV file.
 Rows include both `candidate_policy` and `accept_policy`, and this is the input
-for `scripts/plot_optimizer_progress.py`.
+for `scripts/plot_optimizer_report.py`.
 
 `CADD0040_VISUAL_TRACE` samples clock-tree snapshots into JSON frames. This is
 heavier than the TSV progress trace and should be enabled only for selected
@@ -254,18 +253,15 @@ Slurm progress output:
 
 - `progress/<optimizer>/seed_<seed>/<testcase>/progress.tsv`
 
-Plot numeric progress traces:
+Generate report plots and derived tables:
 
 ```sh
-python3 scripts/plot_optimizer_progress.py \
+python3 scripts/plot_optimizer_report.py \
   --run-dir slurm_runs/20260616_120000 \
-  --y best_score \
-  --out-dir slurm_runs/20260616_120000/plots
+  --out-dir slurm_runs/20260616_120000/report_plots
 ```
 
-The plotter renders each seed run as small low-opacity points and overlays an
-optimizer-level mean line. Step comparison plots average exact logical steps;
-time comparison plots use time bins.
+The report generator writes figures, derived TSV tables, and audit metadata.
 
 Generate an HTML visualization from visual frames:
 
@@ -281,8 +277,6 @@ python3 scripts/visualize_clock_tree_trace.py <visualization-dir-containing-fram
 | `OPTIMIZERS` | A1-A13 list | Optimizers used by `slurm_run_all_optimizers.sh` |
 | `TESTCASES_DIR` | `testcases/` | Testcase root for Slurm scripts |
 | `OUTPUT_DIR` | timestamped | Run output directory |
-| `CADD0040_SEED` | `2026` | First seed used by `slurm_run_all_optimizers.sh` |
-| `CADD0040_SEED_RUNS` | `10` | Consecutive seed count per optimizer/testcase experiment |
 | `CADD0040_SA_SECONDS` | `570` | Legacy wall-clock budget override |
 | `SLURM_PARTITION` | unset | Optional Slurm partition |
 | `SLURM_ACCOUNT` | unset | Optional Slurm account |
