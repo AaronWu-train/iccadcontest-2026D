@@ -13,6 +13,7 @@ C++17 solver for ICCAD Contest 2026 Problem D clock-tree optimization.
 - Git, for CMake FetchContent dependencies
 - Optional: Ninja for faster builds
 - Optional: clang-format and pre-commit for formatting hooks
+- Optional: Docker for Rocky Linux 8 release builds
 
 Catch2 v3 and CLI11 are fetched by CMake.
 
@@ -60,6 +61,16 @@ Runs `scripts/run_all_testcases.sh` with the debug build:
 ```sh
 make run
 ```
+
+## Rocky Linux 8 Docker Build
+
+Build the Rocky Linux 8 release binary:
+
+```sh
+make rocky8
+```
+
+The binary is written to `dist/rocky8/cadd0040`.
 
 ## Solver CLI
 
@@ -185,5 +196,3 @@ pre-commit install
 - Rebase only your own feature branches; do not rebase shared branches.
 - Run `make test` before opening a pull request.
 - Use short imperative commit messages, and ensure commit messages are precise and includes the reason for the commit.
-
-
