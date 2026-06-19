@@ -13,10 +13,10 @@ make test
 ./build/cadd0040 testcases/testcase0 testcases/testcase0/modified_clk_tree.structure
 ```
 
-For experiment runs, use the release build:
+For experiment runs, use the normal build:
 
 ```sh
-make release
+make build
 ./scripts/run_all_testcases.sh
 ```
 
@@ -46,7 +46,7 @@ sudo apt install ninja-build
 make build      # debug build in build/
 make release    # optimized build in build-release/
 make test       # Catch2 through CTest
-make run        # debug build, all testcases, stderr status enabled
+make run        # debug build, all testcases
 ```
 
 Manual CMake builds are also supported, but the Makefile is the normal entry
@@ -55,7 +55,7 @@ point for this repo.
 ## CLI
 
 ```sh
-./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--seed <n>] [--config <file>]
+./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--seed <n>] [--seconds <n>] [--config <file>] [--debug]
 ```
 
 Example:
@@ -65,7 +65,8 @@ Example:
   testcases/testcase0 \
   testcases/testcase0/modified_clk_tree.structure \
   --optimizer tabu-random \
-  --seed 1234
+  --seed 1234 \
+  --seconds 60
 ```
 
 Each testcase directory must contain:
@@ -116,7 +117,7 @@ Detailed algorithm notes live in
 `testcases/testcase*/` directory and prints a score table.
 
 ```sh
-make release
+make build
 ./scripts/run_all_testcases.sh
 ```
 
@@ -124,16 +125,13 @@ Common overrides:
 
 ```sh
 # Short smoke test
-CADD0040_SA_SECONDS=60 ./scripts/run_all_testcases.sh
+./scripts/run_all_testcases.sh --seconds 60
 
-# Use the debug build
-BUILD_DIR=build ./scripts/run_all_testcases.sh
+# Enable optimizer debug progress
+./scripts/run_all_testcases.sh --debug
 
 # Select another optimizer
-OPTIMIZER=tabu ./scripts/run_all_testcases.sh
-
-# Disable local stderr status output
-CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
+./scripts/run_all_testcases.sh --optimizer tabu
 ```
 
 ## Slurm Experiment Runs
@@ -141,7 +139,7 @@ CADD0040_DEBUG_PROGRESS=0 ./scripts/run_all_testcases.sh
 Run the canonical A1-A13 optimizer x testcase matrix:
 
 ```sh
-make release
+make build
 ./scripts/slurm_run_all_optimizers.sh
 ```
 
@@ -200,7 +198,7 @@ Config precedence:
 1. Struct defaults from `src/optimization/optimizer_config.hpp`
 2. `CADD0040_SA_SECONDS`, when no config value overrides it
 3. Config global keys: `optimizer`, `seed`, `time_budget_seconds`
-4. CLI `--seed`, as a global seed override
+4. CLI `--seed` and `--seconds`, as global overrides
 5. Config optimizer-section keys
 
 Run every top-level config file under `config/` against every testcase:
@@ -227,13 +225,15 @@ the mental model below:
 
 | Purpose | Switch | Output | Best For |
 |---------|--------|--------|----------|
-| Human debug status | `CADD0040_DEBUG_PROGRESS=1` | stderr lines from `DebugProgress` | Watching a local debug run |
+| Human debug status | `--debug` | stderr lines from `DebugProgress` | Watching a local debug run |
 | Numeric event trace | `CADD0040_PROGRESS_TRACE=1` | `progress.tsv` | Plotting score/time curves |
 | Visual frame trace | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Clock-tree animation and inspection |
 
 `DebugProgress` does not write trace files. It is silent in release builds, and
-in debug builds it prints periodic status lines only when
-`CADD0040_DEBUG_PROGRESS=1`.
+in debug builds it prints periodic status lines only when `--debug` is passed.
+
+Initial/final metric summaries are build-type output: debug builds print them
+to stdout, while release builds suppress them.
 
 `CADD0040_PROGRESS_TRACE` writes lightweight optimizer events and metrics to a
 TSV file. Rows include both `candidate_policy` and `accept_policy`, and this is
@@ -288,20 +288,13 @@ python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BUILD_DIR` | `build-release` | CMake build directory containing `cadd0040` |
-| `OPTIMIZER` | `tabu-random` | Optimizer used by `run_all_testcases.sh` |
+| `BUILD_DIR` | `build` | CMake build directory containing `cadd0040` |
 | `OPTIMIZERS` | A1-A13 list | Optimizers used by `slurm_run_all_optimizers.sh` |
-| `CONFIG_DIR` | `config/` | Config root for `slurm_run_all_configs.sh` |
-| `CONFIGS` | all | Space-separated config basenames or filenames |
 | `TESTCASES_DIR` | `testcases/` | Testcase root for Slurm scripts |
 | `OUTPUT_DIR` | timestamped | Run output directory |
 | `CADD0040_SEED` | `2026` | First seed used by `slurm_run_all_optimizers.sh` |
 | `CADD0040_SEED_RUNS` | `10` | Consecutive seed count per optimizer/testcase experiment |
 | `CADD0040_SA_SECONDS` | `570` | Legacy wall-clock budget override |
-| `CADD0040_CHECKPOINT_STEPS` | `4096` | Best-so-far output checkpoint interval; `0` disables |
-| `CADD0040_REPORT_METRICS` | script-specific | Print initial/final score lines |
-| `CADD0040_DEBUG_PROGRESS` | script-specific | Enable human-readable stderr status in debug builds |
-| `CADD0040_DEBUG_PROGRESS_INTERVAL` | script-specific | Seconds between stderr status reports |
 | `CADD0040_PROGRESS_TRACE` | `0` | Write numeric event trace rows to `progress.tsv` |
 | `CADD0040_PROGRESS_STEPS` | `256` | Logical step interval for numeric event trace rows |
 | `CADD0040_VISUAL_TRACE` | `0` | Write sampled clock-tree snapshots to `frames.json` |

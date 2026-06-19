@@ -20,8 +20,7 @@ make test           # Catch2 via CTest
 Single testcase:
 
 ```sh
-./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--config <file>]
-CADD0040_DEBUG_PROGRESS=1 ./build/cadd0040 <testcase_dir> <output>
+./build/cadd0040 <testcase_dir> <output_file> [--optimizer <name>] [--seconds <n>] [--config <file>] [--debug]
 ```
 
 Optional experiment config file (`--config`): INI `key = value` format. Global keys include
@@ -32,14 +31,10 @@ and the config `optimizer` key overrides `--optimizer`.
 | Variable | Purpose |
 |----------|---------|
 | `CADD0040_SA_SECONDS` | Optimizer time budget (default 570) |
-| `CADD0040_CHECKPOINT_STEPS` | Write best-so-far output every N optimizer steps; `0` disables (default 4096) |
-| `CADD0040_REPORT_METRICS` | `1` prints initial/final metrics and scores from `Solver` |
 | `CADD0040_PROGRESS_TRACE` | `1` writes numeric event trace rows to `progress.tsv`; default `0` |
 | `CADD0040_PROGRESS_STEPS` | Numeric event trace logical step interval (default 256) |
 | `CADD0040_VISUAL_TRACE` | `1` writes sampled visual frame snapshots to `frames.json`; default `0` |
 | `CADD0040_VISUAL_TRACE_STEPS` | Visual frame trace logical step interval (default 256) |
-| `CADD0040_DEBUG_PROGRESS` | `1` enables human-readable stderr status (debug builds) |
-| `CADD0040_DEBUG_PROGRESS_INTERVAL` | Seconds between debug stderr status lines (default 30) |
 
 ## Code layout and style
 
@@ -62,11 +57,13 @@ debug.log([&](std::ostream& os) {
 debug.report_if_due(elapsed, best_metrics, baseline_metrics, current_score);
 ```
 
-- `Solver` creates `DebugProgress::from_environment()` and passes it via `OptimizerContext`.
+- `AppConfig` owns the `DebugProgress` built from CLI `--debug`; `Solver` passes it via `OptimizerContext`.
 - **Release** (`NDEBUG`): always silent.
-- **Debug**: requires `CADD0040_DEBUG_PROGRESS=1`; interval via `CADD0040_DEBUG_PROGRESS_INTERVAL`.
+- **Debug**: requires `--debug`; periodic interval is fixed in `DebugProgress`.
 - `debug.log` — one-off human-readable stderr lines (phases, summaries).
   `report_if_due` — periodic human-readable stderr status (stderr prefix `Progress`).
+- Solver initial/final metric summaries are stdout build-type output: debug builds print them;
+  release builds suppress them.
 
 Allowed direct `std::cerr`: `main.cpp` / `Solver::run()` exceptions; `debug_progress.cpp` internals. Do not add algorithm telemetry in low-level helpers (e.g. `ClockTree::insert_buffer`).
 
@@ -148,7 +145,6 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 - Optional experiment config files are loaded via CLI `--config` and parsed in
   `src/optimization/optimizer_config.cpp`.
 - `CADD0040_SA_SECONDS` remains the legacy time-budget override when no config file is used.
-- `CADD0040_CHECKPOINT_STEPS` controls best-so-far output checkpoint frequency.
 - `CADD0040_PROGRESS_TRACE` numeric event TSVs and `CADD0040_VISUAL_TRACE` frame JSONs are optional and default off; keep full
   experiments lightweight.
 - Batch run: `./scripts/run_all_testcases.sh`

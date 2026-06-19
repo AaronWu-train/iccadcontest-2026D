@@ -29,7 +29,7 @@ test: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
 run: build
-	BUILD_DIR=$(BUILD_DIR) ./scripts/run_all_testcases.sh
+	./scripts/run_all_testcases.sh --build-dir $(BUILD_DIR)
 
 format:
 	clang-format -i src/*.cpp src/*.hpp tests/*.cpp

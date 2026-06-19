@@ -30,20 +30,17 @@
 #   slurm-<jobid>_<taskid>.{out,err}   (Slurm only)
 #
 # Environment:
-#   BUILD_DIR                        CMake build directory (default: build-release)
+#   BUILD_DIR                        CMake build directory (default: build)
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
 #   OPTIMIZERS                       Space-separated list (default: A1-A13 experiment matrix)
 #   CADD0040_SEED                    First RNG seed for seed-aware optimizers (default: 2026)
 #   CADD0040_SEED_RUNS               Number of consecutive seeds per experiment (default: 10)
 #   CADD0040_SA_SECONDS              Optimizer time budget (default: 570)
-#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
-#   CADD0040_PROGRESS_TRACE          1 to write numeric event TSV traces (default: 0)
+#   CADD0040_PROGRESS_TRACE          1 to write numeric event TSV traces (default: 1)
 #   CADD0040_PROGRESS_STEPS          Numeric event trace step interval (default: 256)
-#   CADD0040_VISUAL_TRACE            1 to write clock-tree frame traces (default: 1)
+#   CADD0040_VISUAL_TRACE            1 to write clock-tree frame traces (default: 0)
 #   CADD0040_VISUAL_TRACE_STEPS      Visual frame trace step interval (default: 256)
-#   CADD0040_DEBUG_PROGRESS          1 to enable debug stderr status (default: 0)
-#   CADD0040_DEBUG_PROGRESS_INTERVAL Debug stderr status interval seconds (default: 30)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings
 #   SLURM_TIME                       Job time limit (default: 00:11:00)
 #   SLURM_MEM                        Memory per task (default: 4G)
@@ -52,15 +49,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
+BUILD_DIR="${BUILD_DIR:-${ROOT}/build}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${TESTCASES_DIR:-${ROOT}/testcases}"
 SEED="${CADD0040_SEED:-2026}"
 SEED_RUNS="${CADD0040_SEED_RUNS:-10}"
 SA_SECONDS="${CADD0040_SA_SECONDS:-570}"
-CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-4096}"
-DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-0}"
-DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-30}"
 PROGRESS_TRACE="${CADD0040_PROGRESS_TRACE:-1}"
 PROGRESS_STEPS="${CADD0040_PROGRESS_STEPS:-256}"
 VISUAL_TRACE="${CADD0040_VISUAL_TRACE:-0}"
@@ -116,7 +110,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '2,50p' "$0" | sed 's/^# //; s/^#$//'
+            sed -n '2,47p' "$0" | sed 's/^# //; s/^#$//'
             exit 0
             ;;
         *)
@@ -196,9 +190,6 @@ OUTPUT_DIR='${OUTPUT_DIR}'
 SEED='${SEED}'
 SEED_RUNS=${SEED_RUNS}
 SA_SECONDS=${SA_SECONDS}
-CHECKPOINT_STEPS=${CHECKPOINT_STEPS}
-DEBUG_PROGRESS=${DEBUG_PROGRESS}
-DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}
 PROGRESS_TRACE=${PROGRESS_TRACE}
 PROGRESS_STEPS=${PROGRESS_STEPS}
 VISUAL_TRACE=${VISUAL_TRACE}
@@ -257,8 +248,6 @@ run_one_job() {
 
     local -a run_env=(
         "CADD0040_SA_SECONDS=${SA_SECONDS}"
-        "CADD0040_CHECKPOINT_STEPS=${CHECKPOINT_STEPS}"
-        "CADD0040_REPORT_METRICS=1"
         "CADD0040_PROGRESS_TRACE=${PROGRESS_TRACE}"
         "CADD0040_PROGRESS_STEPS=${PROGRESS_STEPS}"
         "CADD0040_PROGRESS_DIR=${progress_dir}"
@@ -266,12 +255,6 @@ run_one_job() {
         "CADD0040_VISUAL_TRACE_STEPS=${VISUAL_TRACE_STEPS}"
         "CADD0040_VISUAL_TRACE_DIR=${visual_dir}"
     )
-    if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
-        run_env+=(
-            "CADD0040_DEBUG_PROGRESS=1"
-            "CADD0040_DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}"
-        )
-    fi
 
     set +e
     local -a binary_args=(
@@ -292,6 +275,28 @@ run_one_job() {
     local initial_score final_score status
     initial_score="$(grep -E '^Initial Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
     final_score="$(grep -E '^Final Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
+    if [[ -z "${final_score}" && -f "${progress_dir}/progress.tsv" ]]; then
+        final_score="$(awk -F '\t' '
+            NR == 1 {
+                for (i = 1; i <= NF; ++i) {
+                    col[$i] = i
+                }
+                next
+            }
+            col["event"] && $col["event"] == "final" {
+                value = col["best_score"] ? $col["best_score"] : ""
+                if ((value == "" || value == "nan") && col["current_score"]) {
+                    value = $col["current_score"]
+                }
+            }
+            END {
+                if (value != "") {
+                    print value
+                }
+            }
+        ' "${progress_dir}/progress.tsv")"
+        initial_score="${initial_score:-0}"
+    fi
     initial_score="${initial_score:-"-"}"
     final_score="${final_score:-"-"}"
 
@@ -680,7 +685,7 @@ submit_slurm_jobs() {
 
     if [[ ! -x "${BINARY}" ]]; then
         echo "Binary not found: ${BINARY}" >&2
-        echo "Build first: make release" >&2
+        echo "Build first: make build" >&2
         exit 1
     fi
 
@@ -738,7 +743,7 @@ submit_slurm_jobs() {
 run_local() {
     if [[ ! -x "${BINARY}" ]]; then
         echo "Binary not found: ${BINARY}" >&2
-        echo "Build first: make release" >&2
+        echo "Build first: make build" >&2
         exit 1
     fi
 

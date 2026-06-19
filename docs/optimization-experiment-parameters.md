@@ -14,9 +14,8 @@ This document defines the default experiment matrix and lightweight logging rule
 - `CADD0040_SA_SECONDS` overrides the time budget for every optimizer when no config file is used.
 - `--config <file>` loads an INI experiment file. Config values override environment variables.
   The config `optimizer` key overrides CLI `--optimizer`.
-- `CADD0040_CHECKPOINT_STEPS` writes the best-so-far tree to the requested output path. Default: `4096`; set `0` to disable.
 - Numeric event traces and visual frame traces are off by default.
-- Full Slurm runs should keep `CADD0040_DEBUG_PROGRESS=0`, `CADD0040_PROGRESS_TRACE=0`, and `CADD0040_VISUAL_TRACE=0`.
+- Full Slurm runs should keep `CADD0040_VISUAL_TRACE=0`; optimizer debug output is enabled only by CLI `--debug`.
 
 ## A1-A13 Matrix
 
@@ -81,12 +80,15 @@ Telemetry terms:
 
 | Purpose | Switch | Output | Use |
 |---------|--------|--------|-----|
-| Human debug status | `CADD0040_DEBUG_PROGRESS=1` | stderr only | Watch a local debug run |
+| Human debug status | `--debug` | stderr only | Watch a local debug run |
 | Numeric event trace | `CADD0040_PROGRESS_TRACE=1` | `progress.tsv` | Plot score/time curves |
 | Visual frame trace | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Animate or inspect clock-tree moves |
 
 `DebugProgress` is not a file trace. It writes human-readable status to stderr
 only in debug builds, and only when enabled. Keep it off for full Slurm runs.
+
+Initial/final metric summaries are stdout build-type output: debug builds print them, while
+release builds suppress them.
 
 For curves, enable the numeric event trace only on selected runs:
 
@@ -181,7 +183,8 @@ Precedence when `--config` is present:
 1. Struct defaults from `optimizer_config.hpp`
 2. `CADD0040_SA_SECONDS` (if set)
 3. Config file global keys (`optimizer`, `seed`, `time_budget_seconds`)
-4. Config file optimizer section keys
+4. CLI `--seed` and `--seconds`
+5. Config file optimizer section keys
 
 The config `optimizer` key overrides CLI `--optimizer`.
 
@@ -190,14 +193,14 @@ The config `optimizer` key overrides CLI `--optimizer`.
 Smoke all A1-A13 locally:
 
 ```sh
-make release
+make build
 CADD0040_SA_SECONDS=10 ./scripts/slurm_run_all_optimizers.sh --local
 ```
 
 Main Slurm run:
 
 ```sh
-make release
+make build
 SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
