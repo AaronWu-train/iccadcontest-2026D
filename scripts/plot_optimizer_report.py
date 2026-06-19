@@ -56,6 +56,7 @@ GROUP_AVERAGE_SPECS = [
     (
         "fig20_23_random",
         [
+            "greedy-random",
             "tabu-random",
             "sa-random",
             "isa-random",
@@ -71,6 +72,7 @@ GROUP_AVERAGE_SPECS = [
     (
         "fig24_27_union_pool",
         [
+            "greedy-union-pool",
             "isa-sampled-union-pool",
             "sa-sampled-union-pool",
             "tabu-union-pool",
