@@ -216,14 +216,10 @@ int Solver::run() {
         };
 
         std::ofstream progress_output;
-        const bool progress_trace_enabled = env_flag_enabled("CADD0040_PROGRESS_TRACE");
-        const std::size_t progress_interval =
-            env_size_or_default("CADD0040_PROGRESS_STEPS", kDefaultTraceInterval);
+        const bool progress_trace_enabled = config_.progress_dir.has_value();
+        const std::size_t progress_interval = config_.progress_steps;
         if (progress_trace_enabled) {
-            const auto default_progress_dir =
-                std::filesystem::path{"progress_trace"} / optimizer_name / testcase_name;
-            const auto progress_dir =
-                env_path_or_default("CADD0040_PROGRESS_DIR", default_progress_dir);
+            const auto progress_dir = *config_.progress_dir;
             std::filesystem::create_directories(progress_dir);
             progress_output.open(progress_dir / "progress.tsv");
             if (!progress_output) {

@@ -220,14 +220,13 @@ Notes:
 
 ## Telemetry Outputs
 
-There are three different telemetry paths. Their names are historical, so keep
-the mental model below:
+There are three different telemetry paths:
 
 | Purpose | Switch | Output | Best For |
 |---------|--------|--------|----------|
 | Human debug status | `--debug` | stderr lines from `DebugProgress` | Watching a local debug run |
-| Numeric event trace | `CADD0040_PROGRESS_TRACE=1` | `progress.tsv` | Plotting score/time curves |
-| Visual frame trace | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Clock-tree animation and inspection |
+| Numeric progress trace | `--progress-dir <dir>` | `progress.tsv` | Plotting score/time curves |
+| Visualization frames | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Clock-tree animation and inspection |
 
 `DebugProgress` does not write trace files. It is silent in release builds, and
 in debug builds it prints periodic status lines only when `--debug` is passed.
@@ -235,37 +234,27 @@ in debug builds it prints periodic status lines only when `--debug` is passed.
 Initial/final metric summaries are build-type output: debug builds print them
 to stdout, while release builds suppress them.
 
-`CADD0040_PROGRESS_TRACE` writes lightweight optimizer events and metrics to a
-TSV file. Rows include both `candidate_policy` and `accept_policy`, and this is
-the input for `scripts/plot_optimizer_progress.py`.
+`--progress-dir` writes lightweight optimizer events and metrics to a TSV file.
+Rows include both `candidate_policy` and `accept_policy`, and this is the input
+for `scripts/plot_optimizer_progress.py`.
 
-`CADD0040_VISUAL_TRACE` samples clock-tree snapshots into JSON. This is heavier
-than the TSV trace and should be enabled only for selected runs.
+`CADD0040_VISUAL_TRACE` samples clock-tree snapshots into JSON frames. This is
+heavier than the TSV progress trace and should be enabled only for selected
+direct solver runs.
 
 The `visual` optimizer alias is separate from `CADD0040_VISUAL_TRACE`: it is a
 special visualization optimizer, while the env var can record frames for normal
 optimizers.
 
-Most full runs should keep both trace files off. Enable them only for selected
-local or small Slurm runs.
+Slurm optimizer runs always produce numeric progress and never produce
+visualization frames. Use the dedicated visualization workflow for clock-tree
+animation frames. The Slurm runner records progress every 256 logical steps.
 
-```sh
-# Numeric event trace for plots
-CADD0040_PROGRESS_TRACE=1 CADD0040_PROGRESS_STEPS=256 \
-  ./scripts/slurm_run_all_optimizers.sh --local
-
-# Visual frame trace for animation
-CADD0040_VISUAL_TRACE=1 CADD0040_VISUAL_TRACE_STEPS=256 \
-  OPTIMIZERS="greedy-violation-path" \
-  ./scripts/slurm_run_all_optimizers.sh --local
-```
-
-Trace file outputs:
+Slurm progress output:
 
 - `progress/<optimizer>/seed_<seed>/<testcase>/progress.tsv`
-- `traces/<optimizer>/seed_<seed>/<testcase>/frames.json`
 
-Plot numeric event traces:
+Plot numeric progress traces:
 
 ```sh
 python3 scripts/plot_optimizer_progress.py \
@@ -281,7 +270,7 @@ time comparison plots use time bins.
 Generate an HTML visualization from visual frames:
 
 ```sh
-python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
+python3 scripts/visualize_clock_tree_trace.py <visualization-dir-containing-frames-json>
 ```
 
 ## Environment Variables
@@ -295,10 +284,6 @@ python3 scripts/visualize_clock_tree_trace.py <trace-dir-containing-frames-json>
 | `CADD0040_SEED` | `2026` | First seed used by `slurm_run_all_optimizers.sh` |
 | `CADD0040_SEED_RUNS` | `10` | Consecutive seed count per optimizer/testcase experiment |
 | `CADD0040_SA_SECONDS` | `570` | Legacy wall-clock budget override |
-| `CADD0040_PROGRESS_TRACE` | `0` | Write numeric event trace rows to `progress.tsv` |
-| `CADD0040_PROGRESS_STEPS` | `256` | Logical step interval for numeric event trace rows |
-| `CADD0040_VISUAL_TRACE` | `0` | Write sampled clock-tree snapshots to `frames.json` |
-| `CADD0040_VISUAL_TRACE_STEPS` | `256` | Logical step interval for visual frame snapshots |
 | `SLURM_PARTITION` | unset | Optional Slurm partition |
 | `SLURM_ACCOUNT` | unset | Optional Slurm account |
 | `SLURM_TIME` | `00:11:00` | Slurm task time limit |

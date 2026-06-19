@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -15,12 +16,16 @@
 
 namespace cadd0040 {
 
+inline constexpr std::size_t kDefaultProgressSteps = 256;
+
 struct AppConfig {
     std::filesystem::path testcase_dir;
     std::filesystem::path output_file;
     std::string optimizer_name;
     std::optional<OptimizerConfigFile> optimizer_config;
     DebugProgress debug_progress = DebugProgress::from_debug_flag(false);
+    std::optional<std::filesystem::path> progress_dir;
+    std::size_t progress_steps = kDefaultProgressSteps;
 
     std::filesystem::path clk_tree_path;
     std::filesystem::path buflib_path;
@@ -32,12 +37,16 @@ struct AppConfig {
     AppConfig(std::filesystem::path testcase_dir, std::filesystem::path output_file,
               std::string optimizer_name,
               std::optional<OptimizerConfigFile> optimizer_config = std::nullopt,
-              DebugProgress debug_progress = DebugProgress::from_debug_flag(false))
+              DebugProgress debug_progress = DebugProgress::from_debug_flag(false),
+              std::optional<std::filesystem::path> progress_dir = std::nullopt,
+              std::size_t progress_steps = kDefaultProgressSteps)
         : testcase_dir(std::move(testcase_dir)),
           output_file(std::move(output_file)),
           optimizer_name(std::move(optimizer_name)),
           optimizer_config(std::move(optimizer_config)),
           debug_progress(debug_progress),
+          progress_dir(std::move(progress_dir)),
+          progress_steps(progress_steps),
           clk_tree_path(this->testcase_dir / "clk_tree.structure"),
           buflib_path(this->testcase_dir / "buf.lib"),
           ss_delay_path(this->testcase_dir / "SS_delay.rpt"),

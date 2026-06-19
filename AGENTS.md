@@ -31,10 +31,6 @@ and the config `optimizer` key overrides `--optimizer`.
 | Variable | Purpose |
 |----------|---------|
 | `CADD0040_SA_SECONDS` | Optimizer time budget (default 570) |
-| `CADD0040_PROGRESS_TRACE` | `1` writes numeric event trace rows to `progress.tsv`; default `0` |
-| `CADD0040_PROGRESS_STEPS` | Numeric event trace logical step interval (default 256) |
-| `CADD0040_VISUAL_TRACE` | `1` writes sampled visual frame snapshots to `frames.json`; default `0` |
-| `CADD0040_VISUAL_TRACE_STEPS` | Visual frame trace logical step interval (default 256) |
 
 ## Code layout and style
 
@@ -145,8 +141,8 @@ Register new optimizers in `optimizer_registry()` inside `factory.cpp`; expose n
 - Optional experiment config files are loaded via CLI `--config` and parsed in
   `src/optimization/optimizer_config.cpp`.
 - `CADD0040_SA_SECONDS` remains the legacy time-budget override when no config file is used.
-- `CADD0040_PROGRESS_TRACE` numeric event TSVs and `CADD0040_VISUAL_TRACE` frame JSONs are optional and default off; keep full
-  experiments lightweight.
+- Numeric progress TSVs are enabled with `--progress-dir` for direct runs and always on in the
+  Slurm optimizer runner; keep visualization frame generation out of Slurm runs.
 - Batch run: `./scripts/run_all_testcases.sh`
 
 ### Deep architecture

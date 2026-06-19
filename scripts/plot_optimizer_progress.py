@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot optimizer numeric event traces produced by CADD0040_PROGRESS_TRACE=1."""
+"""Plot optimizer numeric progress traces."""
 
 from __future__ import annotations
 
@@ -493,7 +493,7 @@ def main() -> int:
     if not progress_files:
         print(
             f"No progress.tsv files found under {args.run_dir}. "
-            "Run with CADD0040_PROGRESS_TRACE=1 to generate numeric event trace data.",
+            "Use a Slurm optimizer run or pass --progress-dir to cadd0040.",
             file=sys.stderr,
         )
         return 0

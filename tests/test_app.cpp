@@ -124,6 +124,22 @@ TEST_CASE("parse_arguments accepts debug output flag") {
     CHECK(config.debug_progress.enabled());
 }
 
+TEST_CASE("parse_arguments accepts progress output options") {
+    const auto config = parse_arguments({
+        "cadd0040",
+        "testcases/testcase0",
+        "testcases/testcase0/modified_clk_tree.structure",
+        "--progress-dir",
+        "progress/testcase0",
+        "--progress-steps",
+        "64",
+    });
+
+    REQUIRE(config.progress_dir.has_value());
+    CHECK(*config.progress_dir == std::filesystem::path{"progress/testcase0"});
+    CHECK(config.progress_steps == 64);
+}
+
 TEST_CASE("parse_arguments uses argv[0] only as the program name") {
     const auto config = parse_arguments({
         "cadd0040-alpha",

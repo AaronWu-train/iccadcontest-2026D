@@ -14,8 +14,8 @@ This document defines the default experiment matrix and lightweight logging rule
 - `CADD0040_SA_SECONDS` overrides the time budget for every optimizer when no config file is used.
 - `--config <file>` loads an INI experiment file. Config values override environment variables.
   The config `optimizer` key overrides CLI `--optimizer`.
-- Numeric event traces and visual frame traces are off by default.
-- Full Slurm runs should keep `CADD0040_VISUAL_TRACE=0`; optimizer debug output is enabled only by CLI `--debug`.
+- Numeric progress traces are optional in direct solver runs and always written by Slurm optimizer runs.
+- Slurm optimizer runs do not produce visualization frames; use the dedicated visualization workflow.
 
 ## A1-A13 Matrix
 
@@ -63,6 +63,7 @@ Default Slurm output is lightweight:
 ```text
 logs/
 outputs/
+progress/
 summary.txt
 results.tsv
 by_optimizer.tsv
@@ -81,8 +82,8 @@ Telemetry terms:
 | Purpose | Switch | Output | Use |
 |---------|--------|--------|-----|
 | Human debug status | `--debug` | stderr only | Watch a local debug run |
-| Numeric event trace | `CADD0040_PROGRESS_TRACE=1` | `progress.tsv` | Plot score/time curves |
-| Visual frame trace | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Animate or inspect clock-tree moves |
+| Numeric progress trace | Slurm always-on; direct solver uses `--progress-dir` | `progress.tsv` | Plot score/time curves |
+| Visualization frames | `CADD0040_VISUAL_TRACE=1` | `frames.json` | Direct solver visualization runs only |
 
 `DebugProgress` is not a file trace. It writes human-readable status to stderr
 only in debug builds, and only when enabled. Keep it off for full Slurm runs.
@@ -90,13 +91,9 @@ only in debug builds, and only when enabled. Keep it off for full Slurm runs.
 Initial/final metric summaries are stdout build-type output: debug builds print them, while
 release builds suppress them.
 
-For curves, enable the numeric event trace only on selected runs:
+Slurm optimizer runs always write numeric progress every 256 logical steps.
 
-```sh
-CADD0040_PROGRESS_TRACE=1 CADD0040_PROGRESS_STEPS=256 ./scripts/slurm_run_all_optimizers.sh --local
-```
-
-Numeric event trace file:
+Numeric progress trace file:
 
 ```text
 progress/<optimizer>/<testcase>/progress.tsv
@@ -109,26 +106,12 @@ optimizer testcase step elapsed_sec phase round event current_score best_score d
 tns_ss wns_ss tns_ff wns_ff area accepted_moves rejected_moves candidate_policy accept_policy
 ```
 
-Numeric event trace recording rules:
+Numeric progress trace recording rules:
 
 - Candidate-level trials are not recorded.
-- Every `CADD0040_PROGRESS_STEPS` logical steps are recorded.
+- Every 256 logical steps are recorded by Slurm optimizer runs.
 - Phase start/end, best update, restart, and final are always recorded.
-- Set `CADD0040_PROGRESS_STEPS=1` only for small visualization runs.
-
-For clock-tree animation frames, enable the visual frame trace only on a few
-testcases:
-
-```sh
-CADD0040_VISUAL_TRACE=1 CADD0040_VISUAL_TRACE_STEPS=256 OPTIMIZERS="greedy-violation-path" \
-    ./scripts/slurm_run_all_optimizers.sh --local
-```
-
-Visual frame output:
-
-```text
-traces/<optimizer>/<testcase>/frames.json
-```
+- Direct solver visualization experiments can use a smaller interval when needed.
 
 ## Plotting
 
