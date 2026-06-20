@@ -7,17 +7,17 @@ Problem D, "Timing Fixing by Useful Skew".
 
 ```text
 A_README.md
-B_Presentation_Slides/
-C_Project_Report/
+B_PRESENTATION_SLIDES.pdf
+C_PROJECT_REPORT.pdf
 D_Source_Code_and_Testcases/
 E_Supplemental_Materials/
 ```
 
 - `A_README.md`: this file.
-- `B_Presentation_Slides/`: final presentation slides.
-- `C_Project_Report/`: final project report PDF.
+- `B_PRESENTATION_SLIDES.pdf`: final presentation slides.
+- `C_PROJECT_REPORT.pdf`: final project report.
 - `D_Source_Code_and_Testcases/`: source code, scripts, tests, testcase inputs,
-  build files, and project documentation.
+  and build files.
 - `E_Supplemental_Materials/`: optional supplemental materials maintained by
   the team.
 

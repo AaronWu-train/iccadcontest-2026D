@@ -171,14 +171,8 @@ def build_staging(staging_dir: Path) -> None:
     reset_dir(staging_dir)
 
     shutil.copy2(SUBMISSION_README, staging_dir / "A_README.md")
-
-    slides_dir = staging_dir / "B_Presentation_Slides"
-    slides_dir.mkdir()
-    shutil.copy2(PRESENTATION_PDF, slides_dir / "presentation.pdf")
-
-    report_dir = staging_dir / "C_Project_Report"
-    report_dir.mkdir()
-    shutil.copy2(REPORT_PDF, report_dir / "report.pdf")
+    shutil.copy2(PRESENTATION_PDF, staging_dir / "B_PRESENTATION_SLIDES.pdf")
+    shutil.copy2(REPORT_PDF, staging_dir / "C_PROJECT_REPORT.pdf")
 
     source_root = staging_dir / "D_Source_Code_and_Testcases"
     source_root.mkdir()

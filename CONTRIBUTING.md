@@ -89,8 +89,8 @@ dist/submission/B13901011_B13901078_B13901088_B13901104.zip
 The package script auto-generates these folders at packaging time:
 
 ```text
-B_Presentation_Slides/
-C_Project_Report/
+B_PRESENTATION_SLIDES.pdf
+C_PROJECT_REPORT.pdf
 D_Source_Code_and_Testcases/
 ```
 
