@@ -34,6 +34,7 @@ Slurm/local optimizer matrix:
 - `docs/architecture.md`: solver flow, data structures, telemetry, output behavior.
 - `docs/optimizers.md`: optimizer aliases, policies, defaults, complexity, extension rules.
 - `docs/experiments.md`: scripts, run directories, TSVs, reports, config files.
+- `CONTRIBUTING.md`: local development, formatting, adding code, submission packaging.
 - `docs/analyze.md`: analysis notes kept as-is.
 
 ## Code Layout

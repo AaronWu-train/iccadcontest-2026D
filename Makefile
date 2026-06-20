@@ -1,4 +1,4 @@
-.PHONY: all configure build release rocky8 test run format clean
+.PHONY: all configure build release rocky8 submission test run format clean
 
 all: build
 
@@ -27,6 +27,9 @@ release:
 
 rocky8:
 	./scripts/docker-build-rocky8.sh
+
+submission:
+	python3 scripts/package_submission.py
 
 test: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure

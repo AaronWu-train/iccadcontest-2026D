@@ -1,9 +1,17 @@
 # ICCAD Contest 2026 Problem D
 
-C++17 solver for ICCAD Contest 2026 Problem D clock-tree optimization.
+[![Contest](https://img.shields.io/badge/ICCAD%202026-Problem%20D-orange.svg)](problem-statement.pdf)
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/)
+[![CMake](https://img.shields.io/badge/build-CMake-064f8c.svg)](https://cmake.org/)
+[![Catch2](https://img.shields.io/badge/tests-Catch2%20v3-2ea44f.svg)](https://github.com/catchorg/Catch2)
+[![License](https://img.shields.io/badge/license-Apache%20License%202.0-red)](LICENSE)
+
+C++17 solver for ICCAD Contest 2026 Problem D clock-tree useful-skew
+optimization.
 
 `cadd0040` reads one testcase directory, runs an optimizer, and writes a
-`modified_clk_tree.structure` output file.
+`modified_clk_tree.structure` output file. The default optimizer is
+`tabu-random`.
 
 ## Requirements
 
@@ -12,67 +20,30 @@ C++17 solver for ICCAD Contest 2026 Problem D clock-tree optimization.
 - Make
 - Git, for CMake FetchContent dependencies
 - Optional: Ninja for faster builds
-- Optional: clang-format and pre-commit for formatting hooks
 - Optional: Docker for Rocky Linux 8 release builds
 
 Catch2 v3 and CLI11 are fetched by CMake.
 
 ## Quick Start
 
-For a fresh checkout, install the development hooks, build the debug binary, and
-run the test suite:
-
 ```sh
-pre-commit install
 make build
 make test
 ```
 
-Run one testcase with the default optimizer:
+Run one testcase:
 
 ```sh
 ./build/cadd0040 testcases/testcase0 testcases/testcase0/modified_clk_tree.structure
 ```
 
-Run all testcase directories under `testcases/`:
+Run all bundled testcase directories with the default optimizer:
 
 ```sh
 make run
 ```
 
-## Build Commands
-
-Builds the debug executable in `build/`: 
-```sh
-make build
-```
-
-Builds the optimized executable in `build-release/`:
-```sh
-make release
-```
-
-Builds debug and runs Catch2 through CTest:
-```sh
-make test
-```
-
-Runs `scripts/run_all_testcases.sh` with the debug build:
-```sh
-make run
-```
-
-## Rocky Linux 8 Docker Build
-
-Build the Rocky Linux 8 release binary:
-
-```sh
-make rocky8
-```
-
-The binary is written to `dist/rocky8/cadd0040`.
-
-## Solver CLI
+## Usage
 
 ```sh
 ./build/cadd0040 <testcase_dir> <output_file> [options]
@@ -80,7 +51,7 @@ The binary is written to `dist/rocky8/cadd0040`.
 
 Common options:
 
-```sh
+```text
 --optimizer <name>
 --seed <n>
 --seconds <n>
@@ -90,60 +61,33 @@ Common options:
 --progress-steps <n>
 ```
 
-Example:
+Each testcase directory must contain:
 
-```sh
-./build/cadd0040 \
-  testcases/testcase0 \
-  testcases/testcase0/modified_clk_tree.structure \
-  --optimizer tabu-random \
-  --seed 1234 \
-  --seconds 60
+```text
+clk_tree.structure
+buf.lib
+SS_delay.rpt
+FF_delay.rpt
 ```
 
-Each testcase directory must contain `clk_tree.structure`, `buf.lib`,
-`SS_delay.rpt`, and `FF_delay.rpt`.
-
-The default optimizer is `tabu-random`.
-
-## Batch Runs
+## Experiments
 
 Run one optimizer across all `testcases/testcase*/` directories:
 
 ```sh
-./scripts/run_all_testcases.sh
-```
-
-Useful variants:
-
-```sh
-./scripts/run_all_testcases.sh --seconds 60
 ./scripts/run_all_testcases.sh --optimizer tabu-random
-./scripts/run_all_testcases.sh --debug
-./scripts/run_all_testcases.sh --build-dir build-release
 ```
 
-## Slurm Optimizer Matrix
-
-Run the default A1-A13 optimizer matrix on Slurm:
+Run the A1-A13 optimizer matrix on Slurm:
 
 ```sh
-./scripts/slurm_run_all_optimizers.sh
+./scripts/slurm_run_all_optimizers.sh --seed-runs 10
 ```
 
-On a machine without Slurm, run the same matrix sequentially:
+Run the same matrix locally:
 
 ```sh
 ./scripts/slurm_run_all_optimizers.sh --local
-```
-
-Useful variants:
-
-```sh
-./scripts/slurm_run_all_optimizers.sh --wait
-./scripts/slurm_run_all_optimizers.sh --seed 5000 --seed-runs 10
-OPTIMIZERS="A1 A6 A10 A13" ./scripts/slurm_run_all_optimizers.sh --local
-SLURM_TIME=00:11:00 ./scripts/slurm_run_all_optimizers.sh
 ```
 
 Aggregate an existing Slurm run:
@@ -152,12 +96,7 @@ Aggregate an existing Slurm run:
 OUTPUT_DIR=slurm_runs/<run-id> ./scripts/slurm_run_all_optimizers.sh --aggregate-only
 ```
 
-Each Slurm optimizer run writes logs, output clock trees, summary TSVs, and
-`progress.tsv` files under `slurm_runs/<run-id>/`.
-
-## Reports
-
-Generate report figures, derived TSVs, and audit metadata from a run directory:
+Generate report figures and derived tables from a run directory:
 
 ```sh
 python3 scripts/plot_optimizer_report.py \
@@ -165,34 +104,37 @@ python3 scripts/plot_optimizer_report.py \
   --out-dir slurm_runs/<run-id>/report_plots
 ```
 
-Important outputs:
+## Final Submission Package
+
+Edit the manual submission inputs:
 
 ```text
-report_plots/figures/
-report_plots/tables/
-report_plots/REPORT_SUMMARY.md
-report_plots/RUN_AUDIT.json
+submission/A_README.md
+submission/E_Supplemental_Materials/
+```
+
+Build the final course submission ZIP:
+
+```sh
+make submission
+```
+
+The archive is written to:
+
+```text
+dist/submission/B13901011_B13901078_B13901088_B13901104.zip
 ```
 
 ## Documentation
 
-- [`docs/architecture.md`](docs/architecture.md): solver data flow, core types,
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): local development, formatting, adding
+  code, and submission packaging workflow.
+- [`docs/architecture.md`](docs/architecture.md): solver flow, data structures,
   telemetry, and output behavior.
-- [`docs/optimizers.md`](docs/optimizers.md): A1-A13 aliases, policies,
-  algorithm flows, defaults, and complexity notes.
-- [`docs/experiments.md`](docs/experiments.md): batch scripts, Slurm layout,
-  TSV meanings, report generation, and config files.
-
-
-## Development Notes
-
-Install the formatting hook once per checkout:
-
-```sh
-pre-commit install
-```
-
-- Use git flow for branches.
-- Rebase only your own feature branches; do not rebase shared branches.
-- Run `make test` before opening a pull request.
-- Use short imperative commit messages, and ensure commit messages are precise and includes the reason for the commit.
+- [`docs/optimizers.md`](docs/optimizers.md): optimizer aliases, policies,
+  defaults, complexity, and extension rules.
+- [`docs/experiments.md`](docs/experiments.md): scripts, run directories, TSVs,
+  reports, and config files.
+- [`docs/report-plots.md`](docs/report-plots.md): report figure/table generator
+  details.
+- [`docs/analyze.md`](docs/analyze.md): analysis notes kept as-is.
