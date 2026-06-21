@@ -121,21 +121,23 @@ relative improvement form
 \end{equation}
 when $x_0$ is nonzero.  This rewards reducing negative timing metrics toward
 zero and rewards reducing area below the baseline.  The implemented score is
-\begin{align}
-  S_{\mathrm{setup}}
-    &= I(\mathrm{TNS}_{SS}, \mathrm{TNS}_{SS}^{0})
-     + I(\mathrm{WNS}_{SS}, \mathrm{WNS}_{SS}^{0}), \\
-  S_{\mathrm{hold}}
-    &= I(\mathrm{TNS}_{FF}, \mathrm{TNS}_{FF}^{0})
-     + I(\mathrm{WNS}_{FF}, \mathrm{WNS}_{FF}^{0}), \\
-  S_{\mathrm{area}}
-    &= 1 - \frac{\mathrm{Area}}{\mathrm{Area}^{0}}, \\
-  S
-    &= \alpha S_{\mathrm{setup}}
-     + \beta S_{\mathrm{hold}}
-     + \gamma S_{\mathrm{area}}. , \\
-     \alpha = 0.5, \beta = 0.25, \gamma = 0.25
-\end{align}
+\begin{equation}
+  \begin{aligned}
+    S_{\mathrm{setup}}
+      &= I(\mathrm{TNS}_{SS}, \mathrm{TNS}_{SS}^{0})
+       + I(\mathrm{WNS}_{SS}, \mathrm{WNS}_{SS}^{0}), \\
+    S_{\mathrm{hold}}
+      &= I(\mathrm{TNS}_{FF}, \mathrm{TNS}_{FF}^{0})
+       + I(\mathrm{WNS}_{FF}, \mathrm{WNS}_{FF}^{0}), \\
+    S_{\mathrm{area}}
+      &= 1 - \frac{\mathrm{Area}}{\mathrm{Area}^{0}}, \\
+    S
+      &= \alpha S_{\mathrm{setup}}
+       + \beta S_{\mathrm{hold}}
+       + \gamma S_{\mathrm{area}}, \\
+    \alpha &= 0.5, \qquad \beta = 0.25, \qquad \gamma = 0.25.
+  \end{aligned}
+\end{equation}
 This formula explains the main trade-off in the problem: aggressive buffer
 insertion may improve setup or hold slack, but the same move can reduce the area
 component and may also hurt timing on other paths. The actual parameter is not given; therefore, we set parameters based on the importance for evaluation.
