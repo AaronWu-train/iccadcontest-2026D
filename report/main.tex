@@ -16,13 +16,9 @@
 \usepackage{graphicx}       % pictures
 
 % Additional packages (personal preference)
-\usepackage{lipsum}
 \usepackage{amsmath, amsfonts}
 \usepackage{subcaption}
 \usepackage{multirow}
-
-\DeclareMathOperator{\Risk}{Risk}
-\DeclareMathOperator{\Novel}{Novel}
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
 \title{ \Large{ICCAD 2026 CAD Contest Problem D} \\ \LARGE{Timing Fixing by Useful Skew}}
@@ -65,27 +61,200 @@
 \maketitle
 
 \begin{abstract}
-  \lipsum[1] % Placeholder text for the abstract
+  % Briefly summarize the problem, the useful-skew optimization approach, the
+  % implemented candidate/acceptance policy framework, and the main experimental
+  % finding. Keep this to one compact paragraph for a 6--8 page report.
 \end{abstract}
 
 \section{Introduction}
-\lipsum[1] % Placeholder text for the abstract
+ICCAD Contest 2026 Problem D asks us to improve such violations by modifying the clock tree rather than changing the data-path logic.  The available operations are local clock-tree edits: inserting a new buffer, removing an inserted buffer, or resizing an existing buffer.  These operations change clock arrival times at flip-flops and therefore change the skew between launch and capture registers.
+
+The key opportunity is useful skew.  A nonzero clock skew is not always harmful:
+delaying the capture clock can give a setup-critical data path more time, while
+delaying the launch clock can help avoid hold violations by postponing data
+launch.  However, each clock-tree edit may affect many data paths at once.
+Improving one endpoint may degrade another path, and adding buffers also
+increases area.  The optimization problem is therefore not only to remove timing
+violations, but to balance setup improvement, hold improvement, and area cost.
+
+In this project, we model the clock tree as a mutable state and search over a
+space of legal buffer insertion, removal, and resizing operations.  Our solver
+uses candidate policies to decide which moves should be evaluated, and
+acceptance policies to decide which evaluated move should be applied.  This
+framework allows us to compare greedy search, simulated annealing, iterated
+simulated annealing, two-step timing repair, and tabu search under a common
+clock-tree timing model.  The experimental discussion focuses on how these
+policies trade off setup slack, hold slack, and area.
 
 \section{Problem Formulation}
-\lipsum[1] % Placeholder text for the abstract
+\subsection{Slack, Skew, and Score}
+A data path connects a launch flip-flop to a capture flip-flop through
+combinational logic.  Let $D$ be the data-path delay, $T_{\mathrm{clk}}$ be the
+clock period, $T_{\mathrm{setup}}$ be the setup requirement, and
+$T_{\mathrm{hold}}$ be the hold requirement.  Let
+$C_{\mathrm{launch}}$ and $C_{\mathrm{capture}}$ denote the clock arrival times
+from the clock source to the launch and capture flip-flops.  We define clock
+skew as
+\begin{equation}
+  \mathrm{skew} = C_{\mathrm{capture}} - C_{\mathrm{launch}}.
+\end{equation}
+With this convention, the setup and hold slacks used in the presentation are
+\begin{align}
+  \mathrm{setup\_slack}
+    &= T_{\mathrm{clk}} - T_{\mathrm{setup}} - D + \mathrm{skew}, \\
+  \mathrm{hold\_slack}
+    &= D - T_{\mathrm{hold}} - \mathrm{skew}.
+\end{align}
+A negative setup slack means that data arrives too late at the capture
+flip-flop.  A negative hold slack means that data arrives too early and may
+overwrite the previous value.  Therefore, a setup violation can often be
+improved by increasing the capture clock delay, while a hold violation can often
+be improved by increasing the launch clock delay.
+
+The objective combines timing and area.  Timing quality is measured by total
+negative slack (TNS) and worst negative slack (WNS) under the setup-oriented SS
+corner and the hold-oriented FF corner.  Area is the total area of the clock-tree
+buffers.  Given a baseline metric value $x_0$ and a final value $x$, we use the
+relative improvement form
+\begin{equation}
+  I(x, x_0) = 1 - \frac{x}{x_0},
+\end{equation}
+when $x_0$ is nonzero.  This rewards reducing negative timing metrics toward
+zero and rewards reducing area below the baseline.  The implemented score is
+\begin{align}
+  S_{\mathrm{setup}}
+    &= I(\mathrm{TNS}_{SS}, \mathrm{TNS}_{SS}^{0})
+     + I(\mathrm{WNS}_{SS}, \mathrm{WNS}_{SS}^{0}), \\
+  S_{\mathrm{hold}}
+    &= I(\mathrm{TNS}_{FF}, \mathrm{TNS}_{FF}^{0})
+     + I(\mathrm{WNS}_{FF}, \mathrm{WNS}_{FF}^{0}), \\
+  S_{\mathrm{area}}
+    &= 1 - \frac{\mathrm{Area}}{\mathrm{Area}^{0}}, \\
+  S
+    &= \alpha S_{\mathrm{setup}}
+     + \beta S_{\mathrm{hold}}
+     + \gamma S_{\mathrm{area}}. , \\
+     \alpha = 0.5, \beta = 0.25, \gamma = 0.25
+\end{align}
+This formula explains the main trade-off in the problem: aggressive buffer
+insertion may improve setup or hold slack, but the same move can reduce the area
+component and may also hurt timing on other paths. The actual parameter is not given; therefore, we set parameters based on the importance for evaluation.
+
+\subsection{Optimization Moves}
+The state space consists of all clock trees reachable from the input tree by
+legal edits.  A state records which buffers are present, the cell type of each
+buffer, and the parent-child connectivity of the clock tree.  Original contest
+nodes remain part of the design, while buffers inserted by the optimizer may be
+removed later.
+
+Our optimizer uses three move types.  First, an \emph{insert} move places a new
+buffer on an existing clock-tree edge.  This increases the clock delay of the
+downstream subtree and can be used to adjust useful skew, but it also increases
+area.  Second, a \emph{remove} move deletes a buffer that was inserted by the
+optimizer and reconnects the surrounding tree.  This can recover area, but it
+may undo a previous timing repair.  Third, a \emph{resize} move changes the cell
+type of an existing buffer.  Resizing gives a finer way to increase or decrease
+clock delay and area without changing the clock-tree topology.
+
+Because the number of possible edit sequences is large, the solver cannot
+enumerate the full state space.  Instead, each iteration generates a smaller set
+of candidate moves and evaluates their impact on the current timing and score.
+The rest of the report describes how we construct these candidate sets and how
+different search policies decide which move to accept.
 
 \section{Methodology}
-\lipsum[1] % Placeholder text for the abstract
+\subsection{Model for Optimization}
+% Briefly describe ClockTree, DataPathGraph, and TimingState.
+% Emphasize incremental timing evaluation and reversible apply/undo edits.
+
+\textbf{Clock Tree.}
+The clock tree is the primary data structure in our optimization framework. It consists of the clock source as the root, buffers as internal nodes, and flip-flops as leaves. The supported operations include buffer insertion, buffer removal, and buffer resizing.
+
+\medskip
+
+\textbf{Data Path Graph.}
+The data path graph stores the launch flip-flop, capture flip-flop, and data-path delay information. This information is required to evaluate whether a clock-tree modification improves timing slack.
+
+\medskip
+
+\textbf{Timing State.}
+The timing state maintains timing and area metrics, including setup slack, hold slack, total negative slack (TNS), worst negative slack (WNS), and area. These metrics are updated and queried during optimization.
+
+\medskip
+
+\textbf{Design Philosophy.}
+
+\textit{Minimize Re-computation.}
+Recomputing timing information for the entire clock tree after every modification is computationally expensive. Therefore, we employ an incremental timing cache that updates only the affected paths instead of the entire structure.
+
+\medskip
+
+\textit{Recoverability.}
+The optimization process must support undo operations so that a modification can be reverted efficiently when the move is rejected.
+
+\subsection{Candidate Policies}
+% Group the policies instead of describing every optimizer in long form:
+% random action-space sampling, violation-driven policies, upstream/critical
+% endpoint policies, and union/sampled-union pools.
+\textbf{Violation Path.}
+We check all data paths and find out those whose slack is negative and smallest, which means the data path violate timing constrain. If setup constrain is violated, the buffers near capture flip-flop is modified. Otherwise, if hold constrain is violated, the buffers near launch flip-flop is modified
+
+\medskip
+
+\textbf{Upstream Window.}
+We look for violation endpoint (i.e. capture flip-flop) and explore several buffers toward upstream of clock tree. The policy adds more candidate for optimization, but also more time consuming.
+
+\medskip
+
+\textbf{Critical Endpoint.}
+We define \textit{criticality} as an evaluation metric for how much a flip-flop worsen total negative slack. Negative setup slack is added to violation path's capture flip-flop's criticality, and negative hold slack is added to launch flip-flop's criticality, respectively. We try to modify the flip-flop with largest criticality to optimize the violation on more than one data path.
+
+
+\subsection{Accept Policies}
+% Explain BestScore greedy, Metropolis/iterated SA, tabu search, and two-step
+% slack-then-score optimization. A compact table can summarize optimizer name,
+% candidate policy, accept policy, and key idea.
+\textbf{Greedy Approach.}
+Based on chosen candidate policy, we apply all generated candidate operations to current clock tree and calculate $\Delta Score$. The strategy accept only operations with $\Delta Score>0$ and the largest $\Delta Score$. 
+
+\medskip
+
+\textbf{Two Step Optimization.}
+It's similar to greedy approach but with two stage focusing on different objective. In the first stage, we try to optimize timing constrain and neglect the penalty caused by area increment. In the second stage, we try to remove and resize buffers to reduce area penalty with timing performance maintained.
+
+\medskip
+
+\textbf{Simulated Annealing.}
+The strategy randomly come up with an move and apply the move on current clock tree. If $\Delta Score>0$ then the move is accepted, otherwise with a certain probability determined by the temperature, this move will be accepted. When the temperature is low, the strategy act like greedy approach.
+\textit{Iterated Simulated Annealing.}
+The strategy take turns doing standard simulated annealing step and greedy step, trying to explore more possible moves.
+
+\medskip
+
+\textbf{Tabu Search.}
+In each step of the strategy, we pick the best move among all candidates greedily. If the move is non-tabu move, then we directly accept the move, otherwise only if the move creates new global optimal will the move be accepted.
 
 \section{Experimental Results and Discussion}
-\lipsum[1] % Placeholder text for the abstract
+\subsection{Overall Comparison}
+% Present the main ranking table or figure. Focus on the final score and the
+% best-performing optimizer.
 
+\subsection{Setup, Hold, and Area Trade-off}
+% Break down the result by setup component, hold component, and area component.
+% Highlight cases where timing improves but area penalty reduces final score.
 
-\section{Conclusion}
-\lipsum[1] % Placeholder text for the abstract
+\subsection{Policy-Level Discussion}
+% Discuss what the candidate-policy and accept-policy comparisons imply.
+% Example: random neighborhoods work well with tabu; sampled union pools improve
+% timing aggressively but can increase area.
 
-\section{Future Plan}
-\lipsum[1] % Placeholder text for the abstract
+\subsection{Per-Testcase Behavior}
+% Summarize testcase-dependent behavior only if space allows. Keep this short
+% and focus on why no single policy dominates every testcase.
+
+\section{Conclusion and Future Work}
+% Summarize the key findings in a short paragraph. Mention one or two future
+% directions, such as area-aware tabu polish or adaptive candidate selection.
 
 \section*{Author Contributions}
 
