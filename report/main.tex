@@ -74,24 +74,16 @@
 \end{abstract}
 
 \section{Introduction}
-ICCAD Contest 2026 Problem D asks us to improve such violations by modifying the clock tree rather than changing the data-path logic.  The available operations are local clock-tree edits: inserting a new buffer, removing an inserted buffer, or resizing an existing buffer.  These operations change clock arrival times at flip-flops and therefore change the skew between launch and capture registers.
+Timing closure is a critical task in modern VLSI design. As clock frequency increases, setup and hold violations become harder to fix without disturbing the functional logic of the circuit. ICCAD Contest 2026 Problem D focuses on this setting: given an initial clock tree, a buffer library, and data-path delay reports, the goal is to improve timing quality by modifying the clock tree while preserving the original data-path logic.
 
-The key opportunity is useful skew.  A nonzero clock skew is not always harmful:
-delaying the capture clock can give a setup-critical data path more time, while
-delaying the launch clock can help avoid hold violations by postponing data
-launch.  However, each clock-tree edit may affect many data paths at once.
-Improving one endpoint may degrade another path, and adding buffers also
-increases area.  The optimization problem is therefore not only to remove timing
-violations, but to balance setup improvement, hold improvement, and area cost.
+The key idea behind this problem is useful skew. Instead of treating all clock skew as harmful, useful-skew optimization intentionally changes clock arrival times at flip-flops to improve timing margins. For a setup-critical path, delaying the capture clock can provide more time for data propagation. For a hold-critical path, delaying the launch clock can postpone data launch and reduce the risk of early data arrival. Therefore, by inserting or resizing buffers in the clock tree, the optimizer can improve setup and hold slack without changing combinational logic.
 
-In this project, we model the clock tree as a mutable state and search over a
-space of legal buffer insertion, removal, and resizing operations.  Our solver
-uses candidate policies to decide which moves should be evaluated, and
-acceptance policies to decide which evaluated move should be applied.  This
-framework allows us to compare greedy search, simulated annealing, iterated
-simulated annealing, two-step timing repair, and tabu search under a common
-clock-tree timing model.  The experimental discussion focuses on how these
-policies trade off setup slack, hold slack, and area.
+However, this optimization is highly coupled. A clock-tree edit does not affect only one data path; it changes the clock arrival time of an entire downstream subtree. As a result, a move that improves one violating path may degrade other paths that share the same clock-tree nodes. In addition, buffer insertion and upsizing may increase area, while aggressive area recovery may undo previous timing improvements. The objective is therefore not simply to fix the worst violation, but to balance SS setup improvement, FF hold improvement, and clock-tree area.
+
+In this work, we formulate timing fixing by useful skew as a constrained local-search problem over legal clock-tree states. Our solver maintains a mutable clock-tree representation, evaluates timing and area metrics after local edits, and uses reversible trial operations to explore the search space efficiently. Candidate-generation policies decide which clock-tree edits should be evaluated, while acceptance strategies decide how the solver moves from one tree state to another. The experimental discussion focuses on how these policies trade off setup slack, hold slack, and area.
+
+The rest of this report is organized as follows. Section 2 formulates the timing model, objective, and legal action space. Section 3 describes the local-search framework, including candidate generation, action evaluation, acceptance strategies, and legality checks. Section 4 reports experimental results and discusses the trade-offs among the tested optimizers. Section 5 concludes the report and outlines future improvements.
+
 
 \section{Problem Formulation}
 \subsection{Slack, Skew, and Score}
