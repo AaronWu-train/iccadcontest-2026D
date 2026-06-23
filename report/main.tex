@@ -152,32 +152,11 @@ Because the number of possible edit sequences is large, the solver cannot enumer
 
 \subsection{Solver Overview}
 
-Our solver treats useful-skew optimization as a constrained local-search
-problem.  Starting from the input clock tree, it repeatedly evaluates legal
-nearby states and moves through the search space according to a candidate policy
-and an acceptance strategy.  The candidate policy decides which local clock-tree
-edits are worth evaluating, while the acceptance strategy decides whether an
-evaluated edit should become the next state.
+After defining the legal edit operations and the timing-area objective, the remaining question is how to search the large space of legal clock-tree states efficiently. Our solver uses a local-search framework that repeatedly moves from the current clock tree to a nearby legal state. Each iteration is organized around two decisions: which candidate moves should be evaluated, and which evaluated move should be accepted as the next state.
 
-Figure~\ref{fig:flowchart} shows the overall structure of our solver.
-The loop maintains both the current state and the best state found so far.  When
-the time budget is reached, the solver restores the best-seen clock tree and
-writes it as the final output.
+We separate these two decisions into a \textbf{candidate-generation policy} and an \textbf{acceptance strategy}. The candidate-generation policy defines the local neighborhood visible to the solver in the current iteration. It may focus on violating timing paths, expand around upstream clock-tree regions, or include remove and resize moves for area recovery. The acceptance strategy then decides how the solver moves inside this neighborhood. It may greedily accept the best immediate improvement, probabilistically accept a temporary degradation, or use short-term memory to avoid cycling.
 
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.82\linewidth]{images/flowchart.png}
-  \caption{Overall local-search framework of our solver. Each iteration
-    consists of candidate generation, candidate evaluation, move acceptance, and
-    best-state update. The best-seen clock tree is restored and written to the
-  output after the time budget is reached.}
-  \label{fig:flowchart}
-\end{figure}
-
-Algorithm~\ref{alg:local-search} gives the corresponding optimization
-procedure.  The rest of this section explains the implementation details that
-support this flow: incremental timing evaluation, candidate generation,
-acceptance strategies, and output-format validation.
+Algorithm~\ref{alg:local-search} summarizes the overall optimization flow. Each iteration first constructs a bounded candidate set, evaluates the candidates through temporary application, and then applies one move according to the acceptance strategy. The solver also maintains the best-seen state separately from the current state, because exploratory strategies may temporarily move to lower-scoring states.
 
 \begin{algorithm}[htbp]
   \caption{Overall local-search optimization flow}
@@ -185,170 +164,75 @@ acceptance strategies, and output-format validation.
   \begin{algorithmic}[1]
     \State Build the initial \texttt{ClockTree}, \texttt{DataPathGraph}, and \texttt{TimingState}
     \State Evaluate the baseline tree and compute its proxy score
-    \State $\mathcal{T}_{\mathrm{cur}} \gets$ baseline clock tree
-    \State $\mathcal{T}_{\mathrm{best}} \gets \mathcal{T}_{\mathrm{cur}}$
-    \State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(\mathcal{T}_{\mathrm{cur}})$
-
-\While{current time < time budget}
-\State Generate a candidate move set $\mathcal{M}$ using the candidate policy
-\State $\mathcal{E} \gets \emptyset$
-
-\ForAll{$m \in \mathcal{M}$}
-\State Temporarily apply $m$ to $\mathcal{T}_{\mathrm{cur}}$
+\State $T_{\mathrm{cur}} \gets$ baseline clock tree
+\State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$
+\State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
+\While{current time $<$ time budget}
+\State Generate a candidate move set $M$ using the candidate policy
+\State $E \gets \emptyset$
+\ForAll{$m \in M$}
+\State Temporarily apply $m$ to $T_{\mathrm{cur}}$
 \State Update timing and area metrics
 \State Compute $\Delta S_{\mathrm{proxy}}(m)$
-\State Store the evaluated move information in $\mathcal{E}$
-\State Undo $m$ and restore $\mathcal{T}_{\mathrm{cur}}$
+\State Store the evaluated move information in $E$
+\State Undo $m$ and restore $T_{\mathrm{cur}}$
 \EndFor
-
-\State Select a move $m^\star$ from $\mathcal{E}$ using the acceptance strategy
-
+\State Select a move $m^\star$ from $E$ using the acceptance strategy
 \If{$m^\star$ exists}
-\State Apply $m^\star$ to $\mathcal{T}_{\mathrm{cur}}$
+\State Apply $m^\star$ to $T_{\mathrm{cur}}$
 \State Update \texttt{TimingState} for the current tree
-
-\If{$S_{\mathrm{proxy}}(\mathcal{T}_{\mathrm{cur}}) > S_{\mathrm{best}}$}
-\State $\mathcal{T}_{\mathrm{best}} \gets \mathcal{T}_{\mathrm{cur}}$
-\State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(\mathcal{T}_{\mathrm{cur}})$
+\If{$S_{\mathrm{proxy}}(T_{\mathrm{cur}}) > S_{\mathrm{best}}$}
+\State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$
+\State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
 \EndIf
 \EndIf
-
 \EndWhile
-
-\State Restore $\mathcal{T}_{\mathrm{best}}$
+\State Restore $T_{\mathrm{best}}$
 \State Perform full timing evaluation
 \State Write \texttt{modified\_clk\_tree.structure}
 \end{algorithmic}
 \end{algorithm}
 
+The rest of this section follows the structure of Algorithm~\ref{alg:local-search}. Section~3.2 describes the optimization state and the incremental timing evaluation used inside the temporary apply-score-undo loop. Section~3.3 describes how candidate-generation policies construct the move set $M$. Section~3.4 describes how acceptance strategies choose the move $m^\star$ from the evaluated set. Finally, Section~3.5 explains how the best-seen internal state is converted into a legal output file.
 \subsection{Optimization State and Incremental Evaluation}
 
-The optimizer uses three data structures during search.  The \texttt{ClockTree}
-is the mutable solution state.  It stores the active topology, buffer cell
-types, node origins, and stable node/edge identifiers.  The
-\texttt{DataPathGraph} stores the fixed launch flip-flop, capture flip-flop, and
-data delay of each timing path.  Since useful-skew optimization changes only the
-clock tree, the data-path graph remains read-only.  The \texttt{TimingState}
-connects these two structures and caches the quantities needed for fast search:
-clock arrivals, setup and hold slacks, TNS, WNS, area, and the proxy score.
+The optimizer maintains three main data structures during search. The \texttt{ClockTree} is the mutable solution state and stores the active topology and buffer cell types. The \texttt{DataPathGraph} stores the fixed timing paths, including the launch flip-flop, capture flip-flop, and data delay of each path. Since useful-skew optimization modifies only the clock tree, this graph remains read-only. The \texttt{TimingState} connects the two structures and caches the quantities needed for fast evaluation, including clock arrivals, setup and hold slacks, TNS, WNS, area, and the proxy score.
 
-Candidate scoring is performed by temporary application.  For a trial edit, the
-solver first applies the edit to the \texttt{ClockTree}.  The
-\texttt{TimingState} then updates only the affected downstream clock arrivals
-and the timing paths incident to affected flip-flops.  After the proxy-score
-change is computed, the edit is either kept or rolled back.  Rollback restores
-both the clock-tree topology and the timing cache, so rejected candidates do not
-pollute later evaluations.
+Candidate evaluation follows the temporary apply-score-undo loop shown in Algorithm~\ref{alg:local-search}. For each trial edit, the solver applies the move to the \texttt{ClockTree}, updates the affected clock arrivals and related timing paths in \texttt{TimingState}, and computes the proxy-score change. The move is then either accepted or rolled back. Rollback restores both the clock-tree state and the timing cache, so rejected candidates do not affect later evaluations.
 
-This design avoids recomputing the whole timing graph for every trial move.  The
-full \texttt{evaluate()} routine is still kept as the authoritative path: it
-recomputes all arrivals and slacks from scratch at the beginning and at the end
-of optimization.  During the inner search loop, however, \texttt{TimingState}
-provides the faster incremental approximation needed to evaluate many local
-edits under a fixed time budget.
+This design avoids recomputing all clock arrivals and slacks for every trial move. Instead, the solver updates only the parts of the timing state affected by the local edit, allowing many candidate moves to be evaluated within the fixed time budget.
 
 \subsection{Candidate Generation}
 
-The legal edit space is too large to enumerate at every iteration.  Therefore,
-the solver constructs a bounded candidate set that represents a useful local
-neighborhood around the current tree.  Different candidate policies emphasize
-different ways of finding useful skew.
+Since the legal edit space is too large to evaluate exhaustively, candidate generation defines the local neighborhood seen by the optimizer at each iteration. A good candidate policy should include moves that are likely to improve useful skew, but it should also keep the candidate set small enough that many iterations can be completed within the time budget. We therefore explored several policies with different degrees of timing awareness and search breadth.
 
-\paragraph{Random.}
-The random policy samples moves from the legal action space with predefined
-probabilities.  It may generate buffer insertions, inserted-buffer removals, or
-buffer resizes.  Although it is not directly guided by timing violations, it
-provides broad exploration and can find non-obvious area-recovery or resize
-moves.
+The simplest policy is \textbf{random generation}. It samples legal insert, remove, and resize moves from the current clock tree. This policy is not directly guided by timing violations, so many sampled moves may be weak. However, it provides broad exploration and can expose non-obvious area-recovery or resizing opportunities that violation-focused policies may miss.
 
-\paragraph{Violation Path.}
-The violation-path policy scans all data paths and selects paths with negative
-slack, prioritizing the most severe violations.  If a setup constraint is
-violated, the policy generates moves near the capture flip-flop, since changing
-the capture-side clock delay can improve setup slack.  If a hold constraint is
-violated, the policy generates moves near the launch flip-flop, since changing
-the launch-side clock delay can improve hold slack.
+The most direct timing-driven policy is \textbf{violation path generation}. It scans the data paths, selects paths with negative slack, and prioritizes the most severe violations. For a setup violation, the policy generates moves near the capture flip-flop, because delaying the capture clock increases skew and can improve setup slack. For a hold violation, it generates moves near the launch flip-flop, because delaying the launch clock decreases skew and can improve hold slack. This policy follows the useful-skew formula closely, but its neighborhood can be too narrow when the best repair is not immediately adjacent to the violating endpoint.
 
-\paragraph{Upstream Window.}
-The upstream-window policy starts from a violation endpoint and explores several
-buffers toward the upstream side of the clock tree.  This policy creates more
-candidate moves than the violation-path policy and can discover edits that
-affect multiple related paths.  However, it is also more time-consuming because
-it evaluates a larger local neighborhood.
+To address this limitation, the \textbf{upstream-window policy} expands the search region from a violating endpoint toward the root of the clock tree. Instead of considering only the endpoint edge, it considers several upstream buffers and edges. These moves may affect a larger downstream subtree and can therefore repair several related timing paths at once. The cost is that the candidate set becomes larger and each iteration spends more time evaluating moves.
 
-\paragraph{Critical Endpoint.}
-The critical-endpoint policy assigns a criticality value to each flip-flop based
-on how much it contributes to total negative slack.  Negative setup slack is
-added to the criticality of the capture flip-flop, while negative hold slack is
-added to the criticality of the launch flip-flop.  The policy then generates
-moves around the flip-flops with the largest criticality, aiming to repair
-violations on multiple data paths at once.
+The \textbf{critical-endpoint policy} uses path violations to assign a criticality value to each flip-flop. Negative setup slack contributes to the criticality of the capture flip-flop, while negative hold slack contributes to the criticality of the launch flip-flop. The policy then generates moves around the most critical flip-flops. Compared with selecting individual violating paths, this policy tries to identify endpoints that participate in many violations and may therefore produce moves with broader timing impact.
 
-\paragraph{Union Pool.}
-The union-pool policy combines the focused insertion policies with remove and
-resize candidates.  Duplicate candidates are removed before evaluation.  This
-policy gives the acceptance strategy a broader view of the local neighborhood:
-it can compare direct timing-repair moves with area-recovery and buffer-sizing
-moves in the same iteration.
+The previous timing-driven policies use different ways to locate promising clock-tree edits. The \textbf{union-pool policy} combines the action sources of violation path, upstream window, and critical endpoint into one candidate pool. To keep the evaluation cost comparable to the individual policies, it uses the same total sampling budget instead of simply increasing the number of evaluated candidates. Its purpose is therefore not to make the candidate set larger, but to make it more diverse under the same budget. Duplicate candidates are removed before evaluation.
 
-\paragraph{Sampled Union Pool.}
-The sampled-union-pool policy uses the same move families as the union pool, but
-it samples one family probabilistically and then samples one candidate from that
-family.  This produces a cheaper stochastic proposal for simulated-annealing
-based optimizers, where evaluating a full candidate batch at every iteration
-would spend too much of the time budget on scoring.
+Finally, the \textbf{sampled-union-pool policy} is a stochastic variant designed for simulated-annealing-based optimizers. Since simulated annealing evaluates a single proposal and immediately decides whether to accept it, evaluating the full union-pool candidate set at every step would not match its single-move search behavior. Instead, this policy samples only one candidate move from the union pool in each iteration. This keeps the proposal distribution diverse while preserving the low evaluation cost required by simulated annealing.
 
 \subsection{Acceptance Strategies}
 
-Candidate generation controls which edits are considered.  Acceptance controls
-how the search moves after those edits have been scored.  We compare five
-acceptance strategies, each using the same incremental apply-score-undo
-mechanism described above.
+After candidate generation defines the visible neighborhood, the acceptance strategy determines how the search moves through that neighborhood. This decision is important because the proxy score is not a smooth objective. A move that is locally worse may still help the solver reach a better region later, while a purely greedy sequence may quickly become trapped after all immediate improvements are exhausted.
 
-\paragraph{Greedy.}
-Given the candidates generated by the selected candidate policy, the greedy
-strategy applies each candidate temporarily and computes its proxy-score change
-$\Delta S_{\mathrm{proxy}}$.  It accepts only moves with
-$\Delta S_{\mathrm{proxy}} > 0$ and chooses the move with the largest positive
-improvement.  After the main greedy steps, the implementation also performs
-bounded resize-polish steps to recover additional score through buffer sizing.
-This strategy is simple and stable, but it may get stuck in a local optimum.
+The \textbf{greedy strategy} is the most exploitative choice. It evaluates all candidates in the current set, accepts only moves with positive proxy-score change, and applies the move with the largest improvement. This strategy is stable and easy to interpret: every accepted move immediately improves the current solution according to the proxy score. However, its performance depends heavily on the candidate pool. If the pool does not contain a good improving move, greedy search cannot escape the current local optimum.
 
-\paragraph{Two-Step Optimization.}
-The two-step strategy separates the search into two objective phases.  The first
-phase accepts moves that improve a slack-focused objective, with stronger weight
-on setup TNS and WNS.  The second phase switches back to the full proxy score,
-so area and hold timing are considered together with setup timing.  This design
-follows the intuition that the search can first create timing margin and then
-recover score through more balanced moves.
+The \textbf{two-step strategy} separates timing repair and score recovery into two phases. In the first phase, the solver emphasizes a slack-focused objective, especially setup TNS and WNS. In the second phase, it returns to the full proxy score so that hold timing and area are considered together with setup timing. This strategy follows the intuition that the solver can first create timing margin and then recover area. Its weakness is that the phase boundary is fixed: area recovery may undo previous timing repairs, and timing-focused moves may create too much area overhead for the second phase to repair.
 
-\paragraph{Simulated Annealing (SA).}
-Simulated annealing is a stochastic local-search method that can accept worse
-solutions with a temperature-controlled probability~\cite{kirkpatrick1983optimization}.
-In our optimizer, SA samples one proposal, evaluates its proxy-score change, and
-accepts all improving moves.  A worsening move may still be accepted according
-to the Metropolis probability.  The optimizer tracks the best state separately
-and restores it when the search becomes stale or drifts too far from the best
-score.
+\textbf{Simulated annealing}\cite{kirkpatrick1983optimization} introduces stochastic exploration. At each step, it samples a proposal, evaluates its proxy-score change, and always accepts improving moves. A worsening move may also be accepted with a temperature-controlled probability. At high temperature, the search can move through worse intermediate states and escape local optima; at low temperature, it behaves more like greedy search. The solver still records the best-seen state separately, so temporary degradation does not directly determine the final output.
 
-\paragraph{Iterated Simulated Annealing (ISA).}
-Iterated simulated annealing splits the remaining time into several SA rounds.
-Between rounds, the solver restores the best state and runs small greedy cleanup
-batches.  The SA phases provide exploration, while the greedy batches exploit
-local improvements around promising states.
+\textbf{Iterated simulated annealing} repeats this exploration process in several rounds. Between rounds, the solver restores the best-seen state and performs small greedy cleanup batches. The SA phases provide exploration, while the cleanup phases exploit local improvements around promising regions. This design attempts to keep the ability to escape local optima without letting the current state drift too far from a high-quality solution.
 
-\paragraph{Tabu Search.}
-Tabu search uses short-term memory to avoid cycling among recently used
-moves~\cite{glover1989tabu}.  At each step, the optimizer evaluates the
-candidate set and chooses the best non-tabu move.  A tabu move can still be
-accepted by aspiration if it improves the global best score.  After the time or
-step limit is reached, the optimizer restores the best-seen tree before
-returning it to the solver.
+\textbf{Tabu search} \cite{glover1989tabu} uses short-term memory instead of random temperature to guide exploration. At each step, it evaluates the candidate set and chooses the best non-tabu move. Recently used moves are marked tabu so that the solver is discouraged from cycling between the same few states. A tabu move can still be accepted by aspiration if it improves the global best score. This makes tabu search more exploratory than greedy search while still keeping each step strongly score-driven.
 
-The A1--A13 optimizers evaluated in Section~4 are combinations of these
-candidate-generation policies and acceptance strategies.  This separation lets
-us compare whether performance differences come mainly from the neighborhood
-definition or from the way the search accepts moves.
+Overall, candidate generation and acceptance play complementary roles. Candidate policies decide which legal edits are worth looking at, while acceptance strategies decide how aggressively the solver should exploit or explore the evaluated moves. The optimizer variants evaluated in Section 4 are different combinations of these two choices.
 
 \subsection{Output Format Validation}
 
