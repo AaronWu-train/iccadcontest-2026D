@@ -5,6 +5,8 @@
 
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{hyperref}       % hyperlinks
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tables
@@ -15,6 +17,7 @@
 \usepackage{xcolor}         % colors
 \usepackage{graphicx}       % pictures
 \usepackage{siunitx}
+
 \usepackage{float}
 \sisetup{
     round-mode          = places,
@@ -146,113 +149,229 @@ Third, a \emph{remove} move deletes a buffer that was inserted by the optimizer 
 Because the number of possible edit sequences is large, the solver cannot enumerate the full state space.  Instead, each iteration generates a smaller set of candidate moves and evaluates their impact on the current timing and proxy score.  The rest of the report describes how we construct these candidate sets and how different search policies decide which move to accept.
 
 \section{Methodology}
-Our solver is based on local search.  Starting from the baseline clock tree, it repeatedly proposes a small modification and decides whether to accept it.  The loop runs until the time budget (570 seconds) is exhausted, after which the best-seen clock tree is restored and written to the output.
 
-Because the state space of all reachable clock trees is enormous, exhaustively evaluating every possible move at each step is infeasible.  We therefore decompose each iteration into two independent decisions:
+\subsection{Solver Overview}
 
-\textbf{Candidate Policy:} selects a small set of moves to evaluate from the full action space (insert, remove, resize).  Rather than trying all possible moves, the candidate policy focuses the search on moves that are likely to improve timing.  We implement five candidate policies: Random, Violation Path, Upstream Window, Critical Endpoint, and the combined Candidate Pool.
+Our solver treats useful-skew optimization as a constrained local-search
+problem.  Starting from the input clock tree, it repeatedly evaluates legal
+nearby states and moves through the search space according to a candidate policy
+and an acceptance strategy.  The candidate policy decides which local clock-tree
+edits are worth evaluating, while the acceptance strategy decides whether an
+evaluated edit should become the next state.
 
-\textbf{Accept Policy:} given the evaluated candidates and their score changes, decides which move (if any) to apply to the current clock tree.  The accept policy controls the overall search strategy---how greedily it exploits improvements and how willing it is to accept temporarily worse moves to escape local optima.  We implement five accept policies: Greedy, Two-Step Optimization, Simulated Annealing (SA), Iterated Simulated Annealing (ISA), and Tabu Search.
+Figure~\ref{fig:flowchart} shows the overall structure of our solver.
+The loop maintains both the current state and the best state found so far.  When
+the time budget is reached, the solver restores the best-seen clock tree and
+writes it as the final output.
 
-This two-level decomposition lets us mix and match candidate and accept policies independently, and we evaluate all combinations in Section~\ref{sec:experiments}.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.82\linewidth]{images/flowchart.png}
+  \caption{Overall local-search framework of our solver. Each iteration
+    consists of candidate generation, candidate evaluation, move acceptance, and
+    best-state update. The best-seen clock tree is restored and written to the
+  output after the time budget is reached.}
+  \label{fig:flowchart}
+\end{figure}
 
-\subsection{Model for Optimization}
-% Briefly describe ClockTree, DataPathGraph, and TimingState.
-% Emphasize incremental timing evaluation and reversible apply/undo edits.
+Algorithm~\ref{alg:local-search} gives the corresponding optimization
+procedure.  The rest of this section explains the implementation details that
+support this flow: incremental timing evaluation, candidate generation,
+acceptance strategies, and output-format validation.
 
-\textbf{Clock Tree.}
-The clock tree is the primary data structure in our optimization framework. It consists of the clock source as the root, buffers as internal nodes, and flip-flops as leaves. The supported operations include buffer insertion, buffer removal, and buffer resizing.
+\begin{algorithm}[htbp]
+  \caption{Overall local-search optimization flow}
+  \label{alg:local-search}
+  \begin{algorithmic}[1]
+    \State Build the initial \texttt{ClockTree}, \texttt{DataPathGraph}, and \texttt{TimingState}
+    \State Evaluate the baseline tree and compute its proxy score
+    \State $\mathcal{T}_{\mathrm{cur}} \gets$ baseline clock tree
+    \State $\mathcal{T}_{\mathrm{best}} \gets \mathcal{T}_{\mathrm{cur}}$
+    \State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(\mathcal{T}_{\mathrm{cur}})$
 
-\medskip
+\While{current time < time budget}
+\State Generate a candidate move set $\mathcal{M}$ using the candidate policy
+\State $\mathcal{E} \gets \emptyset$
 
-\textbf{Data Path Graph.}
-The data path graph stores the launch flip-flop, capture flip-flop, and data-path delay information. This information is required to evaluate whether a clock-tree modification improves timing slack.
+\ForAll{$m \in \mathcal{M}$}
+\State Temporarily apply $m$ to $\mathcal{T}_{\mathrm{cur}}$
+\State Update timing and area metrics
+\State Compute $\Delta S_{\mathrm{proxy}}(m)$
+\State Store the evaluated move information in $\mathcal{E}$
+\State Undo $m$ and restore $\mathcal{T}_{\mathrm{cur}}$
+\EndFor
 
-\medskip
+\State Select a move $m^\star$ from $\mathcal{E}$ using the acceptance strategy
 
-\textbf{Timing State.}
-The timing state maintains timing and area metrics, including setup slack, hold slack, total negative slack (TNS), worst negative slack (WNS), and area. These metrics are updated and queried during optimization.
+\If{$m^\star$ exists}
+\State Apply $m^\star$ to $\mathcal{T}_{\mathrm{cur}}$
+\State Update \texttt{TimingState} for the current tree
 
-\medskip
+\If{$S_{\mathrm{proxy}}(\mathcal{T}_{\mathrm{cur}}) > S_{\mathrm{best}}$}
+\State $\mathcal{T}_{\mathrm{best}} \gets \mathcal{T}_{\mathrm{cur}}$
+\State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(\mathcal{T}_{\mathrm{cur}})$
+\EndIf
+\EndIf
 
-\textbf{Design Philosophy.}
+\EndWhile
 
-\textit{Minimize Re-computation.}
-Recomputing timing information for the entire clock tree after every modification is computationally expensive. Therefore, we employ an incremental timing cache that updates only the affected paths instead of the entire structure.
+\State Restore $\mathcal{T}_{\mathrm{best}}$
+\State Perform full timing evaluation
+\State Write \texttt{modified\_clk\_tree.structure}
+\end{algorithmic}
+\end{algorithm}
 
-\medskip
+\subsection{Optimization State and Incremental Evaluation}
 
-\textit{Recoverability.}
-The optimization process must support undo operations so that a modification can be reverted efficiently when the move is rejected.
+The optimizer uses three data structures during search.  The \texttt{ClockTree}
+is the mutable solution state.  It stores the active topology, buffer cell
+types, node origins, and stable node/edge identifiers.  The
+\texttt{DataPathGraph} stores the fixed launch flip-flop, capture flip-flop, and
+data delay of each timing path.  Since useful-skew optimization changes only the
+clock tree, the data-path graph remains read-only.  The \texttt{TimingState}
+connects these two structures and caches the quantities needed for fast search:
+clock arrivals, setup and hold slacks, TNS, WNS, area, and the proxy score.
 
+Candidate scoring is performed by temporary application.  For a trial edit, the
+solver first applies the edit to the \texttt{ClockTree}.  The
+\texttt{TimingState} then updates only the affected downstream clock arrivals
+and the timing paths incident to affected flip-flops.  After the proxy-score
+change is computed, the edit is either kept or rolled back.  Rollback restores
+both the clock-tree topology and the timing cache, so rejected candidates do not
+pollute later evaluations.
 
-\subsection{Candidate Policies}
-% Group the policies instead of describing every optimizer in long form:
-% random action-space sampling, violation-driven policies, upstream/critical
-% endpoint policies, and union/sampled-union pools.
-\textbf{Violation Path.}
-We check all data paths and find out those whose slack is negative and smallest, which means the data path violate timing constrain. If setup constrain is violated, the buffers near capture flip-flop is modified. Otherwise, if hold constrain is violated, the buffers near launch flip-flop is modified
+This design avoids recomputing the whole timing graph for every trial move.  The
+full \texttt{evaluate()} routine is still kept as the authoritative path: it
+recomputes all arrivals and slacks from scratch at the beginning and at the end
+of optimization.  During the inner search loop, however, \texttt{TimingState}
+provides the faster incremental approximation needed to evaluate many local
+edits under a fixed time budget.
 
-\medskip
+\subsection{Candidate Generation}
 
-\textbf{Upstream Window.}
-We look for violation endpoint (i.e. capture flip-flop) and explore several buffers toward upstream of clock tree. The policy adds more candidate for optimization, but also more time consuming.
+The legal edit space is too large to enumerate at every iteration.  Therefore,
+the solver constructs a bounded candidate set that represents a useful local
+neighborhood around the current tree.  Different candidate policies emphasize
+different ways of finding useful skew.
 
-\medskip
+\paragraph{Random.}
+The random policy samples moves from the legal action space with predefined
+probabilities.  It may generate buffer insertions, inserted-buffer removals, or
+buffer resizes.  Although it is not directly guided by timing violations, it
+provides broad exploration and can find non-obvious area-recovery or resize
+moves.
 
-\textbf{Critical Endpoint.}
-We define \textit{criticality} as an evaluation metric for how much a flip-flop worsen total negative slack. Negative setup slack is added to violation path's capture flip-flop's criticality, and negative hold slack is added to launch flip-flop's criticality, respectively. We try to modify the flip-flop with largest criticality to optimize the violation on more than one data path.
+\paragraph{Violation Path.}
+The violation-path policy scans all data paths and selects paths with negative
+slack, prioritizing the most severe violations.  If a setup constraint is
+violated, the policy generates moves near the capture flip-flop, since changing
+the capture-side clock delay can improve setup slack.  If a hold constraint is
+violated, the policy generates moves near the launch flip-flop, since changing
+the launch-side clock delay can improve hold slack.
 
-\medskip
+\paragraph{Upstream Window.}
+The upstream-window policy starts from a violation endpoint and explores several
+buffers toward the upstream side of the clock tree.  This policy creates more
+candidate moves than the violation-path policy and can discover edits that
+affect multiple related paths.  However, it is also more time-consuming because
+it evaluates a larger local neighborhood.
 
-\textbf{Random.}
-The policy randomly generate a set of moves from inserting buffer, removing inserted buffer, and resizing buffer with a certain probability.
+\paragraph{Critical Endpoint.}
+The critical-endpoint policy assigns a criticality value to each flip-flop based
+on how much it contributes to total negative slack.  Negative setup slack is
+added to the criticality of the capture flip-flop, while negative hold slack is
+added to the criticality of the launch flip-flop.  The policy then generates
+moves around the flip-flops with the largest criticality, aiming to repair
+violations on multiple data paths at once.
 
-\subsection{Accept Policies}
-% Explain BestScore greedy, Metropolis/iterated SA, tabu search, and two-step
-% slack-then-score optimization. A compact table can summarize optimizer name,
-% candidate policy, accept policy, and key idea.
-\textbf{Greedy Approach.}
-Based on chosen candidate policy, we apply all generated candidate operations to current clock tree and calculate $\Delta Score$. The strategy accept only operations with $\Delta Score>0$ and the largest $\Delta Score$.
+\paragraph{Union Pool.}
+The union-pool policy combines the focused insertion policies with remove and
+resize candidates.  Duplicate candidates are removed before evaluation.  This
+policy gives the acceptance strategy a broader view of the local neighborhood:
+it can compare direct timing-repair moves with area-recovery and buffer-sizing
+moves in the same iteration.
 
-\medskip
+\paragraph{Sampled Union Pool.}
+The sampled-union-pool policy uses the same move families as the union pool, but
+it samples one family probabilistically and then samples one candidate from that
+family.  This produces a cheaper stochastic proposal for simulated-annealing
+based optimizers, where evaluating a full candidate batch at every iteration
+would spend too much of the time budget on scoring.
 
-\textbf{Two Step Optimization.}
-It's similar to greedy approach but with two stage focusing on different objective. In the first stage, we try to optimize timing constrain and neglect the penalty caused by area increment. In the second stage, we try to remove and resize buffers to reduce area penalty with timing performance maintained.
+\subsection{Acceptance Strategies}
 
-\medskip
+Candidate generation controls which edits are considered.  Acceptance controls
+how the search moves after those edits have been scored.  We compare five
+acceptance strategies, each using the same incremental apply-score-undo
+mechanism described above.
 
-\textbf{Simulated Annealing (SA).}
-The strategy randomly come up with an move from candidate pool and apply the move on current clock tree. If $\Delta Score>0$ then the move is accepted, otherwise with a certain probability determined by the temperature, this move will be accepted. When the temperature is low, the strategy act like greedy approach.
+\paragraph{Greedy.}
+Given the candidates generated by the selected candidate policy, the greedy
+strategy applies each candidate temporarily and computes its proxy-score change
+$\Delta S_{\mathrm{proxy}}$.  It accepts only moves with
+$\Delta S_{\mathrm{proxy}} > 0$ and chooses the move with the largest positive
+improvement.  After the main greedy steps, the implementation also performs
+bounded resize-polish steps to recover additional score through buffer sizing.
+This strategy is simple and stable, but it may get stuck in a local optimum.
 
-\textit{Iterated Simulated Annealing (ISA).}
-The strategy take turns doing standard simulated annealing step and greedy step, trying to explore more possible moves.
+\paragraph{Two-Step Optimization.}
+The two-step strategy separates the search into two objective phases.  The first
+phase accepts moves that improve a slack-focused objective, with stronger weight
+on setup TNS and WNS.  The second phase switches back to the full proxy score,
+so area and hold timing are considered together with setup timing.  This design
+follows the intuition that the search can first create timing margin and then
+recover score through more balanced moves.
 
-\medskip
+\paragraph{Simulated Annealing (SA).}
+Simulated annealing is a stochastic local-search method that can accept worse
+solutions with a temperature-controlled probability~\cite{kirkpatrick1983optimization}.
+In our optimizer, SA samples one proposal, evaluates its proxy-score change, and
+accepts all improving moves.  A worsening move may still be accepted according
+to the Metropolis probability.  The optimizer tracks the best state separately
+and restores it when the search becomes stale or drifts too far from the best
+score.
 
-\textbf{Tabu Search.}
-In each step of the strategy, we pick the best move among all candidates greedily. If the move is non-tabu move, then we directly accept the move, otherwise only if the move creates new global optimal will the move be accepted.
+\paragraph{Iterated Simulated Annealing (ISA).}
+Iterated simulated annealing splits the remaining time into several SA rounds.
+Between rounds, the solver restores the best state and runs small greedy cleanup
+batches.  The SA phases provide exploration, while the greedy batches exploit
+local improvements around promising states.
 
-\textit{Candidate Pool.}
-The candidate pool merges all focused policies: Violation Path, Upstream Window, Critical Endpoint, plus Remove and Resize candidates.  At each step, one policy family is selected at random (Violation Path 25\%, Upstream Window 20\%, Critical Endpoint 15\%, Remove 20\%, Resize 20\%), and one candidate is sampled from that family for the accept policy to evaluate.
+\paragraph{Tabu Search.}
+Tabu search uses short-term memory to avoid cycling among recently used
+moves~\cite{glover1989tabu}.  At each step, the optimizer evaluates the
+candidate set and chooses the best non-tabu move.  A tabu move can still be
+accepted by aspiration if it improves the global best score.  After the time or
+step limit is reached, the optimizer restores the best-seen tree before
+returning it to the solver.
 
-\medskip
+The A1--A13 optimizers evaluated in Section~4 are combinations of these
+candidate-generation policies and acceptance strategies.  This separation lets
+us compare whether performance differences come mainly from the neighborhood
+definition or from the way the search accepts moves.
 
-\textbf{MILP-inspired Heuristic.}
-We also implemented a MILP-inspired heuristic as an alternative approach. However, under the 570-second time budget it achieved less than half the score of the best local search optimizer, so we excluded it from the main comparison and focused on the local search framework described above.
+\subsection{Output Format Validation}
 
-\subsection{Output Correctness Verification}
+The final solver output must be a legal \texttt{modified\_clk\_tree.structure}
+file, not only a high-scoring internal state.  For this reason, the same
+\texttt{ClockTree} model is used for optimization and for writing the output.
+After the selected optimizer finishes, the solver holds the best-seen clock tree
+and writes it through a preorder traversal with depth information, matching the
+format of the input clock-tree structure.
 
-We verify solver correctness at three levels.
+Output validity is protected during move construction.  Inserted buffers receive
+unique generated names, resize and insertion moves are rejected when the chosen
+cell does not support the required fanout, and remove moves are limited to
+optimizer-inserted buffers.  Original contest nodes remain alive and keep their
+names.  Search-only buffers that were removed are marked inactive and are skipped
+by the output traversal, so they do not appear in the final structure file.
 
-\textbf{Unit tests.}
-We use Catch2 to test two critical components. First, \texttt{test\_evaluation.cpp} constructs a small clock tree with known delays, computes timing metrics by hand, and checks that \texttt{evaluate()} produces exactly matching TNS, WNS, and area values.  It also verifies that the \texttt{score()} formula correctly applies the $\alpha$, $\beta$, $\gamma$ weights.  Second, \texttt{test\_clock\_tree.cpp} verifies that every edit type (insert, resize, remove) is fully reversible: after \texttt{undo()}, the parent--child connectivity and node alive flags are restored to their original state.  It also confirms that original contest nodes cannot be removed through the optimizer edit API.
-
-\textbf{Ground-truth re-evaluation.}
-The solver maintains an incremental \texttt{TimingState} for fast per-step scoring, and a separate full \texttt{evaluate()} that recomputes all clock arrivals and slacks from scratch.  \texttt{evaluate()} is called at the start (to record the baseline) and at the end (to record the final metrics), serving as the authoritative check on correctness.
-
-\textbf{Structural legality.}
-The clock tree API enforces that only buffers inserted by the optimizer (\texttt{NodeOrigin::Inserted}) can be removed; attempts to remove original contest nodes return an empty edit.  The output file is written atomically via a temp-file rename, so the file on disk is always a complete, valid tree structure.
+The writer emits only active nodes and their active parent-child relationships.
+Therefore, each flip-flop keeps a single clock-tree parent, the tree connectivity
+remains well formed, and every emitted buffer has a cell type that satisfies the
+fanout table in the buffer library.  The final write uses a temporary file
+followed by a rename, so the output path is replaced only after a complete
+structure file has been produced.
 
 \section{Experimental Results and Discussion}
 \label{sec:experiments}
