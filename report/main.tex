@@ -206,27 +206,26 @@ This design avoids recomputing all clock arrivals and slacks for every trial mov
 
 Since the legal edit space is too large to evaluate exhaustively, candidate generation defines the local neighborhood seen by the optimizer at each iteration. A good candidate policy should include moves that are likely to improve useful skew, but it should also keep the candidate set small enough that many iterations can be completed within the time budget. We therefore explored several policies with different degrees of timing awareness and search breadth.
 
-The simplest policy is \textbf{random generation}. It samples legal insert, remove, and resize moves from the current clock tree. This policy is not directly guided by timing violations, so many sampled moves may be weak. However, it provides broad exploration and can expose non-obvious area-recovery or resizing opportunities that violation-focused policies may miss.
+The simplest policy is \textbf{random generation}. It uniformly samples legal insert, remove, and resize moves from the current clock tree. This policy is the most naive way to explore the solution space, and it does not directly use timing information to guide move selection. As a result, it may generate many weak moves that do not improve timing. However, it can also expose non-obvious area-recovery or resizing opportunities that more focused policies may miss.
 
-The most direct timing-driven policy is \textbf{violation path generation}. It scans the data paths, selects paths with negative slack, and prioritizes the most severe violations. For a setup violation, the policy generates moves near the capture flip-flop, because delaying the capture clock increases skew and can improve setup slack. For a hold violation, it generates moves near the launch flip-flop, because delaying the launch clock decreases skew and can improve hold slack. This policy follows the useful-skew formula closely, but its neighborhood can be too narrow when the best repair is not immediately adjacent to the violating endpoint.
+The most direct timing-driven policy is \textbf{violation path generation}. It scans all data paths, selects paths with negative slack, and prioritizes the most severe violations. For setup violations, it generates moves near the capture flip-flop; for hold violations, it generates moves near the launch flip-flop. This follows the useful-skew formulas directly, but the resulting neighborhood can be too narrow when the best repair is not close to the violating endpoint.
 
-To address this limitation, the \textbf{upstream-window policy} expands the search region from a violating endpoint toward the root of the clock tree. Instead of considering only the endpoint edge, it considers several upstream buffers and edges. These moves may affect a larger downstream subtree and can therefore repair several related timing paths at once. The cost is that the candidate set becomes larger and each iteration spends more time evaluating moves.
+To address this limitation, the \textbf{upstream-window policy} expands the search region from a violating endpoint toward the root of the clock tree. Instead of considering only the endpoint edge, it considers several upstream buffers and edges. These moves may affect a larger downstream subtree and can therefore repair several related timing paths at once.
 
 The \textbf{critical-endpoint policy} uses path violations to assign a criticality value to each flip-flop. Negative setup slack contributes to the criticality of the capture flip-flop, while negative hold slack contributes to the criticality of the launch flip-flop. The policy then generates moves around the most critical flip-flops. Compared with selecting individual violating paths, this policy tries to identify endpoints that participate in many violations and may therefore produce moves with broader timing impact.
 
-The previous timing-driven policies use different ways to locate promising clock-tree edits. The \textbf{union-pool policy} combines the action sources of violation path, upstream window, and critical endpoint into one candidate pool. To keep the evaluation cost comparable to the individual policies, it uses the same total sampling budget instead of simply increasing the number of evaluated candidates. Its purpose is therefore not to make the candidate set larger, but to make it more diverse under the same budget. Duplicate candidates are removed before evaluation.
+Finally, the \textbf{union-pool policy} combines the action sources of violation path, upstream window, and critical endpoint into one candidate pool. It uses the same total sampling budget as the individual policies, so the goal is not to evaluate more candidates, but to obtain a more diverse candidate set under the same cost. For simulated-annealing-based optimizers, we use a \textbf{sampled-union-pool policy}, which samples only one move from this mixed pool in each iteration to match the single-proposal style of simulated annealing.
 
-Finally, the \textbf{sampled-union-pool policy} is a stochastic variant designed for simulated-annealing-based optimizers. Since simulated annealing evaluates a single proposal and immediately decides whether to accept it, evaluating the full union-pool candidate set at every step would not match its single-move search behavior. Instead, this policy samples only one candidate move from the union pool in each iteration. This keeps the proposal distribution diverse while preserving the low evaluation cost required by simulated annealing.
 
 \subsection{Acceptance Strategies}
 
 After candidate generation defines the visible neighborhood, the acceptance strategy determines how the search moves through that neighborhood. This decision is important because the proxy score is not a smooth objective. A move that is locally worse may still help the solver reach a better region later, while a purely greedy sequence may quickly become trapped after all immediate improvements are exhausted.
 
-The \textbf{greedy strategy} is the most exploitative choice. It evaluates all candidates in the current set, accepts only moves with positive proxy-score change, and applies the move with the largest improvement. This strategy is stable and easy to interpret: every accepted move immediately improves the current solution according to the proxy score. However, its performance depends heavily on the candidate pool. If the pool does not contain a good improving move, greedy search cannot escape the current local optimum.
+The \textbf{greedy strategy} is the most exploitative choice. It evaluates all candidates in the current set, and applies the move with the largest positive proxy-score improvement. This strategy is stable and easy to interpret: every accepted move immediately improves the current solution according to the proxy score. However, its performance depends heavily on the candidate pool. If the pool does not contain a good improving move, greedy search cannot escape the current local optimum.
 
-The \textbf{two-step strategy} separates timing repair and score recovery into two phases. In the first phase, the solver emphasizes a slack-focused objective, especially setup TNS and WNS. In the second phase, it returns to the full proxy score so that hold timing and area are considered together with setup timing. This strategy follows the intuition that the solver can first create timing margin and then recover area. Its weakness is that the phase boundary is fixed: area recovery may undo previous timing repairs, and timing-focused moves may create too much area overhead for the second phase to repair.
+The \textbf{two-step strategy} is a greedy strategy with two objective phases. The first phase greedily accepts moves that improve a slack-focused objective, with stronger emphasis on setup TNS and WNS. The second phase switches back to the full proxy score, so setup, hold, and area are optimized together. This design tries to create timing margin first and then recover overall score, but Its weakness is that area recovery may undo previous timing repairs, and timing-focused moves may create too much area overhead for the second phase to repair.
 
-\textbf{Simulated annealing}\cite{kirkpatrick1983optimization} introduces stochastic exploration. At each step, it samples a proposal, evaluates its proxy-score change, and always accepts improving moves. A worsening move may also be accepted with a temperature-controlled probability. At high temperature, the search can move through worse intermediate states and escape local optima; at low temperature, it behaves more like greedy search. The solver still records the best-seen state separately, so temporary degradation does not directly determine the final output.
+\textbf{Simulated annealing}\cite{kirkpatrick1983optimization} introduces stochastic exploration. At each step, it samples a proposal, evaluates its proxy-score change, and always accepts improving moves. Different from greedy search, a worsening move may also be accepted with a temperature-controlled probability. At high temperature, the search can move through worse intermediate states and escape local optima; at low temperature, it behaves more like greedy search. The solver still records the best-seen state separately, so temporary degradation does not directly determine the final output.
 
 \textbf{Iterated simulated annealing} repeats this exploration process in several rounds. Between rounds, the solver restores the best-seen state and performs small greedy cleanup batches. The SA phases provide exploration, while the cleanup phases exploit local improvements around promising regions. This design attempts to keep the ability to escape local optima without letting the current state drift too far from a high-quality solution.
 
@@ -236,26 +235,10 @@ Overall, candidate generation and acceptance play complementary roles. Candidate
 
 \subsection{Output Format Validation}
 
-The final solver output must be a legal \texttt{modified\_clk\_tree.structure}
-file, not only a high-scoring internal state.  For this reason, the same
-\texttt{ClockTree} model is used for optimization and for writing the output.
-After the selected optimizer finishes, the solver holds the best-seen clock tree
-and writes it through a preorder traversal with depth information, matching the
-format of the input clock-tree structure.
+Output validity is enforced during move construction rather than repaired after optimization. Inserted buffers receive unique generated names, resize and insertion moves are rejected if the selected cell type violates the fanout limit, and remove moves are limited to optimizer-inserted buffers. Original contest nodes remain active and keep their names, while removed search-only buffers are marked inactive so that they cannot appear in the final output.
 
-Output validity is protected during move construction.  Inserted buffers receive
-unique generated names, resize and insertion moves are rejected when the chosen
-cell does not support the required fanout, and remove moves are limited to
-optimizer-inserted buffers.  Original contest nodes remain alive and keep their
-names.  Search-only buffers that were removed are marked inactive and are skipped
-by the output traversal, so they do not appear in the final structure file.
+After the optimizer finishes, the solver restores the best-seen \texttt{ClockTree} and writes only active nodes through a preorder traversal with depth information, matching the input clock-tree format. Since the writer emits only active parent-child relationships, each flip-flop keeps a single clock-tree parent, the tree remains well formed, and every emitted buffer satisfies the buffer-library fanout table. The final file is written through a temporary file followed by a rename, so the output path is replaced only after a complete \texttt{modified\_clk\_tree.structure} file has been produced.
 
-The writer emits only active nodes and their active parent-child relationships.
-Therefore, each flip-flop keeps a single clock-tree parent, the tree connectivity
-remains well formed, and every emitted buffer has a cell type that satisfies the
-fanout table in the buffer library.  The final write uses a temporary file
-followed by a rename, so the output path is replaced only after a complete
-structure file has been produced.
 
 \section{Experimental Results and Discussion}
 \label{sec:experiments}
