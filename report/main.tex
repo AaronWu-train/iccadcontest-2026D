@@ -100,17 +100,17 @@ For each flip-flop, the clock arrival time is the total delay from the clock sou
 
 A data path connects a launch flip-flop to a capture flip-flop through combinational logic. Let $D_{clk}^{\mathrm{launch}}$ and $D_{clk}^{\mathrm{capture}}$ denote the clock arrival times from the clock source to the launch and capture flip-flops. We define clock skew as
 \begin{equation}
-\mathrm{skew} = D_{clk}^{\mathrm{capture}} - D_{clk}^{\mathrm{launch}}.
+\mathrm{Skew} = D_{clk}^{\mathrm{capture}} - D_{clk}^{\mathrm{launch}}.
 \end{equation}
 With this convention, positive skew means that the capture clock arrives later than the launch clock. A clock-tree edit may change the arrival time of an entire downstream subtree, so the skew of many data paths can change after a single local modification.
 \subsection{Setup/Hold Slack and Timing Metrics}
 
 Let $D_{\mathrm{data}}$ be the data-path delay, $T_{\mathrm{clk}}$ be the clock period, $T_{\mathrm{setup}}$ be the setup requirement, and $T_{\mathrm{hold}}$ be the hold requirement.  With the skew convention above, the setup and hold slacks are
 \begin{align}
-  \mathrm{slack}_{\mathrm{setup}}
-  &= T_{\mathrm{clk}} - T_{\mathrm{setup}} - D_{\mathrm{data}} + \mathrm{skew}, \\
-  \mathrm{slack}_{\mathrm{hold}}
-  &= D_{\mathrm{data}} - T_{\mathrm{hold}} - \mathrm{skew}.
+  \mathrm{Slack}_{\mathrm{setup}}
+  &= T_{\mathrm{clk}} - T_{\mathrm{setup}} - D_{\mathrm{data}} + \mathrm{Skew}, \\
+  \mathrm{Slack}_{\mathrm{hold}}
+  &= D_{\mathrm{data}} - T_{\mathrm{hold}} - \mathrm{Skew}.
 \end{align}
 
 A negative setup slack means that data arrives too late at the capture flip-flop.  A negative hold slack means that data arrives too early and may overwrite the previous value.  Therefore, a setup violation can often be improved by increasing the capture clock delay, while a hold violation can often be improved by increasing the launch clock delay.
