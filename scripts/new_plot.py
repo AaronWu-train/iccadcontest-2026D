@@ -126,6 +126,13 @@ SHADE_ALPHA = 0.055
 FIG_SIZE = (13.0, 8.4)
 DPI = 300
 
+# Font sizes tuned for report figures.
+PANEL_TITLE_FONT_SIZE = 12.0
+FIGURE_TITLE_FONT_SIZE = 14.5
+AXIS_LABEL_FONT_SIZE = 9.5
+TICK_LABEL_FONT_SIZE = 8.8
+LEGEND_FONT_SIZE = 12.0
+
 PANELS = [
     ("best_gap", "Best-score gap", "Gap to best"),
     ("setup_score", "Setup score", "Score"),
@@ -397,9 +404,10 @@ def main() -> int:
                 y_values.extend(agg["q25"].tolist())
                 y_values.extend(agg["q75"].tolist())
 
-            ax.set_title(panel_title, fontsize=10.5, fontweight="bold")
-            ax.set_xlabel("Time (s)", fontsize=9)
-            ax.set_ylabel(y_label, fontsize=9)
+            ax.set_title(panel_title, fontsize=PANEL_TITLE_FONT_SIZE, fontweight="bold")
+            ax.set_xlabel("Time (s)", fontsize=AXIS_LABEL_FONT_SIZE)
+            ax.set_ylabel(y_label, fontsize=AXIS_LABEL_FONT_SIZE)
+            ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
             ax.grid(True, linestyle="--", linewidth=0.55, alpha=0.25)
             ax.axhline(0.0, color="black", linestyle=":", linewidth=0.7, alpha=0.8)
             set_y_limits(ax, y_values)
@@ -407,7 +415,7 @@ def main() -> int:
             if legend_handles is None:
                 legend_handles, legend_labels = ax.get_legend_handles_labels()
 
-        fig.suptitle(fig_cfg["title"], fontsize=12.5, fontweight="bold", y=0.99)
+        fig.suptitle(fig_cfg["title"], fontsize=FIGURE_TITLE_FONT_SIZE, fontweight="bold", y=0.992)
 
         if legend_handles and legend_labels:
             fig.legend(
@@ -416,11 +424,11 @@ def main() -> int:
                 loc="lower center",
                 ncol=min(3, len(legend_labels)),
                 frameon=True,
-                fontsize=8.5,
-                bbox_to_anchor=(0.5, -0.015),
+                fontsize=LEGEND_FONT_SIZE,
+                bbox_to_anchor=(0.5, -0.03),
             )
 
-        fig.tight_layout(rect=(0, 0.05, 1, 0.96))
+        fig.tight_layout(rect=(0, 0.085, 1, 0.955))
 
         out_path = args.out_dir / f"{fig_cfg['filename']}.png"
         fig.savefig(out_path, bbox_inches="tight", dpi=DPI)

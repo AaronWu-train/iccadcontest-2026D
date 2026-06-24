@@ -329,10 +329,12 @@ We also compare acceptance policies when the candidate pool is built from the un
 For SA and ISA, the sampled-union-pool variant uses a single sampled proposal per iteration to match the single-proposal style of annealing.
 
 \begin{figure}[H]
+  \vspace{-0.5em}
   \centering
   \includegraphics[width=0.98\linewidth]{images/fig3.png}
   \caption{Acceptance-policy comparison under union-based candidate policies. Greedy, two-step, and tabu use the union pool, while SA and ISA use sampled union-pool proposals.}
   \label{fig:acceptance-union}
+  \vspace{-0.8em}
 \end{figure}
 
 Figure~\ref{fig:acceptance-union} shows a different trade-off from the random candidate experiment. 
@@ -344,23 +346,31 @@ Overall, this figure shows that a richer candidate pool alone does not guarantee
 
 \subsection{ISA and Tabu as Search-Memory Strategies}
 
-The previous two experiments suggest that the best strategies are not the ones that maximize a single component. 
-We therefore compare ISA and tabu search more directly, because both methods add memory or history to the search process, where ISA uses repeated annealing rounds with best-state restoration, while tabu search uses a short-term tabu list and aspiration.
+The previous experiments suggest that the strongest strategies are not the ones that maximize a single component. 
+We therefore compare ISA and tabu search more directly, since both methods use search history to avoid the limitations of plain greedy search. 
+ISA uses repeated annealing rounds with best-state restoration, while tabu search uses a short-term tabu list and aspiration to avoid cycling while still accepting globally promising moves.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.98\linewidth]{images/fig4.png}
   \caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
-  \label{fig:isa-vs-tabu}
+  \label{fig:tabu-isa}
 \end{figure}
 
-Figure~\ref{fig:isa-vs-tabu} explains why tabu-random becomes the strongest variant in the final ranking. 
-ISA-sampled-union-pool has the highest setup trajectory, but its area score decreases sharply and remains strongly negative.
-This means that its setup repair is purchased by keeping too many area-expensive clock-tree edits. 
-Tabu-union-pool avoids this area collapse, but its timing components are not as strong as tabu-random. 
-Tabu-random gives the best overall balance, where it approaches the best-score gap most closely, achieves the strongest hold trajectory among these variants, and keeps area positive. 
+Figure~\ref{fig:tabu-isa} explains why \textit{tabu-random} becomes the strongest variant in the final ranking. 
+\textit{ISA-sampled-union-pool} has the highest setup trajectory, but its area score decreases sharply and remains strongly negative. 
+This means that its setup repair is obtained by keeping many area-expensive clock-tree edits. 
+\textit{Tabu-union-pool} avoids this severe area collapse, but its timing components are not as strong as those of \textit{tabu-random}. 
+In contrast, \textit{tabu-random} gives the best overall balance: it approaches the empirical best-score gap most closely, achieves the strongest hold trajectory among these variants, and keeps the area score positive.
+
 This comparison also clarifies the role of random candidate generation. 
-Random proposals are not better because they are more targeted; they are better here because they expose non-obvious insert, remove, and resize opportunities, and tabu memory is strong enough to exploit that broader neighborhood without repeatedly undoing recent moves.
+Random proposals are not better because they are more targeted. 
+Instead, they expose a broader set of non-obvious insert, remove, and resize opportunities that a violation-focused union pool may miss. 
+Tabu memory is then strong enough to extract useful moves from this broader neighborhood without repeatedly undoing recent moves. 
+This explains why \textit{tabu-random} outperforms \textit{tabu-union-pool}: the random neighborhood is less biased toward immediate violation repair, while tabu search keeps the trajectory score-driven and prevents short cycles.
+
+Overall, \textit{tabu-random} achieves the highest average score because it does not optimize setup, hold, or area in isolation. It does not have the largest setup component, but it obtains the best hold component and also reduces area.
+In contrast, \textit{sa-sampled-union-pool} has the highest setup component, but its strongly negative area score pulls down its final score. 
 
 \subsection{Overall Optimizer Comparison}
 
@@ -406,25 +416,6 @@ greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 0.375666
 \bottomrule
 \end{tabular}
 \end{table}
-
-\textit{Tabu-random} achieves the highest average score. 
-It does not have the largest setup component, but it has the best hold component and also reduces area. 
-In contrast, \textit{sa-sampled-union-pool} has the highest setup component, but its strongly negative area score pulls down its final score.
-This agrees with the trend observed in the trajectory plots where maximizing one timing component is not sufficient because the final ranking is determined by the balance among setup repair, hold repair, and area control.
-
-\subsection{Discussion: Why Tabu-Random Performs Best}
-
-The final result can be explained by the interaction between candidate diversity and search memory. 
-SA and ISA are able to escape local optima, and sampled union proposals make them strong at setup repair. 
-However, their stochastic acceptance can keep many area-increasing moves, so their timing gain is partly lost through area penalty. 
-Greedy search has the opposite behavior, where it is stable and area-aware but it relies heavily on the candidate pool and cannot move through temporary score degradation.
-
-Tabu-random gives a better compromise. 
-Random candidates expose non-local insert, remove, and resize opportunities that a violation-focused union pool may miss. 
-Tabu memory then prevents the search from repeatedly returning to recent moves while still choosing the best non-tabu candidate at each step. 
-Therefore, we can imply that the reason \textit{tabu-random} outperforms \textit{tabu-union-pool} is because the random neighborhood is less biased toward immediate violation repair, and tabu search is strong enough to extract useful moves from that broader neighborhood.
-As a result, \textit{tabu-random} does not maximize setup alone, but it finds the best overall setup-hold-area balance.
-
 
 \section{Conclusion}
 This work formulates useful-skew timing fixing as a constrained local-search
