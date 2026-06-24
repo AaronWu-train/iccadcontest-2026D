@@ -243,32 +243,71 @@ After the optimizer finishes, the solver restores the best-seen \texttt{ClockTre
 \section{Experimental Results and Discussion}
 \label{sec:experiments}
 
-\subsection{Using Different Candidate Policy}
-We first compare different candidate policies under the greedy algorithm.
+\subsection{Experimental Setup and Metrics}
 
-\textbf{Score Analysis.}
-Overall, union pool is the best candidate policy, while random and upstream window are close behind.  Violation path and critical endpoint perform worse because they do not improve both setup and hold slack sufficiently.  The stronger policies have similar setup performance, but union pool gains extra score from better hold improvement and more controlled area.
+We evaluate all optimizer variants on five public testcases.  Each optimizer is
+run with five random seeds, giving $13 \times 5 \times 5 = 325$ completed runs.
+The reported score is the proxy score defined in Section~2, using
+$\alpha=0.5$, $\beta=0.25$, and $\gamma=0.25$.
 
-\medskip
+In the result tables, Setup and Hold denote $S_{\mathrm{setup}}$ and
+$S_{\mathrm{hold}}$, i.e., the sum of TNS and WNS improvement for the SS and FF
+corners respectively.  Area denotes $S_{\mathrm{area}}$, where a larger value
+means lower final buffer area relative to the baseline.
 
-\textbf{Possible Reason.}
-Greedy search always chooses the best immediately improving move.  Therefore, its performance depends heavily on whether the candidate pool contains a good local edit.  Violation path and critical endpoint generate narrower candidate sets, so they are more likely to miss useful upstream or area-recovery moves.
+\subsection{Effect of Candidate Generation}
 
+We first isolate the effect of candidate generation by fixing the acceptance
+strategy to greedy best-score selection.  Under this setting, the optimizer can
+only accept an immediately improving move, so the result mainly reflects whether
+the candidate pool contains useful local edits.
 
-\subsection{Using Different Accept Policy}
-We next compare accept policies using random candidates, union pool, and sampled union pool.
-\subsubsection{Random Candidate}
-With random candidates, tabu search gives the best result, while two-step optimization is the weakest.  The main issue of two-step optimization is that its first stage focuses on timing repair and its second stage tries to recover area afterward.  This separation is too rigid: area-recovery moves may undo previous timing repair, while timing-focused moves may leave too much area cost for the second stage to clean up.  As a result, two-step optimization has weaker hold slack and area than SA, ISA, and tabu search.  Its timing-first stage also does not outperform SA/ISA enough to justify the later cleanup cost.  Tabu search performs better because it can accept non-improving intermediate moves, avoid recent cycles with tabu memory, and still restore the best solution found.
+Union pool performs best among the greedy variants, while random generation and
+upstream window are close behind.  This suggests that greedy search benefits
+from a more diverse candidate set under the same sampling budget.  Violation
+path and critical endpoint are weaker because their candidate regions are too
+narrow: they focus on directly violated endpoints, but useful clock-tree edits
+often appear farther upstream or in resize/remove moves that help area recovery.
 
-\subsubsection{Union Pool and Sampled Union Pool}
-With union pool and sampled union pool, two-step optimization is still the weakest.  Although union pool provides more candidates, the two fixed stages do not convert this larger search space into a better final score.  SA and ISA aggressively improve setup slack, but they pay a large area penalty because many accepted moves insert or preserve extra buffers.  Tabu search is more balanced: it improves timing while keeping the final area close to the baseline.
+\subsection{Effect of Acceptance Strategy}
 
-\subsection{Overall Performance}
-Table~\ref{tab:optimizer_results} reports the average over five testcases and five seeds.  Setup and Hold are $S_{\mathrm{setup}}$ and $S_{\mathrm{hold}}$ as defined in Section~2, i.e.\ the sum of TNS and WNS improvement for the SS and FF corners respectively; higher is better.  Area is $S_{\mathrm{area}}$; higher means the optimizer reduced buffer area below the baseline.  Area Ratio is the final area divided by the baseline area; lower is better (below 1.0 means area reduction).  Avg.\ Score is the weighted total $S$ with $\alpha=0.5$, $\beta=0.25$, $\gamma=0.25$; higher is better.  Std.\ is the standard deviation of the final scores across runs; lower indicates more consistent behavior.
+We next fix the candidate family and compare how different acceptance strategies
+move through the generated neighborhood.  This experiment separates the quality
+of candidate generation from the ability of the search strategy to escape local
+optima.
+
+\subsubsection{Random Candidate Policy}
+
+With random candidates, tabu search gives the best result, while two-step
+optimization is the weakest.  Random candidates provide a broad but noisy search
+space.  Tabu search can exploit this space because it still evaluates candidate
+quality, avoids recent cycles through tabu memory, and restores the best
+solution found.  In contrast, the two-step method separates timing repair and
+area recovery too rigidly.  Timing-focused moves may leave too much area cost
+for the second stage to clean up, while area-recovery moves may undo previous
+timing improvements.  Its timing-first stage also does not outperform SA/ISA
+enough to justify this cleanup cost.
+
+\subsubsection{Union-Based Candidate Policies}
+
+With union pool and sampled union pool, two-step optimization remains weak.
+Although union pool provides a more diverse candidate set under the same budget,
+the fixed two-stage schedule does not convert this diversity into a better final
+score.  SA and ISA aggressively improve setup slack from sampled union
+proposals, but this improvement often comes with a large area penalty because
+many accepted moves insert or preserve extra buffers.  Tabu search is more
+balanced: it improves timing while keeping final area close to the baseline.
+
+\subsection{Overall Optimizer Comparison}
+
+Table~\ref{tab:optimizer_results} summarizes the final score decomposition for
+all optimizer variants.  This table combines the two ablations above and shows
+which policy combination gives the best overall timing-area trade-off.
 
 \begin{table}[H]
 \centering
-\caption{Performance comparison of different optimizers.}
+\caption{Performance comparison of different optimizers. Std. is computed from
+the final scores over five testcases and five seeds.}
 \label{tab:optimizer_results}
 
 \begin{tabular}{
@@ -278,7 +317,6 @@ S[table-format=1.6]
 S[table-format=1.6]
 S[table-format=-1.6]
 S[table-format=1.6]
-S[table-format=1.6]
 }
 \toprule
 {Optimizer} &
@@ -286,43 +324,96 @@ S[table-format=1.6]
 {Setup} &
 {Hold} &
 {Area} &
-{Area Ratio} &
 {Std.} \\
 \midrule
 
-tabu-random              & \bfseries 1.140722 & 1.276422 & \bfseries 1.916255 &  0.093788 & 0.906212 & 0.235526 \\
-isa-random               & 1.084773 & 1.322733 & 1.737303 & -0.043676 & 1.043676 & 0.273375 \\
-tabu-union-pool          & 1.062058 & 1.259221 & 1.731261 & -0.001474 & 1.001474 & 0.274410 \\
-isa-sampled-union-pool   & 1.044759 & 1.521136 & 1.721173 & -0.584406 & 1.584406 & 0.183581 \\
-sa-sampled-union-pool    & 1.044015 & 1.653149 & 1.833949 & -0.964191 & 1.964191 & \bfseries 0.165838 \\
-greedy-union-pool        & 1.042167 & 1.193238 & 1.757868 &  0.024327 & 0.975673 & 0.266567 \\
-greedy-upstream-window   & 1.031489 & 1.227970 & 1.710767 & -0.040751 & 1.040751 & 0.275511 \\
-greedy-random            & 1.009059 & 1.104560 & 1.806695 &  0.020420 & 0.979580 & 0.214807 \\
-sa-random                & 0.998808 & 1.149864 & 1.750100 & -0.054596 & 1.054596 & 0.276991 \\
-two-step-random          & 0.876061 & 1.148869 & 1.334986 & -0.128479 & 1.128479 & 0.318905 \\
-two-step-union-pool      & 0.859649 & 1.045729 & 1.405060 & -0.057920 & 1.057920 & 0.401216 \\
-greedy-violation-path    & 0.829324 & 1.032678 & 1.300464 & -0.048521 & 1.048521 & 0.277805 \\
-greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 1.048491 & 0.375666 \\
+tabu-random              & \bfseries 1.140722 & 1.276422 & \bfseries 1.916255 &  0.093788 & 0.235526 \\
+isa-random               & 1.084773 & 1.322733 & 1.737303 & -0.043676 & 0.273375 \\
+tabu-union-pool          & 1.062058 & 1.259221 & 1.731261 & -0.001474 & 0.274410 \\
+isa-sampled-union-pool   & 1.044759 & 1.521136 & 1.721173 & -0.584406 & 0.183581 \\
+sa-sampled-union-pool    & 1.044015 & 1.653149 & 1.833949 & -0.964191 & \bfseries 0.165838 \\
+greedy-union-pool        & 1.042167 & 1.193238 & 1.757868 &  0.024327 & 0.266567 \\
+greedy-upstream-window   & 1.031489 & 1.227970 & 1.710767 & -0.040751 & 0.275511 \\
+greedy-random            & 1.009059 & 1.104560 & 1.806695 &  0.020420 & 0.214807 \\
+sa-random                & 0.998808 & 1.149864 & 1.750100 & -0.054596 & 0.276991 \\
+two-step-random          & 0.876061 & 1.148869 & 1.334986 & -0.128479 & 0.318905 \\
+two-step-union-pool      & 0.859649 & 1.045729 & 1.405060 & -0.057920 & 0.401216 \\
+greedy-violation-path    & 0.829324 & 1.032678 & 1.300464 & -0.048521 & 0.277805 \\
+greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 0.375666 \\
 
 \bottomrule
 \end{tabular}
 \end{table}
 
-The table shows that maximizing one timing component is not sufficient.  For example, \textit{sa-sampled-union-pool} has the highest setup component, but its area ratio is almost two times the baseline.  This area penalty lowers its final score below tabu-based methods.  In contrast, \textit{tabu-random} has a lower setup component, but it achieves the best hold component and reduces area, which leads to the best overall score.
+\textit{Tabu-random} achieves the highest average score.  It does not have the
+largest setup component, but it has the best hold component and also reduces
+area.  In contrast, \textit{sa-sampled-union-pool} has the highest setup
+component, but its strongly negative area score pulls down its final score.
+This shows that maximizing one timing component is not sufficient: the final
+ranking is determined by the balance among setup repair, hold repair, and area
+control.
 
-\subsection{Difference Between Random and (Sampled) Union Pool on ISA and Tabu}
-The best strategy is tabu search with random candidates.  ISA with sampled union pool improves setup slack the most, but this improvement is obtained at the cost of much larger area.  In contrast, tabu search with random candidates still improves setup slack significantly, achieves the strongest hold improvement, and reduces area consumption.  Therefore, its advantage comes from the best trade-off among setup, hold, and area rather than from maximizing a single component.
+\subsection{Discussion: Why Tabu-Random Performs Best}
 
-\subsubsection{Possible Reason}
-ISA and tabu search are both designed to escape local optima.  Random candidates provide wider exploration, while tabu memory prevents the search from repeatedly returning to recently used moves.  This also explains why \textit{tabu-random} outperforms \textit{tabu-union-pool}: union pool is more timing-aware, but it can bias the search toward violation-related edits, while random candidates expose more non-local resize and removal opportunities.  This combination works better than a purely timing-focused sampled union proposal when area must also be controlled.
+The final result can be explained by the interaction between candidate diversity
+and search memory.  SA and ISA are able to escape local optima, and sampled
+union proposals make them strong at setup repair.  However, their stochastic
+acceptance can keep many area-increasing moves, so their timing gain is partly
+lost through area penalty.  Greedy search has the opposite behavior: it is stable
+and area-aware, but it relies heavily on the candidate pool and cannot move
+through temporary score degradation.
+
+Tabu-random gives a better compromise.  Random candidates expose non-local
+insert, remove, and resize opportunities that a violation-focused union pool may
+miss.  Tabu memory then prevents the search from repeatedly returning to recent
+moves while still choosing the best non-tabu candidate at each step.  This
+explains why \textit{tabu-random} outperforms \textit{tabu-union-pool}: the
+random neighborhood is less biased toward immediate violation repair, and tabu
+search is strong enough to extract useful moves from that broader neighborhood.
+As a result, \textit{tabu-random} does not maximize setup alone, but it finds
+the best overall setup-hold-area balance.
 
 
 \section{Conclusion}
-In this work, we formulate timing fixing by useful skew as a clock-tree optimization problem over three reversible operations: buffer insertion, inserted buffer removal, and buffer resizing.  These operations allow the optimizer to change clock arrival times at flip-flops and improve setup or hold slack without modifying the data-path logic.  Since each edit may affect multiple paths and also changes area, the main challenge is not only timing repair, but the balance among setup slack, hold slack, and area cost.
+This work presents a complete useful-skew optimization flow for ICCAD Contest
+2026 Problem D.  We formulate the task as a constrained search over legal
+clock-tree states, where the data-path graph is fixed and the optimizer may only
+change clock arrival times through buffer insertion, inserted-buffer removal,
+and buffer resizing.  Under this formulation, setup and hold improvement are
+both controlled by skew, but every clock-tree edit also affects an entire
+downstream subtree and changes buffer area.  Therefore, the solver uses a proxy
+score that jointly reflects SS setup repair, FF hold repair, and area control
+instead of optimizing any single metric alone.
 
-Our experiments show that both candidate generation and acceptance strategy have a significant impact on the final result.  Greedy search benefits from a larger candidate pool because it only accepts immediately improving moves.  In contrast, simulated annealing and tabu search can explore beyond local optima, which makes random candidate generation more useful.  Among all tested optimizers, tabu search with random candidates achieves the best average score. It does not produce the highest setup component, but it achieves the strongest hold improvement while also reducing area, giving the best overall trade-off. SA and ISA can aggressively improve timing, especially setup slack, but their area penalty reduces the final score.  Two-step optimization follows a reasonable timing-first and area-recovery idea, but its fixed phase separation does not recover enough hold slack and area to compete with tabu search.
+The implementation separates representation, evaluation, and search.  The
+\texttt{ClockTree} stores the mutable topology and buffer types, the
+\texttt{DataPathGraph} stores fixed launch-capture paths, and the
+\texttt{TimingState} maintains clock arrivals, slack metrics, area, and proxy
+score.  Candidate moves are evaluated through a reversible apply-score-undo
+loop, so rejected trials do not modify the current solution while accepted moves
+can still be explored efficiently.  The final output is restored from the
+best-seen legal clock tree and validated through the same structural constraints
+used during move generation.
 
-For future work, an adaptive strategy could select candidate policies according to the current violation pattern instead of using a fixed policy throughout the run.  Another promising direction is to keep the exploration strength of tabu search while adding a stronger area-aware resize and removal polish in the late stage.  This may preserve the timing gains from useful skew while further reducing unnecessary buffer area.
+The experimental results show that both candidate generation and acceptance
+strategy are decisive.  Greedy search is stable and benefits from the diverse
+union-pool neighborhood, but it cannot pass through temporary score degradation.
+SA and ISA explore more aggressively and achieve strong setup improvement with
+sampled-union proposals, but their area penalty reduces the final score.
+Two-step optimization captures the intended timing-first and cleanup structure,
+yet the fixed phase boundary is too rigid for the coupled setup-hold-area
+objective.
+
+Among all tested optimizers, \textit{tabu-random} achieves the best average
+score.  Its advantage comes from combining a broad random neighborhood with
+score-driven tabu memory: random candidates expose non-local insert, remove, and
+resize opportunities, while tabu search avoids short cycles and keeps the
+current trajectory close to high-quality states.  As a result, it does not
+maximize setup improvement alone, but obtains the best balance among setup
+repair, hold repair, and area reduction.  Future work could improve this
+framework by adapting the candidate policy to the current violation pattern,
+calibrating the proxy weights with more feedback, and adding a stronger
+late-stage area-aware resize/remove polish.
 
 \section*{Author Contributions}
 Hong Bin Lai did nothing :\(\)) That's True, I'm very sorry.I find the branch yesterday but I see the first version submission when I'm writing.I know it's a bad excuse, and I really doesn't do anything.
