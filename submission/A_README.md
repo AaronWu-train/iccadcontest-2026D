@@ -88,3 +88,7 @@ The solver executable is `cadd0040`. It reads a testcase directory containing
 `modified_clk_tree.structure`.
 
 The default optimizer is `tabu-random`.
+
+## Detailed Experimental data
+
+See `E_Supplemental_Material/`. There is a file `README_FOR_SUPPLEMENT.md` introduce the structure of our test result and guidance for detailed read.  
