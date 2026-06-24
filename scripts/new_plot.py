@@ -15,7 +15,6 @@ Output:
 Panel definitions:
   Total panel:
       upward best-score gap = row.best_score - best_known_score[testcase]
-      If NORMALIZE_BEST_GAP is True, divide by max(1, abs(best_known_score[testcase])).
       This matches the original plot_optimizer_report.py gap normalization, but flips
       the sign so curves move upward toward 0.
 
@@ -58,12 +57,6 @@ import pandas as pd
 DEFAULT_OUT_DIR = "report/images"
 DEFAULT_TIME_BINS = 114
 DEFAULT_MAX_TIME = 570.0
-
-# Keep this True to match the original normalized-gap scale, but with flipped sign:
-#   (row.best_score - best_known_score[testcase]) / max(1, abs(best_known_score[testcase]))
-# Set False if you want raw score gap:
-#   row.best_score - best_known_score[testcase]
-NORMALIZE_BEST_GAP = False
 
 FIGURES = [
     {
@@ -243,9 +236,6 @@ def load_all_progress(run_dir: Path) -> pd.DataFrame:
     data = data.merge(best_known, on="testcase", how="left")
 
     data["best_gap"] = data["best_score"] - data["best_known_score"]
-    if NORMALIZE_BEST_GAP:
-        denom = data["best_known_score"].abs().clip(lower=1.0)
-        data["best_gap"] = data["best_gap"] / denom
 
     return data
 
