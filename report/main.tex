@@ -375,25 +375,13 @@ the best overall setup-hold-area balance.
 
 
 \section{Conclusion}
-This work presents a complete useful-skew optimization flow for ICCAD Contest
-2026 Problem D.  We formulate the task as a constrained search over legal
-clock-tree states, where the data-path graph is fixed and the optimizer may only
-change clock arrival times through buffer insertion, inserted-buffer removal,
-and buffer resizing.  Under this formulation, setup and hold improvement are
-both controlled by skew, but every clock-tree edit also affects an entire
-downstream subtree and changes buffer area.  Therefore, the solver uses a proxy
-score that jointly reflects SS setup repair, FF hold repair, and area control
-instead of optimizing any single metric alone.
-
-The implementation separates representation, evaluation, and search.  The
-\texttt{ClockTree} stores the mutable topology and buffer types, the
-\texttt{DataPathGraph} stores fixed launch-capture paths, and the
-\texttt{TimingState} maintains clock arrivals, slack metrics, area, and proxy
-score.  Candidate moves are evaluated through a reversible apply-score-undo
-loop, so rejected trials do not modify the current solution while accepted moves
-can still be explored efficiently.  The final output is restored from the
-best-seen legal clock tree and validated through the same structural constraints
-used during move generation.
+This work formulates useful-skew timing fixing as a constrained local-search
+problem over legal clock-tree states.  The solver modifies only the clock tree
+through buffer insertion, inserted-buffer removal, and buffer resizing, and uses
+a proxy score to balance SS setup repair, FF hold repair, and area control.
+Internally, a mutable \texttt{ClockTree}, a fixed \texttt{DataPathGraph}, and an
+incremental \texttt{TimingState} support reversible candidate evaluation, so
+different search policies can be compared while keeping the final output legal.
 
 The experimental results show that both candidate generation and acceptance
 strategy are decisive.  Greedy search is stable and benefits from the diverse
