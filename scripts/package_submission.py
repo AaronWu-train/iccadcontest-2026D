@@ -21,7 +21,6 @@ PRESENTATION_PDF = ROOT / "report" / "presentation.pdf"
 REPORT_PDF = ROOT / "report" / "main.pdf"
 
 SOURCE_ITEMS = [
-    "README.md",
     "CONTRIBUTING.md",
     "LICENSE",
     "CMakeLists.txt",
@@ -49,7 +48,12 @@ SOURCE_EXCLUDED_DIRS = {
     "slurm_runs",
     "config_runs",
     "visual_trace",
-    "testcases/visual_demo",
+    "visual_demo",
+    "testcase0",
+    "testcase1",
+    "testcase2",
+    "testcase3",
+    "testcase4",
 }
 
 SOURCE_EXCLUDED_FILES = {
