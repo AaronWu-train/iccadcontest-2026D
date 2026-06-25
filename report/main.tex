@@ -393,32 +393,19 @@ When combined with a memory-based acceptance strategy, it can provide useful can
 
 
 \section{Conclusion}
-This work formulates useful-skew timing fixing as a constrained local-search
-problem over legal clock-tree states.  The solver modifies only the clock tree
-through buffer insertion, inserted-buffer removal, and buffer resizing, and uses
-a proxy score to balance SS setup repair, FF hold repair, and area control.
-Internally, a mutable \texttt{ClockTree}, a fixed \texttt{DataPathGraph}, and an
-incremental \texttt{TimingState} support reversible candidate evaluation, so
-different search policies can be compared while keeping the final output legal.
 
-The experimental results show that both candidate generation and acceptance
-strategy are decisive.  Greedy search is stable and benefits from the diverse
-union-pool neighborhood, but it cannot pass through temporary score degradation.
-SA and ISA explore more aggressively and achieve strong setup improvement with
-sampled-union proposals, but their area penalty reduces the final score.
-Two-step optimization captures the intended timing-first and cleanup structure,
-yet the fixed phase boundary is too rigid for the coupled setup-hold-area
-objective.
+This work addresses timing fixing by useful skew as a constrained local-search problem over legal clock-tree states. 
+Our solver modifies only the clock tree through buffer insertion, inserted-buffer removal, and buffer resizing, while preserving the original data-path logic and output legality. 
+The search is guided by a proxy objective that balances SS setup repair, FF hold repair, and clock-tree area. 
+By combining a mutable clock-tree representation with an incremental timing state, the solver can efficiently evaluate local edits through a reversible apply-score-undo procedure.
 
-Among all tested optimizers, \textit{tabu-random} achieves the best average
-score.  Its advantage comes from combining a broad random neighborhood with
-score-driven tabu memory: random candidates expose non-local insert, remove, and
-resize opportunities, while tabu search avoids short cycles and keeps the
-current trajectory close to high-quality states.  As a result, it does not
-maximize setup improvement alone, but obtains the best balance among setup
-repair, hold repair, and area reduction.  Future work could improve this
-framework by adapting the candidate policy to the current violation pattern,
-calibrating the proxy weights with more feedback, and adding a stronger late-stage area-aware polish.
+The experimental results show that useful-skew optimization depends on both candidate generation and acceptance strategy. 
+Timing-aware candidate pools help greedy search find stronger immediate improvements, but overly targeted candidate generation can miss useful non-local edits. 
+SA and ISA provide stronger exploration and improve setup aggressively, but their area penalty can reduce the final score. 
+Tabu search with random candidates achieves the best average proxy score because it combines broad candidate diversity with score-driven search memory, improving hold timing strongly while maintaining competitive setup repair and positive area score. 
+Overall, the results suggest that this problem is best solved by balancing setup, hold, and area rather than maximizing a single timing component. 
+Future work could further improve the solver by adapting candidate generation to the current violation pattern, calibrating proxy weights more robustly, and adding a stronger late-stage area-aware cleanup phase.
+
 
 \section*{Author Contributions}
 
