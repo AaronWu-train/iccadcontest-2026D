@@ -55,7 +55,11 @@ make rocky8
 
 ## Download Testcases
 
-The official contest testcases are used in this work. However, they are too large to be included in this zip file. Please download the test data from the [Drive Link](https://drive.google.com/drive/folders/1Jj3eE2K4qAnVpTw3MQPYatJaYjE2bakj?usp=sharing) and place it under `D_Source_Code_and_Testcases/testcases` with the following directory structure:
+The official contest testcases are used in this work. However, they are too
+large to be included in this zip file. Please download the test data from the
+[Drive Link](https://drive.google.com/drive/folders/1Jj3eE2K4qAnVpTw3MQPYatJaYjE2bakj?usp=sharing)
+and place it under `D_Source_Code_and_Testcases/testcases` with the following
+directory structure:
 
 ```text
 testcases
@@ -124,4 +128,8 @@ The default optimizer is `tabu-random`.
 
 ## Detailed Experimental data
 
-See `E_Supplemental_Material/`. There is a file `README_FOR_SUPPLEMENT.md` introduce the structure of our test result and guidance for detailed read.  
+See `E_Supplemental_Material/`. There is a file `README_FOR_SUPPLEMENT.md`
+introduce the structure of our test result and guidance for detailed read.
+The raw experimental results are too large for this zip file. Please download
+them from the [Drive Link](https://drive.google.com/file/d/1aEEa5809AMByTVic1d0iDEWjBdPaHaad/view?usp=sharing)
+and extract the archive before reading the detailed experimental data.

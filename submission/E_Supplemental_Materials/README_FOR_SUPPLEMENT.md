@@ -5,6 +5,13 @@ D project.  It is provided to demonstrate project depth through raw performance
 datasets, detailed optimizer logs, final clock-tree outputs, and numeric
 progress traces.
 
+## Download Raw Experimental Results
+
+The raw experimental results are stored externally because of their size.
+Please download them from the [Drive Link](https://drive.google.com/file/d/1aEEa5809AMByTVic1d0iDEWjBdPaHaad/view?usp=sharing)
+and extract the archive before reading or reproducing the detailed experimental
+results.
+
 ## Experiment Scope
 
 - Testcases: `testcase0` through `testcase4`
