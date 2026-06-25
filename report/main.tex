@@ -121,17 +121,28 @@ A negative setup slack means that data arrives too late at the capture flip-flop
 Timing quality is measured using total negative slack (TNS) and worst negative slack (WNS).  WNS captures the most severe timing violation among all paths, while TNS measures the accumulated amount of negative slack.  In this problem, setup timing is evaluated under the setup-oriented SS corner, and hold timing is evaluated under the hold-oriented FF corner.
 
 \subsection{Timing-Area Objective and Internal Proxy Score}
-The objective combines timing and area.  Timing quality is measured by TNS and WNS under the SS and FF corners, while area is the total area of the clock-tree buffers.  Given a baseline metric value $x^{\mathrm{ori}}$ and a final value $x$, we use the relative improvement form
-\begin{equation}
-I(x, x^{\mathrm{ori}}) = 1 - \frac{x}{x^{\mathrm{ori}}},
-\end{equation}
-when $x^{\mathrm{ori}}$ is nonzero.  This form rewards reducing negative timing metrics toward zero and rewards reducing area below the baseline.
+The objective combines timing and area. Timing quality is measured by TNS and WNS under the SS and FF corners, while area is the total area of the clock-tree buffers.  We define the setup score, hold score, and area score as
+\begin{align}
+  S_{\mathrm{setup}} &=
+  \left( 1 - \frac{\mathrm{TNS}_{SS}}{\mathrm{TNS}_{SS}^{ori}} \right)
+  +
+  \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right),\\
+  S_{\mathrm{hold}} &=
+  \left( 1 - \frac{\mathrm{TNS}_{FF}}{\mathrm{TNS}_{FF}^{ori}} \right)
+  +
+  \left( 1 - \frac{\mathrm{WNS}_{FF}}{\mathrm{WNS}_{FF}^{ori}} \right), \\
+  S_{\mathrm{area}} &=
+  1 - \frac{\mathrm{Area}}{\mathrm{Area}^{ori}}.
+\end{align}
+Each denominator uses the metric value of the original input clock tree.  Higher setup and hold scores mean that the negative timing metrics have moved closer to zero, while a higher area score means that the clock-tree buffer area is smaller than the baseline.
 
-The official contest score is a weighted sum of setup improvement, hold improvement, and area reduction:
+The official contest score is a weighted sum of these three components:
 
 \begin{equation}
-  \begin{aligned} \mathrm{Score} &= \alpha \left[ \left( 1 - \frac{\mathrm{TNS}_{SS}}{\mathrm{TNS}_{SS}^{ori}} \right) + \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right) \right] + \beta \left[ \left( 1 - \frac{\mathrm{TNS}_{FF}}{\mathrm{TNS}_{FF}^{ori}} \right) + \left( 1 - \frac{\mathrm{WNS}_{FF}}{\mathrm{WNS}_{FF}^{ori}} \right) \right] \\ &+ \gamma \left( 1 - \frac{\mathrm{Area}}{\mathrm{Area}^{ori}} \right).
-  \end{aligned}
+  S_\mathrm{total} =
+  \alpha S_{\mathrm{setup}} +
+  \beta S_{\mathrm{hold}} +
+  \gamma S_{\mathrm{area}}.
 \end{equation}
 
 The official weights are not disclosed, so the optimizer cannot directly use the official score as its search objective.  According to the Q\&A session, the organizers indicated that the weights roughly satisfy $\alpha > \beta \approx \gamma$.  Based on this hint, we use a proxy score with fixed weights $\alpha = 0.5$, $\beta = 0.25$, and $\gamma = 0.25$ to guide move selection during optimization.  These parameters are not claimed to be the hidden official weights; they are used only as an internal ranking function that reflects the relative importance of setup repair, hold repair, and area control.
@@ -255,6 +266,7 @@ Their purpose is to show how each optimizer behaves: how quickly it improves the
 
 Each trajectory figure contains four panels. 
 The first panel shows the best-score gap over time. 
+To make trajectories from different testcases comparable, we align each testcase to its own best observed score instead of plotting raw scores directly.
 For each testcase, we first identify the best score that was ever observed across all optimizers, seeds, and time points in our experiments. 
 Then, for each run, we measure how far its current best score is from this reference value. 
 Because this reference is the best observed score, the gap is always zero or negative. 
@@ -338,10 +350,10 @@ For SA and ISA, the sampled-union-pool variant uses a single sampled proposal pe
 \end{figure}
 
 Figure~\ref{fig:acceptance-union} shows a different trade-off from the random candidate experiment. 
-SA-sampled-union-pool and ISA-sampled-union-pool improve setup aggressively and also obtain strong hold scores, but both suffer from a large negative area score, especially SA. 
+\textit{SA-sampled-union-pool} and \textit{ISA-sampled-union-pool} improve setup aggressively and also obtain strong hold scores, but both suffer from a large negative area score, especially SA.
 This indicates that sampled union proposals are very effective at finding timing-repair moves, but the stochastic acceptance process tends to keep many area-increasing edits. 
-Tabu-union-pool is more conservative: its setup score is lower than the annealing-based methods, but its area score stays near the baseline. 
-Two-step-union-pool again remains weak because the fixed timing-repair-then-recovery schedule is too rigid for the coupled setup-hold-area objective. 
+\textit{Tabu-union-pool} is more conservative: its setup score is lower than the annealing-based methods, but its area score stays near the baseline.
+\textit{Two-step-union-pool} again remains weak because the fixed timing-repair-then-recovery schedule is too rigid for the coupled setup-hold-area objective.
 Overall, this figure shows that a richer candidate pool alone does not guarantee a better final score; the acceptance rule must also control area while exploiting the timing opportunities in the pool.
 
 \subsection{ISA and Tabu as Search-Memory Strategies}
