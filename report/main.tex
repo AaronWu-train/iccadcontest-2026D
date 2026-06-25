@@ -121,24 +121,24 @@ Let $D_{\mathrm{data}}$ be the data-path delay, $T_{\mathrm{clk}}$ be the clock 
 
 A negative setup slack means that data arrives too late at the capture flip-flop.  A negative hold slack means that data arrives too early and may overwrite the previous value.  Therefore, a setup violation can often be improved by increasing the capture clock delay, while a hold violation can often be improved by increasing the launch clock delay.
 
-Timing quality is measured using total negative slack (TNS) and worst negative slack (WNS).  WNS captures the most severe timing violation among all paths, while TNS measures the accumulated amount of negative slack.  In this problem, setup timing is evaluated under the setup-oriented SS corner, and hold timing is evaluated under the hold-oriented FF corner.
+Timing quality is measured using total negative slack (TNS) and worst negative slack (WNS).  WNS captures the most severe timing violation among all paths, while TNS measures the accumulated amount of negative slack.  In this problem, setup timing is evaluated under the SS corner, and hold timing is evaluated under the FF corner.
 
 \subsection{Timing-Area Objective and Internal Proxy Score}
 The objective combines timing and area. Timing quality is measured by TNS and WNS under the SS and FF corners, while area is the total area of the clock-tree buffers.  We define the setup score, hold score, and area score as
+\begin{footnotesize}
 \begin{equation}
-  \begin{aligned}
-    S_{\mathrm{setup}} &=
+  S_{\mathrm{setup}} =
   \left( 1 - \frac{\mathrm{TNS}_{SS}}{\mathrm{TNS}_{SS}^{ori}} \right)
   +
-  \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right), \qquad
+  \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right), \quad
   S_{\mathrm{hold}} =
   \left( 1 - \frac{\mathrm{TNS}_{FF}}{\mathrm{TNS}_{FF}^{ori}} \right)
   +
-  \left( 1 - \frac{\mathrm{WNS}_{FF}}{\mathrm{WNS}_{FF}^{ori}} \right), \\
-  S_{\mathrm{area}} &=
+  \left( 1 - \frac{\mathrm{WNS}_{FF}}{\mathrm{WNS}_{FF}^{ori}} \right), \quad
+  S_{\mathrm{area}} =
   1 - \frac{\mathrm{Area}}{\mathrm{Area}^{ori}}.
-  \end{aligned}
   \end{equation}
+\end{footnotesize}
 Each denominator uses the metric value of the original input clock tree.  Higher setup and hold scores mean that the negative timing metrics have moved closer to zero, while a higher area score means that the clock-tree buffer area is smaller than the baseline.
 
 The official contest score is a weighted sum of these three components:
@@ -174,37 +174,24 @@ Algorithm~\ref{alg:local-search} summarizes the overall optimization flow. Each 
 
 \begin{algorithm}[htbp]
   \caption{Overall local-search optimization flow}
-  \label{alg:local-search}
+  \label{alg:local_search}
   \begin{algorithmic}[1]
     \State Build the initial \texttt{ClockTree}, \texttt{DataPathGraph}, and \texttt{TimingState}
-    \State Evaluate the baseline tree and compute its proxy score
-\State $T_{\mathrm{cur}} \gets$ baseline clock tree
-\State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$
-\State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
-\While{current time $<$ time budget}
-\State Generate a candidate move set $M$ using the candidate policy
-\State $E \gets \emptyset$
-\ForAll{$m \in M$}
-\State Temporarily apply $m$ to $T_{\mathrm{cur}}$
-\State Update timing and area metrics
-\State Compute $\Delta S_{\mathrm{proxy}}(m)$
-\State Store the evaluated move information in $E$
-\State Undo $m$ and restore $T_{\mathrm{cur}}$
-\EndFor
-\State Select a move $m^\star$ from $E$ using the acceptance strategy
-\If{$m^\star$ exists}
-\State Apply $m^\star$ to $T_{\mathrm{cur}}$
-\State Update \texttt{TimingState} for the current tree
-\If{$S_{\mathrm{proxy}}(T_{\mathrm{cur}}) > S_{\mathrm{best}}$}
-\State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$
-\State $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
-\EndIf
-\EndIf
-\EndWhile
-\State Restore $T_{\mathrm{best}}$
-\State Perform full timing evaluation
-\State Write \texttt{modified\_clk\_tree.structure}
-\end{algorithmic}
+    \State $T_{\mathrm{cur}} \gets$ baseline clock tree
+    \State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$, \quad $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
+    \While{current time $<$ time budget}
+    \State Generate a candidate move set $M$ using the candidate policy
+    \State Evaluate each $m \in M$ by temporary apply-score-undo and collect results in $E$
+    \State Select a move $m^*$ from $E$ using the acceptance strategy
+    \If{$m^*$ exists}
+    \State Apply $m^*$ to $T_{\mathrm{cur}}$ and update \texttt{TimingState}
+    \If{$S_{\mathrm{proxy}}(T_{\mathrm{cur}}) > S_{\mathrm{best}}$}
+    \State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$, \quad $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
+    \EndIf
+    \EndIf
+    \EndWhile
+    \State Restore $T_{\mathrm{best}}$, perform full timing evaluation, and write \texttt{modified\_clk\_tree.structure}
+    \end{algorithmic}
 \end{algorithm}
 
 The rest of this section follows the structure of Algorithm~\ref{alg:local-search}. Section~3.2 describes the optimization state and the incremental timing evaluation used inside the temporary apply-score-undo loop. Section~3.3 describes how candidate-generation policies construct the move set $M$. Section~3.4 describes how acceptance strategies choose the move $m^\star$ from the evaluated set. Finally, Section~3.5 explains how the best-seen internal state is converted into a legal output file.
@@ -241,7 +228,7 @@ The \textbf{two-step strategy} is designed around the scoring structure of the p
 
 \textbf{Iterated simulated annealing} extends this idea by alternating between exploration and recovery. Each annealing round explores nearby clock-tree states, and between rounds the solver restores the best-seen state and performs small greedy cleanup batches. This is intended to prevent the current state from drifting too far after many stochastic moves, while still preserving the ability to escape local optima. In this problem, such restoration is important because aggressive timing repairs can accumulate unnecessary inserted buffers and reduce the area component.
 
-\textbf{Tabu search}\cite{glover1989tabu} uses short-term memory to guide exploration while keeping each step score-driven. At each iteration, it chooses the best non-tabu move from the evaluated candidate set, and recently used moves are marked tabu to discourage the solver from cycling between similar clock-tree states. A tabu move can still be accepted by aspiration if it improves the global best score. This is well suited to clock-tree editing because insert, remove, and resize operations can easily undo one another; tabu memory reduces such short cycles while still allowing the search to follow strong proxy-score improvements.
+\textbf{Tabu search}\cite{glover1989tabu} uses short-term memory to guide exploration while keeping each step score-driven. At each iteration, it chooses the best non-tabu move from the evaluated candidate set, and recently used moves are marked tabu to discourage the solver from cycling between similar states. A tabu move can still be accepted by aspiration if it improves the global best score. This is well suited to clock-tree editing because operations can easily undo one another; tabu memory reduces such short cycles while still allowing the search to follow strong proxy-score improvements.
 
 Overall, these acceptance strategies represent different trade-offs between exploitation and exploration. Greedy search tests immediate local improvement, two-step search encodes a timing-first repair schedule, annealing-based methods allow temporary degradation, and tabu search adds memory to avoid cycling. The optimizer variants evaluated in Section~4 combine these acceptance strategies with different candidate-generation policies to study which search behavior best balances setup repair, hold repair, and area control.
 
@@ -344,20 +331,16 @@ ISA uses repeated annealing rounds with best-state restoration, while tabu searc
   \label{fig:tabu-isa}
 \end{figure}
 
-Figure~\ref{fig:tabu-isa} explains why \textit{tabu-random} becomes the strongest variant in the final ranking. 
-\textit{ISA-sampled-union-pool} has the highest setup trajectory, but its area score decreases sharply and remains strongly negative. 
-This means that its setup repair is obtained by keeping many area-expensive clock-tree edits. 
-\textit{Tabu-union-pool} avoids this severe area collapse, but its timing components are not as strong as those of \textit{tabu-random}. 
-In contrast, \textit{tabu-random} gives the best overall balance: it approaches the empirical best-score gap most closely, achieves the strongest hold trajectory among these variants, and keeps the area score positive.
+Figure~\ref{fig:tabu-isa} compares the memory-based variants of ISA and tabu search.
+\textit{ISA-sampled-union-pool} achieves the strongest setup trajectory, but its area score drops sharply and remains strongly negative.
+This indicates that its exploration is effective at finding setup-repair moves, but also tends to keep many area-expensive edits.
+In contrast, the tabu variants are more conservative in setup improvement, but maintain much better area scores.
+Among the variants in this comparison, \textit{tabu-random} gives the most balanced trajectory: it stays close to the empirical best-score gap, improves hold score strongly, and keeps the area score positive.
+This suggests that tabu memory provides a more stable form of exploration for this benchmark, because it can move beyond greedy local optima while still keeping the search trajectory close to high-quality states.
 
-This comparison also clarifies the role of random candidate generation. 
-Random proposals are not better because they are more targeted. 
-Instead, they expose a broader set of non-obvious insert, remove, and resize opportunities that a violation-focused union pool may miss. 
-Tabu memory is then strong enough to extract useful moves from this broader neighborhood without repeatedly undoing recent moves. 
-This explains why \textit{tabu-random} outperforms \textit{tabu-union-pool}: the random neighborhood is less biased toward immediate violation repair, while tabu search keeps the trajectory score-driven and prevents short cycles.
+The figure also shows that, in ISA and tabu search, the random variants are more balanced than the union-based variants.
+This suggests that random candidates are not merely a weaker baseline; when combined with a memory-based acceptance strategy, they can provide useful candidate diversity and expose moves that are missed by more timing-directed candidate pools.
 
-Overall, \textit{tabu-random} achieves the highest average score because it does not optimize setup, hold, or area in isolation. It does not have the largest setup component, but it obtains the best hold component and also reduces area.
-In contrast, \textit{isa-sampled-union-pool} has the highest setup component, but its strongly negative area score pulls down its final score.
 
 \subsection{Overall Optimizer Comparison}
 
@@ -367,7 +350,7 @@ Although it does not obtain the highest setup score, it achieves the strongest h
 This indicates that its advantage comes from a better overall timing-area balance rather than from optimizing one component alone.
 
 
-\begin{table}[H]
+\begin{table}[htbp]
 \centering
 \caption{Performance comparison of different optimizers. Standard deviation is computed from the final scores over five testcases and five seeds.}
 \label{tab:optimizer_results}
@@ -412,8 +395,10 @@ One noteworthy observation is the interaction between candidate generation and a
 For tabu search and ISA, random candidate generation performs better than the corresponding union-based policy.
 In contrast, under greedy acceptance, the union-pool policy outperforms random generation.
 This suggests that there is no universally best candidate generator.
+
 For greedy search, the solver can only accept immediately improving moves, so it benefits from a timing-aware candidate pool that provides stronger local improvements.
-For tabu search and ISA, however, random candidates are more useful because they expose a broader and less biased set of action opportunities, including area-recovery moves that a timing-focused pool may miss.
+For tabu search and ISA, however, the acceptance strategy already provides exploration through memory, restoration, or temporary degradation.
+In this setting, random candidates are more useful because they expose a broader and less biased set of insert, remove, and resize opportunities, including area-recovery moves that a timing-focused pool may miss.
 
 Overall, the results show that useful-skew optimization requires both candidate diversity and search control.
 The final optimizer, \textit{tabu-random}, combines a broad random neighborhood with tabu memory, allowing it to improve hold timing strongly, maintain competitive setup repair, and reduce area at the same time.
