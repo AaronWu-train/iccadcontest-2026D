@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Submit Slurm array jobs: every canonical optimizer × every testcase.
-# Submits in the background like normal sbatch usage; aggregate when jobs finish.
+# Run every selected optimizer against every testcase.
+# Default mode submits a Slurm array job and aggregates after jobs finish.
 #
 # Usage:
-#   ./scripts/slurm_run_all_optimizers.sh
-#   ./scripts/slurm_run_all_optimizers.sh --seed 1234
-#   ./scripts/slurm_run_all_optimizers.sh --seed-runs 3
-#   CADD0040_SEED=1234 ./scripts/slurm_run_all_optimizers.sh
-#   SLURM_PARTITION=short ./scripts/slurm_run_all_optimizers.sh
-#   ./scripts/slurm_run_all_optimizers.sh --wait   # block until done, then aggregate
-#   ./scripts/slurm_run_all_optimizers.sh --local  # no Slurm, run sequentially
-#   OPTIMIZERS="A1 A6 A10 A13" ./scripts/slurm_run_all_optimizers.sh
+#   ./scripts/slurm_run_all_optimizers.sh [options]
+#
+# Common commands:
+#   ./scripts/slurm_run_all_optimizers.sh --wait
+#   ./scripts/slurm_run_all_optimizers.sh --local
+#   ./scripts/slurm_run_all_optimizers.sh --seed 5000 --seed-runs 10
 #   OUTPUT_DIR=slurm_runs/20260606_120000 ./scripts/slurm_run_all_optimizers.sh --aggregate-only
 #
-# Typical Slurm workflow:
-#   1. ./scripts/slurm_run_all_optimizers.sh
-#   2. squeue -j <job_id>          # check progress (job_id printed on submit)
-#   3. OUTPUT_DIR=... ./scripts/slurm_run_all_optimizers.sh --aggregate-only
+# Options:
+#   --seed N            First RNG seed (default: 2026)
+#   --seed-runs N       Number of consecutive seeds (default: 10)
+#   --wait              Wait for Slurm jobs, then aggregate
+#   --local             Run sequentially without Slurm
+#   --aggregate-only    Aggregate an existing OUTPUT_DIR
+#   --force             Allow overwriting an existing OUTPUT_DIR
+#   -h, --help          Show this help
 #
 # Output layout (after aggregation):
 #   logs/<optimizer>/seed_<seed>/<testcase>.log
@@ -25,25 +27,15 @@
 #   by_optimizer.tsv
 #   best_by_testcase.tsv
 #   summary.txt
-#   progress/<optimizer>/seed_<seed>/<testcase>/progress.tsv   (numeric event trace; only with CADD0040_PROGRESS_TRACE=1)
-#   traces/<optimizer>/seed_<seed>/<testcase>/frames.json      (visual frame trace; only with CADD0040_VISUAL_TRACE=1)
+#   progress/<optimizer>/seed_<seed>/<testcase>/progress.tsv   (numeric progress trace; always written)
 #   slurm-<jobid>_<taskid>.{out,err}   (Slurm only)
 #
 # Environment:
-#   BUILD_DIR                        CMake build directory (default: build-release)
+#   BUILD_DIR                        CMake build directory (default: build)
 #   TESTCASES_DIR                    Testcase root (default: testcases/)
 #   OUTPUT_DIR                       Run directory (default: slurm_runs/<timestamp>)
 #   OPTIMIZERS                       Space-separated list (default: A1-A13 experiment matrix)
-#   CADD0040_SEED                    First RNG seed for seed-aware optimizers (default: 2026)
-#   CADD0040_SEED_RUNS               Number of consecutive seeds per experiment (default: 10)
 #   CADD0040_SA_SECONDS              Optimizer time budget (default: 570)
-#   CADD0040_CHECKPOINT_STEPS        Best-so-far output checkpoint interval (default: 4096)
-#   CADD0040_PROGRESS_TRACE          1 to write numeric event TSV traces (default: 0)
-#   CADD0040_PROGRESS_STEPS          Numeric event trace step interval (default: 256)
-#   CADD0040_VISUAL_TRACE            1 to write clock-tree frame traces (default: 1)
-#   CADD0040_VISUAL_TRACE_STEPS      Visual frame trace step interval (default: 256)
-#   CADD0040_DEBUG_PROGRESS          1 to enable debug stderr status (default: 0)
-#   CADD0040_DEBUG_PROGRESS_INTERVAL Debug stderr status interval seconds (default: 30)
 #   SLURM_PARTITION / SLURM_ACCOUNT  Optional Slurm account settings
 #   SLURM_TIME                       Job time limit (default: 00:11:00)
 #   SLURM_MEM                        Memory per task (default: 4G)
@@ -52,19 +44,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-${ROOT}/build-release}"
+BUILD_DIR="${BUILD_DIR:-${ROOT}/build}"
 BINARY="${BUILD_DIR}/cadd0040"
 TESTCASES_DIR="${TESTCASES_DIR:-${ROOT}/testcases}"
-SEED="${CADD0040_SEED:-2026}"
-SEED_RUNS="${CADD0040_SEED_RUNS:-10}"
+SEED=2026
+SEED_RUNS=10
 SA_SECONDS="${CADD0040_SA_SECONDS:-570}"
-CHECKPOINT_STEPS="${CADD0040_CHECKPOINT_STEPS:-4096}"
-DEBUG_PROGRESS="${CADD0040_DEBUG_PROGRESS:-0}"
-DEBUG_PROGRESS_INTERVAL="${CADD0040_DEBUG_PROGRESS_INTERVAL:-30}"
-PROGRESS_TRACE="${CADD0040_PROGRESS_TRACE:-1}"
-PROGRESS_STEPS="${CADD0040_PROGRESS_STEPS:-256}"
-VISUAL_TRACE="${CADD0040_VISUAL_TRACE:-0}"
-VISUAL_TRACE_STEPS="${CADD0040_VISUAL_TRACE_STEPS:-256}"
+PROGRESS_STEPS=256
 SLURM_TIME="${SLURM_TIME:-00:11:00}"
 SLURM_MEM="${SLURM_MEM:-4G}"
 SLURM_CPUS="${SLURM_CPUS:-1}"
@@ -116,7 +102,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '2,50p' "$0" | sed 's/^# //; s/^#$//'
+            awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
             exit 0
             ;;
         *)
@@ -196,13 +182,7 @@ OUTPUT_DIR='${OUTPUT_DIR}'
 SEED='${SEED}'
 SEED_RUNS=${SEED_RUNS}
 SA_SECONDS=${SA_SECONDS}
-CHECKPOINT_STEPS=${CHECKPOINT_STEPS}
-DEBUG_PROGRESS=${DEBUG_PROGRESS}
-DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}
-PROGRESS_TRACE=${PROGRESS_TRACE}
 PROGRESS_STEPS=${PROGRESS_STEPS}
-VISUAL_TRACE=${VISUAL_TRACE}
-VISUAL_TRACE_STEPS=${VISUAL_TRACE_STEPS}
 OPTIMIZERS='${OPTIMIZERS}'
 EOF
 }
@@ -236,7 +216,6 @@ run_one_job() {
     local output_dir="${OUTPUTS_DIR}/${optimizer}/${seed_label}/${testcase_name}"
     local output_file="${output_dir}/modified_clk_tree.structure"
     local progress_dir="${OUTPUT_DIR}/progress/${optimizer}/${seed_label}/${testcase_name}"
-    local visual_dir="${OUTPUT_DIR}/traces/${optimizer}/${seed_label}/${testcase_name}"
 
     mkdir -p "${LOG_DIR}/${optimizer}/${seed_label}" "${META_DIR}" "${output_dir}"
 
@@ -257,26 +236,14 @@ run_one_job() {
 
     local -a run_env=(
         "CADD0040_SA_SECONDS=${SA_SECONDS}"
-        "CADD0040_CHECKPOINT_STEPS=${CHECKPOINT_STEPS}"
-        "CADD0040_REPORT_METRICS=1"
-        "CADD0040_PROGRESS_TRACE=${PROGRESS_TRACE}"
-        "CADD0040_PROGRESS_STEPS=${PROGRESS_STEPS}"
-        "CADD0040_PROGRESS_DIR=${progress_dir}"
-        "CADD0040_VISUAL_TRACE=${VISUAL_TRACE}"
-        "CADD0040_VISUAL_TRACE_STEPS=${VISUAL_TRACE_STEPS}"
-        "CADD0040_VISUAL_TRACE_DIR=${visual_dir}"
     )
-    if [[ "${DEBUG_PROGRESS}" == "1" ]]; then
-        run_env+=(
-            "CADD0040_DEBUG_PROGRESS=1"
-            "CADD0040_DEBUG_PROGRESS_INTERVAL=${DEBUG_PROGRESS_INTERVAL}"
-        )
-    fi
 
     set +e
     local -a binary_args=(
         --optimizer "${optimizer}"
         --seed "${seed_value}"
+        --progress-dir "${progress_dir}"
+        --progress-steps "${PROGRESS_STEPS}"
     )
     binary_args+=(
         "${testcase_path}"
@@ -292,6 +259,28 @@ run_one_job() {
     local initial_score final_score status
     initial_score="$(grep -E '^Initial Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
     final_score="$(grep -E '^Final Score = ' "${log_file}" | tail -1 | awk '{print $NF}' || true)"
+    if [[ -z "${final_score}" && -f "${progress_dir}/progress.tsv" ]]; then
+        final_score="$(awk -F '\t' '
+            NR == 1 {
+                for (i = 1; i <= NF; ++i) {
+                    col[$i] = i
+                }
+                next
+            }
+            col["event"] && $col["event"] == "final" {
+                value = col["best_score"] ? $col["best_score"] : ""
+                if ((value == "" || value == "nan") && col["current_score"]) {
+                    value = $col["current_score"]
+                }
+            }
+            END {
+                if (value != "") {
+                    print value
+                }
+            }
+        ' "${progress_dir}/progress.tsv")"
+        initial_score="${initial_score:-0}"
+    fi
     initial_score="${initial_score:-"-"}"
     final_score="${final_score:-"-"}"
 
@@ -587,14 +576,14 @@ aggregate_results() {
         ' "${results_tsv}" | sort -t $'\t' -k1,1
     } > "${BEST_BY_TESTCASE_TSV}"
     {
-        printf 'OPTIMIZER\tTESTCASE\tSEED_RUN\tSEED\tPROGRESS_TSV\tFRAMES_JSON\n'
+        printf 'OPTIMIZER\tTESTCASE\tSEED_RUN\tSEED\tPROGRESS_TSV\n'
         awk -F '\t' -v out="${OUTPUT_DIR}" 'NR > 1 {
             if ($4 == "-") {
-                printf "%s\t%s\t%s\t%s\t%s/progress/%s/%s/progress.tsv\t%s/traces/%s/%s/frames.json\n",
-                    $1, $2, $3, $4, out, $1, $2, out, $1, $2
+                printf "%s\t%s\t%s\t%s\t%s/progress/%s/%s/progress.tsv\n",
+                    $1, $2, $3, $4, out, $1, $2
             } else {
-                printf "%s\t%s\t%s\t%s\t%s/progress/%s/seed_%s/%s/progress.tsv\t%s/traces/%s/seed_%s/%s/frames.json\n",
-                    $1, $2, $3, $4, out, $1, $4, $2, out, $1, $4, $2
+                printf "%s\t%s\t%s\t%s\t%s/progress/%s/seed_%s/%s/progress.tsv\n",
+                    $1, $2, $3, $4, out, $1, $4, $2
             }
         }' "${results_tsv}"
     } > "${PROGRESS_INDEX_TSV}"
@@ -680,7 +669,7 @@ submit_slurm_jobs() {
 
     if [[ ! -x "${BINARY}" ]]; then
         echo "Binary not found: ${BINARY}" >&2
-        echo "Build first: make release" >&2
+        echo "Build first: make build" >&2
         exit 1
     fi
 
@@ -738,7 +727,7 @@ submit_slurm_jobs() {
 run_local() {
     if [[ ! -x "${BINARY}" ]]; then
         echo "Binary not found: ${BINARY}" >&2
-        echo "Build first: make release" >&2
+        echo "Build first: make build" >&2
         exit 1
     fi
 

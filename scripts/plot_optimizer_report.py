@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate auditable report plots for A1-A8 optimizer experiments."""
+"""Generate auditable report plots for optimizer experiments."""
 
 from __future__ import annotations
 
@@ -56,6 +56,7 @@ GROUP_AVERAGE_SPECS = [
     (
         "fig20_23_random",
         [
+            "greedy-random",
             "tabu-random",
             "sa-random",
             "isa-random",
@@ -71,6 +72,7 @@ GROUP_AVERAGE_SPECS = [
     (
         "fig24_27_union_pool",
         [
+            "greedy-union-pool",
             "isa-sampled-union-pool",
             "sa-sampled-union-pool",
             "tabu-union-pool",
@@ -258,7 +260,7 @@ def canonicalize_columns(
     if missing:
         raise ReportError(
             f"{file_path}: missing required column(s) {', '.join(missing)} for {figure}. "
-            "Regenerate the aggregate results or enable CADD0040_PROGRESS_TRACE=1 for progress figures."
+            "Regenerate the aggregate results or include progress.tsv files for progress figures."
         )
     return mapping
 
@@ -319,7 +321,7 @@ def load_inputs(run_dir: Path) -> ReportData:
     if not progress_files:
         data.warnings.append(
             "No progress.tsv files found. Anytime figures/tables (time-to-feasible, time-to-gap, progress IQR) "
-            "were skipped. Generate them with CADD0040_PROGRESS_TRACE=1 CADD0040_PROGRESS_STEPS=256."
+            "were skipped. Use a Slurm optimizer run or pass --progress-dir to cadd0040."
         )
     for path in progress_files:
         load_progress(path, run_dir, data)
