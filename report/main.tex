@@ -151,13 +151,11 @@ This objective captures the main trade-off in the problem.  Aggressive buffer in
 
 \subsection{Local Edit Semantics}
 
-Our optimizer explores the solution space using three local edit primitives during search.  First, an \emph{insert} move places a new buffer on an existing clock-tree edge.  This increases the clock delay of the downstream subtree and can be used to adjust useful skew, but it also increases area.
+During search, our optimizer explores the solution space with three local edit primitives. First, an \emph{insert} move places a new buffer on an existing clock-tree edge, increasing the clock delay of the downstream subtree. This can adjust useful skew, but also increases area.
 
-Second, a \emph{resize} move changes the cell type of an existing buffer. Resizing gives a finer way to increase or decrease clock delay and area without changing the clock-tree topology.  Depending on the selected cell type, a resize move may either improve timing by adding delay or reduce area by using a smaller buffer.
+Second, a \emph{resize} move changes the cell type of an existing buffer, providing a finer way to increase or decrease clock delay and area without changing the clock-tree topology. Depending on the selected cell, it may improve timing by adding delay or reduce area by using a smaller buffer.
 
-Third, a \emph{remove} move deletes a buffer that was inserted by the optimizer in an earlier step and reconnects the surrounding tree.  This move is used only as an internal search operation for reversible exploration and area recovery. Original contest nodes remain part of the design and are never removed.  Thus, the final output still satisfies the legal modification constraints of the problem.
-
-Because the number of possible edit sequences is large, the solver cannot enumerate the full state space.  Instead, each iteration generates a smaller set of candidate moves and evaluates their impact on the current timing and proxy score.  The rest of the report describes how we construct these candidate sets and how different search policies decide which move to accept.
+Third, a \emph{remove} move deletes a buffer inserted by the optimizer in an earlier step and reconnects the surrounding tree. This move is used only internally for reversible exploration and area recovery. Original contest nodes remain part of the design and are never removed, so the final output still satisfies the legal modification constraints.
 
 \section{Methodology}
 
@@ -210,7 +208,6 @@ The rest of this section follows the structure of Algorithm~\ref{alg:local-searc
 The optimizer maintains three main data structures during search. The \texttt{ClockTree} is the mutable solution state and stores the active topology and buffer cell types. The \texttt{DataPathGraph} stores the fixed timing paths, including the launch flip-flop, capture flip-flop, and data delay of each path. Since useful-skew optimization modifies only the clock tree, this graph remains read-only. The \texttt{TimingState} connects the two structures and caches the quantities needed for fast evaluation, including clock arrivals, setup and hold slacks, TNS, WNS, area, and the proxy score.
 
 Candidate evaluation follows the temporary apply-score-undo loop shown in Algorithm~\ref{alg:local-search}. For each trial edit, the solver applies the move to the \texttt{ClockTree}, updates the affected clock arrivals and related timing paths in \texttt{TimingState}, and computes the proxy-score change. The move is then either accepted or rolled back. Rollback restores both the clock-tree state and the timing cache, so rejected candidates do not affect later evaluations.
-
 This design avoids recomputing all clock arrivals and slacks for every trial move. Instead, the solver updates only the parts of the timing state affected by the local edit, allowing many candidate moves to be evaluated within the fixed time budget.
 
 \subsection{Candidate Generation}
