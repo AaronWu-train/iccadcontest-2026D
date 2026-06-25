@@ -30,6 +30,9 @@
 \usepackage{subcaption}
 \usepackage{multirow}
 
+\raggedbottom
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
 \title{ \Large{ICCAD 2026 CAD Contest Problem D} \\ \LARGE{Timing Fixing by Useful Skew}}
 
@@ -122,18 +125,20 @@ Timing quality is measured using total negative slack (TNS) and worst negative s
 
 \subsection{Timing-Area Objective and Internal Proxy Score}
 The objective combines timing and area. Timing quality is measured by TNS and WNS under the SS and FF corners, while area is the total area of the clock-tree buffers.  We define the setup score, hold score, and area score as
-\begin{align}
-  S_{\mathrm{setup}} &=
+\begin{equation}
+  \begin{aligned}
+    S_{\mathrm{setup}} &=
   \left( 1 - \frac{\mathrm{TNS}_{SS}}{\mathrm{TNS}_{SS}^{ori}} \right)
   +
-  \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right),\\
-  S_{\mathrm{hold}} &=
+  \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right), \qquad
+  S_{\mathrm{hold}} =
   \left( 1 - \frac{\mathrm{TNS}_{FF}}{\mathrm{TNS}_{FF}^{ori}} \right)
   +
   \left( 1 - \frac{\mathrm{WNS}_{FF}}{\mathrm{WNS}_{FF}^{ori}} \right), \\
   S_{\mathrm{area}} &=
   1 - \frac{\mathrm{Area}}{\mathrm{Area}^{ori}}.
-\end{align}
+  \end{aligned}
+  \end{equation}
 Each denominator uses the metric value of the original input clock tree.  Higher setup and hold scores mean that the negative timing metrics have moved closer to zero, while a higher area score means that the clock-tree buffer area is smaller than the baseline.
 
 The official contest score is a weighted sum of these three components:
@@ -265,7 +270,7 @@ Under this setting, the optimizer can only accept an immediately improving move,
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\linewidth]{images/fig1.png}
+  \includegraphics[width=0.9\linewidth]{images/fig1.png}
   \caption{Candidate-policy comparison under greedy acceptance.  Each method
   uses the same greedy acceptance rule, but differs in how candidate clock-tree
   edits are generated.  The panels show the best-score gap, setup score, hold
@@ -273,11 +278,10 @@ Under this setting, the optimizer can only accept an immediately improving move,
   \label{fig:candidate-policy}
 \end{figure}
 
-Figure~\ref{fig:candidate-policy} shows that the union-pool and upstream window candidate policies reach the best final best-score gap among the greedy variants, while random remains competitive. 
+Figure~\ref{fig:candidate-policy} shows that the random, union-pool, and upstream window candidate policies reach the best final best-score gap among the greedy variants, while random remains competitive.
 The violation-path and critical-endpoint policies improve timing early, but their curves flatten at a worse gap. 
 This supports the claim that endpoint-focused candidate generation is too narrow for useful-skew optimization, which a clock-tree edit affects an entire downstream subtree, and a good repair is often not located directly at the currently violating endpoint. 
-The area panel also explains why pure timing awareness is not enough.
-Some focused policies improve setup or hold but drift into negative area score, whereas the more diverse union pool can expose insert, remove, and resize moves that preserve or recover area while still improving timing. 
+The area panel also explains that pure timing awareness may cause the optimizer to keep many area-expensive edits, while the union-pool and upstream-window and randompolicies maintain a more balanced area trajectory.
 Therefore, greedy search benefits more from candidate diversity than from a narrowly targeted violation-only neighborhood.
 
 \subsection{Effect of Different Acceptance Policies}
@@ -292,7 +296,7 @@ This setting is useful for testing whether an acceptance policy can extract usef
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\linewidth]{images/fig2.png}
+  \includegraphics[width=0.9\linewidth]{images/fig2.png}
   \caption{Acceptance-policy comparison under the random candidate policy. The candidate generator is fixed to random sampling, while the acceptance rule varies among greedy, two-step, SA, ISA, and tabu search.}
   \label{fig:acceptance-random}
 \end{figure}
@@ -314,7 +318,7 @@ For SA and ISA, the sampled-union-pool variant uses a single sampled proposal pe
 \begin{figure}[htbp]
   \vspace{-0.5em}
   \centering
-  \includegraphics[width=0.95\linewidth]{images/fig3.png}
+  \includegraphics[width=0.9\linewidth]{images/fig3.png}
   \caption{Acceptance-policy comparison under union-based candidate policies. Greedy, two-step, and tabu use the union pool, while SA and ISA use sampled union-pool proposals.}
   \label{fig:acceptance-union}
   \vspace{-0.8em}
@@ -325,7 +329,7 @@ Figure~\ref{fig:acceptance-union} shows a different trade-off from the random ca
 This indicates that sampled union proposals are very effective at finding timing-repair moves, but the stochastic acceptance process tends to keep many area-increasing edits. 
 \textit{Tabu-union-pool} is more conservative: its setup score is lower than the annealing-based methods, but its area score stays near the baseline.
 \textit{Two-step-union-pool} again remains weak because the fixed timing-repair-then-recovery schedule is too rigid for the coupled setup-hold-area objective.
-Overall, this figure shows that a richer candidate pool alone does not guarantee a better final score; the acceptance rule must also control area while exploiting the timing opportunities in the pool.
+Overall, this figure shows that timing-aware candidates are useful for finding repair moves, but the acceptance rule must still control the area cost of these moves.
 
 \subsection{ISA and Tabu as Search-Memory Strategies}
 
@@ -335,7 +339,7 @@ ISA uses repeated annealing rounds with best-state restoration, while tabu searc
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\linewidth]{images/fig4.png}
+  \includegraphics[width=0.9\linewidth]{images/fig4.png}
   \caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
   \label{fig:tabu-isa}
 \end{figure}
@@ -353,12 +357,15 @@ Tabu memory is then strong enough to extract useful moves from this broader neig
 This explains why \textit{tabu-random} outperforms \textit{tabu-union-pool}: the random neighborhood is less biased toward immediate violation repair, while tabu search keeps the trajectory score-driven and prevents short cycles.
 
 Overall, \textit{tabu-random} achieves the highest average score because it does not optimize setup, hold, or area in isolation. It does not have the largest setup component, but it obtains the best hold component and also reduces area.
-In contrast, \textit{sa-sampled-union-pool} has the highest setup component, but its strongly negative area score pulls down its final score. 
+In contrast, \textit{isa-sampled-union-pool} has the highest setup component, but its strongly negative area score pulls down its final score.
 
 \subsection{Overall Optimizer Comparison}
 
 Table~\ref{tab:optimizer_results} summarizes the final score decomposition for all optimizer variants. 
-This table combines the ablations above and shows which policy combination gives the best overall timing-area trade-off.
+The best-performing optimizer is \textit{tabu-random}, which achieves the highest average proxy score among all tested methods.
+Although it does not obtain the highest setup score, it achieves the strongest hold score and keeps a positive area score.
+This indicates that its advantage comes from a better overall timing-area balance rather than from optimizing one component alone.
+
 
 \begin{table}[H]
 \centering
@@ -399,6 +406,17 @@ greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 0.375666
 \bottomrule
 \end{tabular}
 \end{table}
+
+
+One noteworthy observation is the interaction between candidate generation and acceptance strategy.
+For tabu search and ISA, random candidate generation performs better than the corresponding union-based policy.
+In contrast, under greedy acceptance, the union-pool policy outperforms random generation.
+This suggests that there is no universally best candidate generator.
+For greedy search, the solver can only accept immediately improving moves, so it benefits from a timing-aware candidate pool that provides stronger local improvements.
+For tabu search and ISA, however, random candidates are more useful because they expose a broader and less biased set of action opportunities, including area-recovery moves that a timing-focused pool may miss.
+
+Overall, the results show that useful-skew optimization requires both candidate diversity and search control.
+The final optimizer, \textit{tabu-random}, combines a broad random neighborhood with tabu memory, allowing it to improve hold timing strongly, maintain competitive setup repair, and reduce area at the same time.
 
 \section{Conclusion}
 This work formulates useful-skew timing fixing as a constrained local-search
