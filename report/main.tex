@@ -361,26 +361,36 @@ Overall, this figure shows that timing-aware candidates are useful for finding r
 
 \subsection{ISA and Tabu as Search-Memory Strategies}
 
-The previous experiments suggest that the strongest strategies are not the ones that maximize a single component. 
-We therefore compare ISA and tabu search more directly, since both methods use search history to avoid the limitations of plain greedy search. 
-ISA uses repeated annealing rounds with best-state restoration, while tabu search uses a short-term tabu list and aspiration to avoid cycling while still accepting globally promising moves.
+The previous experiments suggest that the strongest strategies are not the ones
+that maximize a single component.  We therefore compare ISA and tabu search more
+directly, since both methods use search history to avoid the limitations of
+plain greedy search.  ISA uses repeated annealing rounds with best-state
+restoration, while tabu search uses a short-term tabu list and aspiration to
+avoid cycling while still accepting globally promising moves.
 
 \begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.9\linewidth]{images/fig4.png}
-  \caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
-  \label{fig:tabu-isa}
+\centering
+\includegraphics[width=0.9\linewidth]{images/fig4.png}
+\caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
+\label{fig:tabu-isa}
 \end{figure}
 
-Figure~\ref{fig:tabu-isa} compares the memory-based variants of ISA and tabu search.
-\textit{ISA-sampled-union-pool} achieves the strongest setup trajectory, but its area score drops sharply and remains strongly negative.
-This indicates that its exploration is effective at finding setup-repair moves, but also tends to keep many area-expensive edits.
-In contrast, the tabu variants are more conservative in setup improvement, but maintain much better area scores.
-Among the variants in this comparison, \textit{tabu-random} gives the most balanced trajectory: it stays close to the empirical best-score gap, improves hold score strongly, and keeps the area score positive.
-This suggests that tabu memory provides a more stable form of exploration for this benchmark, because it can move beyond greedy local optima while still keeping the search trajectory close to high-quality states.
+Figure~\ref{fig:tabu-isa} compares ISA and tabu variants with random and union-based candidates. 
+\textit{ISA-sampled-union-pool} achieves the strongest setup improvement, but this comes with a large area penalty. 
+In contrast, \textit{tabu-random} gives the most balanced trajectory, which it stays close to the empirical best-score gap, improves hold score strongly, and keeps the area score positive. 
+This explains why \textit{tabu-random} ranks highest in the final score table despite not maximizing the setup component.
 
-The figure also shows that, in ISA and tabu search, the random variants are more balanced than the union-based variants.
-This suggests that random candidates are not merely a weaker baseline; when combined with a memory-based acceptance strategy, they can provide useful candidate diversity and expose moves that are missed by more timing-directed candidate pools.
+A noteworthy observation is the interaction between candidate generation and acceptance strategy. 
+For tabu search and ISA, random candidate generation performs better than the corresponding union-based policy. 
+In contrast, under greedy acceptance, the union-pool policy outperforms random generation. 
+This shows that there is no universally best candidate generator; the usefulness of a candidate policy depends on how the search strategy accepts or rejects moves.
+
+For greedy search, the solver can only accept immediately improving moves, so it benefits from a timing-aware candidate pool that provides stronger local improvements. 
+For tabu search and ISA, however, the acceptance strategy already provides exploration through memory, best-state restoration, or temporary degradation. 
+In this setting, random candidates are more useful because they expose a broader and less biased set of insert, remove, and resize opportunities, including area-recovery moves that a timing-focused pool may miss. 
+Therefore, random generation should not be viewed only as a weak baseline. 
+When combined with a memory-based acceptance strategy, it can provide useful candidate diversity and lead to a better setup-hold-area balance.
+
 
 \section{Conclusion}
 This work formulates useful-skew timing fixing as a constrained local-search
