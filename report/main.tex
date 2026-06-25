@@ -75,8 +75,9 @@
 
 \begin{abstract}
   Timing fixing by useful skew improves circuit timing by modifying the clock tree while keeping data-path logic unchanged. In this work, we formulate ICCAD 2026 CAD Contest Problem D as a constrained local-search problem over legal clock-tree states. Our solver maintains a mutable clock-tree representation and an incremental timing state, enabling reversible apply-score-undo evaluation of local edits, including buffer insertion, inserted-buffer removal, and buffer resizing. To guide the search under undisclosed official weights, we use a proxy objective that balances SS setup repair, FF hold repair, and clock-tree area.
-  We evaluate several candidate-generation policies, ranging from random sampling to violation-guided and union-based timing-aware pools, together with greedy, two-step, simulated annealing, iterated simulated annealing, and tabu-search acceptance strategies. Experiments on five public testcases with five random seeds show that broad candidate diversity and search memory are more effective than narrowly endpoint-focused repair. Among all tested variants, tabu search with random candidates achieves the highest average proxy score, because it improves hold timing strongly while maintaining competitive setup repair and reducing area. These results suggest that useful-skew optimization benefits from balanced timing-area exploration rather than single-component timing maximization.
+  We evaluate several candidate-generation policies, ranging from random sampling to violation-guided and union-based timing-aware pools, together with greedy, two-step, simulated annealing, iterated simulated annealing, and tabu-search acceptance strategies. Experiments on five public testcases with five random seeds show that broad candidate diversity and search memory are more effective than narrowly endpoint-focused repair. Among all tested variants, tabu search with random candidates achieves the highest average proxy score, because it improves hold timing strongly while maintaining competitive setup repair and reducing area. These results suggest that useful-skew optimization benefits from balanced timing-area exploration rather than single-component timing maximization. \footnotemark
 \end{abstract}
+\footnotetext{Source Code: https://github.com/AaronWu-train/iccadcontest-2026D}
 
 \section{Introduction}
 Timing closure is a critical task in modern VLSI design. As clock frequency increases, setup and hold violations become harder to fix without disturbing the functional logic of the circuit. ICCAD Contest 2026 Problem D focuses on this setting: given an initial clock tree, a buffer library, and data-path delay reports, the goal is to improve timing quality by modifying the clock tree while preserving the original data-path logic.
@@ -432,7 +433,7 @@ calibrating the proxy weights with more feedback, and adding a stronger late-sta
   \item \textbf{Sheng-Yu Cheng}: Served as a non-enrolled collaborator. Assisted with algorithm design, experimental data analysis, plot generation, report writing, and presentation preparation.
 \end{itemize}
 
-\vspace{-0.5em}
+\vspace{-1em}
 \section*{Generative AI Usage Disclosure}
 \vspace{-0.5em}
 We used generative AI tools, including OpenAI Codex, Cursor, and ChatGPT, during this project.

@@ -1,7 +1,7 @@
 # ICCAD Contest 2026 Problem D Final Submission
 
 This archive contains the final submission materials for ICCAD Contest 2026
-Problem D, "Timing Fixing by Useful Skew".
+Problem D, "Timing Fixing by Useful Skew". The project's original repository is available at [GitHub](https://github.com/AaronWu-train/iccadcontest-2026D)
 
 ## Directory Map
 
