@@ -75,7 +75,6 @@
 
 \begin{abstract}
   Timing fixing by useful skew improves circuit timing by modifying the clock tree while keeping data-path logic unchanged. In this work, we formulate ICCAD 2026 CAD Contest Problem D as a constrained local-search problem over legal clock-tree states. Our solver maintains a mutable clock-tree representation and an incremental timing state, enabling reversible apply-score-undo evaluation of local edits, including buffer insertion, inserted-buffer removal, and buffer resizing. To guide the search under undisclosed official weights, we use a proxy objective that balances SS setup repair, FF hold repair, and clock-tree area.
-  
   We evaluate several candidate-generation policies, ranging from random sampling to violation-guided and union-based timing-aware pools, together with greedy, two-step, simulated annealing, iterated simulated annealing, and tabu-search acceptance strategies. Experiments on five public testcases with five random seeds show that broad candidate diversity and search memory are more effective than narrowly endpoint-focused repair. Among all tested variants, tabu search with random candidates achieves the highest average proxy score, because it improves hold timing strongly while maintaining competitive setup repair and reducing area. These results suggest that useful-skew optimization benefits from balanced timing-area exploration rather than single-component timing maximization.
 \end{abstract}
 
@@ -174,7 +173,7 @@ Algorithm~\ref{alg:local-search} summarizes the overall optimization flow. Each 
 
 \begin{algorithm}[htbp]
   \caption{Overall local-search optimization flow}
-  \label{alg:local_search}
+  \label{alg:local-search}
   \begin{algorithmic}[1]
     \State Build the initial \texttt{ClockTree}, \texttt{DataPathGraph}, and \texttt{TimingState}
     \State $T_{\mathrm{cur}} \gets$ baseline clock tree
@@ -235,9 +234,7 @@ Overall, these acceptance strategies represent different trade-offs between expl
 \subsection{Output Format Validation}
 
 Output validity is enforced during move construction rather than repaired after optimization. Inserted buffers receive unique generated names, resize and insertion moves are rejected if the selected cell type violates the fanout limit, and remove moves are limited to optimizer-inserted buffers. Original contest nodes remain active and keep their names, while removed search-only buffers are marked inactive so that they cannot appear in the final output.
-
-After the optimizer finishes, the solver restores the best-seen \texttt{ClockTree} and writes only active nodes through a preorder traversal with depth information, matching the input clock-tree format. Since the writer emits only active parent-child relationships, each flip-flop keeps a single clock-tree parent, the tree remains well formed, and every emitted buffer satisfies the buffer-library fanout table. The final file is written through a temporary file followed by a rename, so the output path is replaced only after a complete \texttt{modified\_clk\_tree.structure} file has been produced.
-
+After the optimizer finishes, the solver restores the best-seen \texttt{ClockTree} and writes only active nodes through a preorder traversal with depth information, matching the required clock-tree format.
 
 \section{Experimental Results and Discussion}
 \label{sec:experiments}
@@ -354,7 +351,6 @@ This indicates that its advantage comes from a better overall timing-area balanc
 \centering
 \caption{Performance comparison of different optimizers. Standard deviation is computed from the final scores over five testcases and five seeds.}
 \label{tab:optimizer_results}
-
 \begin{tabular}{
 l
 S[table-format=1.6]
@@ -429,8 +425,7 @@ current trajectory close to high-quality states.  As a result, it does not
 maximize setup improvement alone, but obtains the best balance among setup
 repair, hold repair, and area reduction.  Future work could improve this
 framework by adapting the candidate policy to the current violation pattern,
-calibrating the proxy weights with more feedback, and adding a stronger
-late-stage area-aware resize/remove polish.
+calibrating the proxy weights with more feedback, and adding a stronger late-stage area-aware polish.
 
 \section*{Author Contributions}
 
@@ -446,7 +441,7 @@ late-stage area-aware resize/remove polish.
 
 
 \section*{Generative AI Usage Disclosure}
-We used generative AI tools during the development of this project. In particular, OpenAI Codex and Cursor was used extensively to assist with source-code implementation, including parser construction, clock-tree data structures, timing evaluation routines, optimization-loop implementation, test scripts, and refactoring. Approximately 80\% of the submitted source code was initially generated or modified with the assistance of Codex or Cursor.
+We used generative AI tools during the development of this project. In particular, OpenAI Codex and Cursor was used extensively to assist with source-code implementation. Approximately 80\% of the submitted source code was initially generated or modified with the assistance of Codex or Cursor.
 
 The algorithmic ideas, including the useful-skew optimization strategy, candidate generation policies, acceptance strategies, timing-area trade-off considerations, experimental design, and final optimizer selection, were designed and evaluated by the team members. All AI-generated code was manually reviewed, integrated, debugged, and tested by the team. The reported experimental results were obtained by executing our implemented solver on the test cases; no experimental data or performance numbers were generated by AI tools.
 
