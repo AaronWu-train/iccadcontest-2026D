@@ -48,6 +48,8 @@ SOURCE_EXCLUDED_DIRS = {
     "dist",
     "slurm_runs",
     "config_runs",
+    "visual_trace",
+    "testcases/visual_demo",
 }
 
 SOURCE_EXCLUDED_FILES = {

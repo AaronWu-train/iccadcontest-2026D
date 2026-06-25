@@ -53,6 +53,39 @@ Build a Rocky Linux 8 release binary:
 make rocky8
 ```
 
+## Download Testcases
+
+The official contest testcases are used in this work. However, they are too large to be included in this zip file. Please download the test data from the [Drive Link](https://drive.google.com/drive/folders/1Jj3eE2K4qAnVpTw3MQPYatJaYjE2bakj?usp=sharing) and place it under `D_Source_Code_and_Testcases/testcases` with the following directory structure:
+
+```text
+testcases
+├── testcase0
+│   ├── buf.lib
+│   ├── clk_tree.structure
+│   ├── FF_delay.rpt
+│   └── SS_delay.rpt
+├── testcase1
+│   ├── buf.lib
+│   ├── clk_tree.structure
+│   ├── FF_delay.rpt
+│   └── SS_delay.rpt
+├── testcase2
+│   ├── buf.lib
+│   ├── clk_tree.structure
+│   ├── FF_delay.rpt
+│   └── SS_delay.rpt
+├── testcase3
+│   ├── buf.lib
+│   ├── clk_tree.structure
+│   ├── FF_delay.rpt
+│   └── SS_delay.rpt
+└── testcase4
+    ├── buf.lib
+    ├── clk_tree.structure
+    ├── FF_delay.rpt
+    └── SS_delay.rpt
+```
+
 ## Run Examples
 
 Run one testcase with the default optimizer:
