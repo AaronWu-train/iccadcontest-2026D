@@ -238,14 +238,58 @@ After the optimizer finishes, the solver restores the best-seen \texttt{ClockTre
 
 \section{Experimental Results and Discussion}
 \label{sec:experiments}
+\subsection{Score Summary and Experimental Protocol}
 
-\subsection{Experimental Setup and Metrics}
+We evaluate all optimizer variants on five public testcases. Each optimizer is run with five random seeds, resulting in 325 runs in total. We set the optimization time budget to 570 seconds per testcase, leaving a safety margin under the 10-minute contest limit. Table~\ref{tab:optimizer_results} summarizes the final score decomposition of all optimizer variants.
 
-We evaluate all optimizer variants on five public testcases. Each optimizer is run with five random seeds, resulting in 325 runs in total. We set the optimization time budget to 570 seconds per testcase, leaving a safety margin under the 10-minute contest limit. During each run, we record progress traces including elapsed time, best proxy score, SS/FF timing metrics, and clock-tree area. These traces are used to compare how quickly different optimizers improve the solution and how the improvements are distributed across timing and area.
+\begin{table}[htbp]
+\centering
+\caption{Performance comparison of different optimizers. Standard deviation is computed from the final scores over five testcases and five seeds.}
+\footnotesize
+\label{tab:optimizer_results}
+\begin{tabular}{
+l
+S[table-format=1.6]
+S[table-format=1.6]
+S[table-format=1.6]
+S[table-format=-1.6]
+S[table-format=1.6]
+}
+\toprule
+{Optimizer} &
+{Avg. Score} &
+{Setup} &
+{Hold} &
+{Area} &
+{Std.} \\
+\midrule
 
-Each trajectory figure contains four panels: best-score gap, setup score, hold score, and area score. To make different testcases comparable, the best-score panel aligns each testcase to its own best observed score across all optimizers, seeds, and time points. We plot each run relative to this testcase-specific reference, so the gap is at most zero and values closer to zero indicate better performance. The other panels report the setup, hold, and area score components directly.
+tabu-random              & \bfseries 1.140722 & 1.276422 & \bfseries 1.916255 &  0.093788 & 0.235526 \\
+isa-random               & 1.084773 & 1.322733 & 1.737303 & -0.043676 & 0.273375 \\
+tabu-union-pool          & 1.062058 & 1.259221 & 1.731261 & -0.001474 & 0.274410 \\
+isa-sampled-union-pool   & 1.044759 & 1.521136 & 1.721173 & -0.584406 & 0.183581 \\
+sa-sampled-union-pool    & 1.044015 & 1.653149 & 1.833949 & -0.964191 & \bfseries 0.165838 \\
+greedy-union-pool        & 1.042167 & 1.193238 & 1.757868 &  0.024327 & 0.266567 \\
+greedy-upstream-window   & 1.031489 & 1.227970 & 1.710767 & -0.040751 & 0.275511 \\
+greedy-random            & 1.009059 & 1.104560 & 1.806695 &  0.020420 & 0.214807 \\
+sa-random                & 0.998808 & 1.149864 & 1.750100 & -0.054596 & 0.276991 \\
+two-step-random          & 0.876061 & 1.148869 & 1.334986 & -0.128479 & 0.318905 \\
+two-step-union-pool      & 0.859649 & 1.045729 & 1.405060 & -0.057920 & 0.401216 \\
+greedy-violation-path    & 0.829324 & 1.032678 & 1.300464 & -0.048521 & 0.277805 \\
+greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 0.375666 \\
 
-For aggregation, we bin runtime into fixed intervals, carry forward the latest recorded value, take the median over five seeds for each testcase, and then average the testcase-level medians. The shaded region shows variation across testcases.
+\bottomrule
+\end{tabular}
+\end{table}
+
+It is noteworthy that \textit{sa-sampled-union-pool} obtains the highest setup score, but its large negative area score reduces its overall ranking.  In contrast, \textit{tabu-random} achieves the strongest hold score and maintains a positive area score. To analyze this trade-off more precisely, we use progress traces recorded during each run. Each trace contains elapsed time, best proxy score, SS/FF timing metrics, and clock-tree area. The trajectory figures in the following subsections are generated from these traces.  They do not redefine the final ranking in Table~\ref{tab:optimizer_results}; instead, they provide a time-resolved decomposition of how each optimizer reaches its final score.
+
+Each trajectory figure contains four panels: best-score gap, setup score, hold score, and area score.  For each testcase, the empirical best score is defined as the best score observed across all optimizers, seeds, and time points in our experiments.  The best-score-gap panel plots each run relative to this testcase-specific reference, so the gap is at most zero and values closer to zero indicate better anytime performance.  This empirical reference is not an optimality certificate; it is only the best observed score in the traced experiments.  The setup, hold, and area panels report the corresponding score components directly.  Higher setup and hold scores indicate stronger timing repair, while a higher area score indicates lower clock-tree area relative to the initial tree.
+
+For aggregation, we divide the 570-second runtime into fixed intervals, take the latest recorded value within each interval, and forward-fill missing intervals within the same run.  We then compute the median over the five seeds for each testcase and average these testcase-level medians to obtain the plotted curve. The shaded region shows the 25th--75th percentile range across testcases after seed aggregation.  Thus, the shaded region represents testcase-to-testcase variation rather than seed-level uncertainty.
+
+The following subsections use these trajectory plots to analyze the mechanisms behind Table~\ref{tab:optimizer_results}.  We first isolate candidate-generation effects under greedy acceptance, then compare acceptance strategies under fixed candidate families, and finally examine ISA and tabu search as history-based search strategies.
+
 
 \subsection{Effect of Different Candidate Generation Policies}
 
@@ -317,88 +361,36 @@ Overall, this figure shows that timing-aware candidates are useful for finding r
 
 \subsection{ISA and Tabu as Search-Memory Strategies}
 
-The previous experiments suggest that the strongest strategies are not the ones that maximize a single component. 
-We therefore compare ISA and tabu search more directly, since both methods use search history to avoid the limitations of plain greedy search. 
-ISA uses repeated annealing rounds with best-state restoration, while tabu search uses a short-term tabu list and aspiration to avoid cycling while still accepting globally promising moves.
+The previous experiments suggest that the strongest strategies are not the ones
+that maximize a single component.  We therefore compare ISA and tabu search more
+directly, since both methods use search history to avoid the limitations of
+plain greedy search.  ISA uses repeated annealing rounds with best-state
+restoration, while tabu search uses a short-term tabu list and aspiration to
+avoid cycling while still accepting globally promising moves.
 
 \begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.9\linewidth]{images/fig4.png}
-  \caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
-  \label{fig:tabu-isa}
+\centering
+\includegraphics[width=0.9\linewidth]{images/fig4.png}
+\caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
+\label{fig:tabu-isa}
 \end{figure}
 
-Figure~\ref{fig:tabu-isa} compares the memory-based variants of ISA and tabu search.
-\textit{ISA-sampled-union-pool} achieves the strongest setup trajectory, but its area score drops sharply and remains strongly negative.
-This indicates that its exploration is effective at finding setup-repair moves, but also tends to keep many area-expensive edits.
-In contrast, the tabu variants are more conservative in setup improvement, but maintain much better area scores.
-Among the variants in this comparison, \textit{tabu-random} gives the most balanced trajectory: it stays close to the empirical best-score gap, improves hold score strongly, and keeps the area score positive.
-This suggests that tabu memory provides a more stable form of exploration for this benchmark, because it can move beyond greedy local optima while still keeping the search trajectory close to high-quality states.
+Figure~\ref{fig:tabu-isa} compares ISA and tabu variants with random and union-based candidates. 
+\textit{ISA-sampled-union-pool} achieves the strongest setup improvement, but this comes with a large area penalty. 
+In contrast, \textit{tabu-random} gives the most balanced trajectory, which it stays close to the empirical best-score gap, improves hold score strongly, and keeps the area score positive. 
+This explains why \textit{tabu-random} ranks highest in the final score table despite not maximizing the setup component.
 
-The figure also shows that, in ISA and tabu search, the random variants are more balanced than the union-based variants.
-This suggests that random candidates are not merely a weaker baseline; when combined with a memory-based acceptance strategy, they can provide useful candidate diversity and expose moves that are missed by more timing-directed candidate pools.
+A noteworthy observation is the interaction between candidate generation and acceptance strategy. 
+For tabu search and ISA, random candidate generation performs better than the corresponding union-based policy. 
+In contrast, under greedy acceptance, the union-pool policy outperforms random generation. 
+This shows that there is no universally best candidate generator; the usefulness of a candidate policy depends on how the search strategy accepts or rejects moves.
 
+For greedy search, the solver can only accept immediately improving moves, so it benefits from a timing-aware candidate pool that provides stronger local improvements. 
+For tabu search and ISA, however, the acceptance strategy already provides exploration through memory, best-state restoration, or temporary degradation. 
+In this setting, random candidates are more useful because they expose a broader and less biased set of insert, remove, and resize opportunities, including area-recovery moves that a timing-focused pool may miss. 
+Therefore, random generation should not be viewed only as a weak baseline. 
+When combined with a memory-based acceptance strategy, it can provide useful candidate diversity and lead to a better setup-hold-area balance.
 
-\subsection{Overall Optimizer Comparison}
-
-Table~\ref{tab:optimizer_results} summarizes the final score decomposition for all optimizer variants. 
-The best-performing optimizer is \textit{tabu-random}, which achieves the highest average proxy score among all tested methods.
-Although it does not obtain the highest setup score, it achieves the strongest hold score and keeps a positive area score.
-This indicates that its advantage comes from a better overall timing-area balance rather than from optimizing one component alone.
-
-
-\begin{table}[htbp]
-\centering
-\caption{Performance comparison of different optimizers. Standard deviation is computed from the final scores over five testcases and five seeds.}
-\footnotesize
-\label{tab:optimizer_results}
-\begin{tabular}{
-l
-S[table-format=1.6]
-S[table-format=1.6]
-S[table-format=1.6]
-S[table-format=-1.6]
-S[table-format=1.6]
-}
-\toprule
-{Optimizer} &
-{Avg. Score} &
-{Setup} &
-{Hold} &
-{Area} &
-{Std.} \\
-\midrule
-
-tabu-random              & \bfseries 1.140722 & 1.276422 & \bfseries 1.916255 &  0.093788 & 0.235526 \\
-isa-random               & 1.084773 & 1.322733 & 1.737303 & -0.043676 & 0.273375 \\
-tabu-union-pool          & 1.062058 & 1.259221 & 1.731261 & -0.001474 & 0.274410 \\
-isa-sampled-union-pool   & 1.044759 & 1.521136 & 1.721173 & -0.584406 & 0.183581 \\
-sa-sampled-union-pool    & 1.044015 & 1.653149 & 1.833949 & -0.964191 & \bfseries 0.165838 \\
-greedy-union-pool        & 1.042167 & 1.193238 & 1.757868 &  0.024327 & 0.266567 \\
-greedy-upstream-window   & 1.031489 & 1.227970 & 1.710767 & -0.040751 & 0.275511 \\
-greedy-random            & 1.009059 & 1.104560 & 1.806695 &  0.020420 & 0.214807 \\
-sa-random                & 0.998808 & 1.149864 & 1.750100 & -0.054596 & 0.276991 \\
-two-step-random          & 0.876061 & 1.148869 & 1.334986 & -0.128479 & 0.318905 \\
-two-step-union-pool      & 0.859649 & 1.045729 & 1.405060 & -0.057920 & 0.401216 \\
-greedy-violation-path    & 0.829324 & 1.032678 & 1.300464 & -0.048521 & 0.277805 \\
-greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 0.375666 \\
-
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-One noteworthy observation is the interaction between candidate generation and acceptance strategy.
-For tabu search and ISA, random candidate generation performs better than the corresponding union-based policy.
-In contrast, under greedy acceptance, the union-pool policy outperforms random generation.
-This suggests that there is no universally best candidate generator.
-
-For greedy search, the solver can only accept immediately improving moves, so it benefits from a timing-aware candidate pool that provides stronger local improvements.
-For tabu search and ISA, however, the acceptance strategy already provides exploration through memory, restoration, or temporary degradation.
-In this setting, random candidates are more useful because they expose a broader and less biased set of insert, remove, and resize opportunities, including area-recovery moves that a timing-focused pool may miss.
-
-Overall, the results show that useful-skew optimization requires both candidate diversity and search control.
-The final optimizer, \textit{tabu-random}, combines a broad random neighborhood with tabu memory, allowing it to improve hold timing strongly, maintain competitive setup repair, and reduce area at the same time.
 
 \section{Conclusion}
 This work formulates useful-skew timing fixing as a constrained local-search
