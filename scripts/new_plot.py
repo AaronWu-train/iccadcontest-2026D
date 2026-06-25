@@ -121,8 +121,8 @@ COLORS = {
     "tabu-union-pool": "#B47FCA",
 }
 
-LINE_WIDTH = 1.3
-SHADE_ALPHA = 0.055
+LINE_WIDTH = 1.4
+SHADE_ALPHA = 0.075
 FIG_SIZE = (13.0, 8.4)
 DPI = 300
 
