@@ -155,11 +155,11 @@ This objective captures the main trade-off in the problem.  Aggressive buffer in
 
 \subsection{Local Edit Semantics}
 
-During search, our optimizer explores the solution space with three local edit primitives. First, an \emph{insert} move places a new buffer on an existing clock-tree edge, increasing the clock delay of the downstream subtree. This can adjust useful skew, but also increases area.
+During search, our optimizer explores the solution space with three local edit primitives. First, an \emph{insert} places a new buffer on an existing clock-tree edge, increasing the clock delay of the downstream subtree. This can adjust useful skew, but also increases area.
 
-Second, a \emph{resize} move changes the cell type of an existing buffer, providing a finer way to increase or decrease clock delay and area without changing the clock-tree topology. Depending on the selected cell, it may improve timing by adding delay or reduce area by using a smaller buffer.
+Second, a \emph{resize} changes the cell type of an existing buffer, providing a finer way to increase or decrease clock delay and area without changing the clock-tree topology. Depending on the selected cell, it may improve timing by adding delay or reduce area by using a smaller buffer.
 
-Third, a \emph{remove} move deletes a buffer inserted by the optimizer in an earlier step and reconnects the surrounding tree. This move is used only internally for reversible exploration and area recovery. Original contest nodes remain part of the design and are never removed, so the final output still satisfies the legal modification constraints.
+Third, a \emph{remove} deletes a buffer inserted by the optimizer in an earlier step and reconnects the surrounding tree. This move is used only internally for reversible exploration and area recovery. Original contest nodes remain part of the design and are never removed, so the final output still satisfies the legal modification constraints.
 
 \section{Methodology}
 
@@ -221,7 +221,7 @@ After candidate generation defines the visible neighborhood, the acceptance stra
 
 The \textbf{greedy strategy} is the most direct baseline. It evaluates all candidates in the current set and applies the move with the largest positive proxy-score improvement. This strategy is stable and easy to interpret: every accepted move immediately improves the current solution according to the proxy score. However, greedy search is also the most vulnerable to local optima.
 
-The \textbf{two-step strategy} is designed around the scoring structure of the problem. Since the official objective contains setup, hold, and area components, the first phase focuses on inproving setup slack and maximizing Setup Score. The second phase switches back to the full proxy score to recover area and balance setup, hold, and area. This strategy matches the intuition that timing violations should be repaired before area cleanup. Its limitation is that the three components are not independent: area recovery may remove useful delay, while timing-focused edits may introduce area overhead that is difficult to recover later.
+The \textbf{two-step strategy} is designed around the scoring structure of the problem. Since the official objective contains setup, hold, and area components, the first phase focuses on improving setup slack and maximizing Setup Score. The second phase switches back to the full proxy score to recover area and balance setup, hold, and area. This strategy matches the intuition that timing violations should be repaired before area cleanup. Its limitation is that the three components are not independent: area recovery may remove useful delay, while timing-focused edits may introduce area overhead that is difficult to recover later.
 
 \textbf{Simulated annealing}\cite{kirkpatrick1983optimization} is used to handle the non-smoothness of the proxy objective. At each step, it samples a proposal and always accepts improving moves, but it may also accept worsening moves with a temperature-controlled probability. This is useful in our setting because some useful-skew repairs require passing through intermediate states that temporarily hurt area or another timing corner. The solver records the best-seen state separately, so exploratory moves can be used without making temporary degradation determine the final output.
 
@@ -241,7 +241,7 @@ After the optimizer finishes, the solver restores the best-seen \texttt{ClockTre
 
 \subsection{Experimental Setup and Metrics}
 
-We evaluate all optimizer variants on five public testcases. Each optimizer is run with five random seeds, resulting in 325 runs in total. The reported objective is the proxy score defined in Section~2, which combines setup timing, hold timing, and area using fixed weights. During each run, we record progress traces including elapsed time, best score, SS/FF timing metrics, and clock-tree area. These traces are used to compare how quickly different optimizers improve the solution and how the improvements are distributed across timing and area.
+We evaluate all optimizer variants on five public testcases. Each optimizer is run with five random seeds, resulting in 325 runs in total. We set the optimization time budget to 570 seconds per testcase, leaving a safety margin under the 10-minute contest limit. During each run, we record progress traces including elapsed time, best proxy score, SS/FF timing metrics, and clock-tree area. These traces are used to compare how quickly different optimizers improve the solution and how the improvements are distributed across timing and area.
 
 Each trajectory figure contains four panels: best-score gap, setup score, hold score, and area score. To make different testcases comparable, the best-score panel aligns each testcase to its own best observed score across all optimizers, seeds, and time points. We plot each run relative to this testcase-specific reference, so the gap is at most zero and values closer to zero indicate better performance. The other panels report the setup, hold, and area score components directly.
 
@@ -264,8 +264,8 @@ Under this setting, the optimizer can only accept an immediately improving move,
 
 Figure~\ref{fig:candidate-policy} shows that the random, union-pool, and upstream window candidate policies reach the best final best-score gap among the greedy variants, while random remains competitive.
 The violation-path and critical-endpoint policies improve timing early, but their curves flatten at a worse gap. 
-This supports the claim that endpoint-focused candidate generation is too narrow for useful-skew optimization, which a clock-tree edit affects an entire downstream subtree, and a good repair is often not located directly at the currently violating endpoint. 
-The area panel also explains that pure timing awareness may cause the optimizer to keep many area-expensive edits, while the union-pool and upstream-window and randompolicies maintain a more balanced area trajectory.
+This supports the claim that endpoint-focused candidate generation is too narrow for useful-skew optimization, because a clock-tree edit affects an entire downstream subtree, and a good repair is often not located directly at the currently violating endpoint.
+The area panel also explains that pure timing awareness may cause the optimizer to keep many area-expensive edits, while the union-pool and upstream-window and random policies maintain a more balanced area trajectory.
 Therefore, greedy search benefits more from candidate diversity than from a narrowly targeted violation-only neighborhood.
 
 \subsection{Effect of Different Acceptance Policies}
