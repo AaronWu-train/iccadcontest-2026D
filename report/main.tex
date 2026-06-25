@@ -280,9 +280,9 @@ The shaded region around the curve shows the variation across different testcase
 We first isolate the effect of different candidate generation policies by fixing the acceptance policy to greedy best-score selection. 
 Under this setting, the optimizer can only accept an immediately improving move, so the result mainly reflects whether the candidate pool contains useful local edits.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.98\linewidth]{images/fig1.png}
+  \includegraphics[width=0.95\linewidth]{images/fig1.png}
   \caption{Candidate-policy comparison under greedy acceptance.  Each method
   uses the same greedy acceptance rule, but differs in how candidate clock-tree
   edits are generated.  The panels show the best-score gap, setup score, hold
@@ -307,9 +307,9 @@ This experiment separates the quality of candidate generation from the ability o
 With random candidates, the optimizer sees a broad but noisy neighborhood. 
 This setting is useful for testing whether an acceptance policy can extract useful moves from an unstructured candidate stream.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.98\linewidth]{images/fig2.png}
+  \includegraphics[width=0.95\linewidth]{images/fig2.png}
   \caption{Acceptance-policy comparison under the random candidate policy. The candidate generator is fixed to random sampling, while the acceptance rule varies among greedy, two-step, SA, ISA, and tabu search.}
   \label{fig:acceptance-random}
 \end{figure}
@@ -328,10 +328,10 @@ The main insight is that a random neighborhood can be useful, but only if the ac
 We also compare acceptance policies when the candidate pool is built from the union of timing-aware sources. 
 For SA and ISA, the sampled-union-pool variant uses a single sampled proposal per iteration to match the single-proposal style of annealing.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \vspace{-0.5em}
   \centering
-  \includegraphics[width=0.98\linewidth]{images/fig3.png}
+  \includegraphics[width=0.95\linewidth]{images/fig3.png}
   \caption{Acceptance-policy comparison under union-based candidate policies. Greedy, two-step, and tabu use the union pool, while SA and ISA use sampled union-pool proposals.}
   \label{fig:acceptance-union}
   \vspace{-0.8em}
@@ -350,9 +350,9 @@ The previous experiments suggest that the strongest strategies are not the ones 
 We therefore compare ISA and tabu search more directly, since both methods use search history to avoid the limitations of plain greedy search. 
 ISA uses repeated annealing rounds with best-state restoration, while tabu search uses a short-term tabu list and aspiration to avoid cycling while still accepting globally promising moves.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.98\linewidth]{images/fig4.png}
+  \includegraphics[width=0.95\linewidth]{images/fig4.png}
   \caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
   \label{fig:tabu-isa}
 \end{figure}

@@ -61,7 +61,7 @@ DEFAULT_MAX_TIME = 570.0
 FIGURES = [
     {
         "filename": "fig1",
-        "title": "Candidate Policy",
+        "title": "Candidate-policy comparison under greedy acceptance",
         "optimizers": [
             "greedy-union-pool",
             "greedy-random",
@@ -72,7 +72,7 @@ FIGURES = [
     },
     {
         "filename": "fig2",
-        "title": "Acceptance: Random",
+        "title": "Acceptance-policy comparison under the random candidate policy.",
         "optimizers": [
             "greedy-random",
             "two-step-random",
@@ -83,7 +83,7 @@ FIGURES = [
     },
     {
         "filename": "fig3",
-        "title": "Acceptance: Union",
+        "title": "Acceptance-policy comparison under the union-pool candidate policy.",
         "optimizers": [
             "greedy-union-pool",
             "two-step-union-pool",
@@ -129,9 +129,9 @@ DPI = 300
 # Font sizes tuned for report figures.
 PANEL_TITLE_FONT_SIZE = 12.0
 FIGURE_TITLE_FONT_SIZE = 14.5
-AXIS_LABEL_FONT_SIZE = 9.5
+AXIS_LABEL_FONT_SIZE = 10
 TICK_LABEL_FONT_SIZE = 8.8
-LEGEND_FONT_SIZE = 12.0
+LEGEND_FONT_SIZE = 13.0
 
 PANELS = [
     ("best_gap", "Best-score gap", "Gap to best"),
@@ -428,7 +428,7 @@ def main() -> int:
                 bbox_to_anchor=(0.5, -0.03),
             )
 
-        fig.tight_layout(rect=(0, 0.085, 1, 0.955))
+        fig.tight_layout(rect=(0, 0.04, 1, 1))
 
         out_path = args.out_dir / f"{fig_cfg['filename']}.png"
         fig.savefig(out_path, bbox_inches="tight", dpi=DPI)
