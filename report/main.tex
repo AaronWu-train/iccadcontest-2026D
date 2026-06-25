@@ -42,7 +42,7 @@
 % \AND instead of \And before the third author name.
 
 \author{%
-  Aaron~Wu \\
+  Aaron~Wu\\
   Department of Electrical Engineering\\
   National Taiwan University\\
   \texttt{b13901011@ntu.edu.tw} \\
@@ -253,36 +253,13 @@ After the optimizer finishes, the solver restores the best-seen \texttt{ClockTre
 
 \subsection{Experimental Setup and Metrics}
 
-We evaluate all optimizer variants on five public testcases. 
-Each optimizer is run with five different random seeds, resulting in a total of 325 runs. 
-The reported score is the proxy score defined in Section~2, using fixed weights for setup timing, hold timing, and area.
-During each run, we record detailed progress traces in order to observe its trajectory of solving the problem. 
-These traces include the elapsed time, the best score found so far, the current timing metrics under both SS and FF corners, and the current clock-tree area. 
-The traces are then plotted into its trajectory over time.
-Their purpose is to show how each optimizer behaves: how quickly it improves the solution and how the improvements are distributed across setup timing, hold timing and area.
+We evaluate all optimizer variants on five public testcases. Each optimizer is run with five random seeds, resulting in 325 runs in total. The reported objective is the proxy score defined in Section~2, which combines setup timing, hold timing, and area using fixed weights. During each run, we record progress traces including elapsed time, best score, SS/FF timing metrics, and clock-tree area. These traces are used to compare how quickly different optimizers improve the solution and how the improvements are distributed across timing and area.
 
-Each trajectory figure contains four panels. 
-The first panel shows the best-score gap over time. 
-To make trajectories from different testcases comparable, we align each testcase to its own best observed score instead of plotting raw scores directly.
-For each testcase, we first identify the best score that was ever observed across all optimizers, seeds, and time points in our experiments. 
-Then, for each run, we measure how far its current best score is from this reference value. 
-Because this reference is the best observed score, the gap is always zero or negative. 
-A curve that is closer to zero means that the optimizer is closer to the best result we have seen for that testcase. 
-It is important to note that this reference is based only on our experiments and does not represent a true optimal solution.
+Each trajectory figure contains four panels. The first panel reports the best-score gap over time. To make trajectories from different testcases comparable, we align each testcase to its own best observed score across all optimizers, seeds, and time points. We then plot each run's current best score relative to this testcase-specific reference. Thus, the gap is at most zero, and a curve closer to zero indicates better performance. This reference is only the best result observed in our experiments, not the true optimum.
 
-The other three panels break down the optimization process into setup timing, hold timing, and area. 
-For each run, we treat the first recorded state as the baseline. 
-We then measure how much each quantity improves relative to this starting point. 
-For setup and hold timing, we consider both total negative slack and worst negative slack, and combine their improvements into a single score. 
-For area, we measure how much the clock-tree area is reduced compared to the initial value. 
+The remaining panels show the progress in setup timing, hold timing, and area. For setup and hold timing, we combine improvements in total negative slack and worst negative slack into a single score. For area, we measure the reduction in clock-tree area relative to the initial state.
 
-To produce a single curve for each optimizer, we aggregate results across runs in several steps. 
-First, we divide the total runtime into uniform time intervals. 
-For each run, we record the latest available value within each interval, and if a value is missing, we carry forward the most recent one. 
-Then, for each testcase, we combine the five seeds by taking their median value at each time point. 
-Finally, we average these testcase-level medians to obtain the main curve. 
-The shaded region around the curve shows the variation across different testcases, which means the shaded area reflects how performance differs between testcases, rather than uncertainty due to random seeds.
-
+To aggregate multiple runs into one curve, we divide the runtime into fixed time intervals and carry forward the latest available value when a run has no record in an interval. For each testcase, we take the median over the five seeds at every time point. We then average these testcase-level medians to obtain the main curve. The shaded region shows variation across testcases, so it reflects testcase-dependent behavior rather than random-seed uncertainty.
 
 \subsection{Effect of Different Candidate Generation Policies}
 
@@ -456,7 +433,17 @@ calibrating the proxy weights with more feedback, and adding a stronger
 late-stage area-aware resize/remove polish.
 
 \section*{Author Contributions}
-Hong Bin Lai did nothing :\(\)) That's True, I'm very sorry.I find the branch yesterday but I see the first version submission when I'm writing.I know it's a bad excuse, and I really doesn't do anything.
+
+\begin{itemize}
+  \item \textbf{Aaron Wu}: Designed the overall algorithmic framework and implementation plan. Developed and implemented the optimization algorithms, conducted experiments, analyzed the experimental results, and contributed to writing the final report.
+
+  \item \textbf{Yucheng Liu}: Implemented the core data structures and algorithms. Assisted with experimental data analysis, prepared the presentation slides, and drafted parts of the report.
+
+  \item \textbf{Hong-Bin Lai}: Contributed to the preparation of the presentation slides and the final report.
+
+  \item \textbf{Sheng-Yu Cheng}: Served as a non-enrolled collaborator. Assisted with algorithm design, experimental data analysis, plot generation, report writing, and presentation preparation.
+\end{itemize}
+
 
 \section*{Generative AI Usage Disclosure}
 We used generative AI tools during the development of this project. In particular, OpenAI Codex and Cursor was used extensively to assist with source-code implementation, including parser construction, clock-tree data structures, timing evaluation routines, optimization-loop implementation, test scripts, and refactoring. Approximately 80\% of the submitted source code was initially generated or modified with the assistance of Codex or Cursor.
