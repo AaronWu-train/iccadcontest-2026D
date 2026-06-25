@@ -5,6 +5,8 @@
 
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{hyperref}       % hyperlinks
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tables
@@ -14,15 +16,22 @@
 \usepackage{microtype}      % microtypography
 \usepackage{xcolor}         % colors
 \usepackage{graphicx}       % pictures
+\usepackage{siunitx}
+
+\usepackage{float}
+\sisetup{
+    round-mode          = places,
+    round-precision     = 6,
+    table-number-alignment = center
+}
 
 % Additional packages (personal preference)
-\usepackage{lipsum}
 \usepackage{amsmath, amsfonts}
 \usepackage{subcaption}
 \usepackage{multirow}
 
-\DeclareMathOperator{\Risk}{Risk}
-\DeclareMathOperator{\Novel}{Novel}
+\raggedbottom
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
 \title{ \Large{ICCAD 2026 CAD Contest Problem D} \\ \LARGE{Timing Fixing by Useful Skew}}
@@ -36,7 +45,7 @@
 % \AND instead of \And before the third author name.
 
 \author{%
-  Aaron~Wu \\
+  Aaron~Wu\\
   Department of Electrical Engineering\\
   National Taiwan University\\
   \texttt{b13901011@ntu.edu.tw} \\
@@ -65,42 +74,386 @@
 \maketitle
 
 \begin{abstract}
-  \lipsum[1] % Placeholder text for the abstract
+  Timing fixing by useful skew improves circuit timing by modifying the clock tree while keeping data-path logic unchanged. In this work, we formulate ICCAD 2026 CAD Contest Problem D as a constrained local-search problem over legal clock-tree states. Our solver maintains a mutable clock-tree representation and an incremental timing state, enabling reversible apply-score-undo evaluation of local edits, including buffer insertion, inserted-buffer removal, and buffer resizing. To guide the search under undisclosed official weights, we use a proxy objective that balances SS setup repair, FF hold repair, and clock-tree area.
+  We evaluate several candidate-generation policies, ranging from random sampling to violation-guided and union-based timing-aware pools, together with greedy, two-step, simulated annealing, iterated simulated annealing, and tabu-search acceptance strategies. Experiments on five public testcases with five random seeds show that broad candidate diversity and search memory are more effective than narrowly endpoint-focused repair. Among all tested variants, tabu search with random candidates achieves the highest average proxy score, because it improves hold timing strongly while maintaining competitive setup repair and reducing area. These results suggest that useful-skew optimization benefits from balanced timing-area exploration rather than single-component timing maximization.
 \end{abstract}
 
 \section{Introduction}
-\lipsum[1] % Placeholder text for the abstract
+Timing closure is a critical task in modern VLSI design. As clock frequency increases, setup and hold violations become harder to fix without disturbing the functional logic of the circuit. ICCAD Contest 2026 Problem D focuses on this setting: given an initial clock tree, a buffer library, and data-path delay reports, the goal is to improve timing quality by modifying the clock tree while preserving the original data-path logic.
+
+The key idea behind this problem is useful skew. Instead of treating all clock skew as harmful, useful-skew optimization intentionally changes clock arrival times at flip-flops to improve timing margins. For a setup-critical path, delaying the capture clock can provide more time for data propagation. For a hold-critical path, delaying the launch clock can postpone data launch and reduce the risk of early data arrival. Therefore, by inserting or resizing buffers in the clock tree, the optimizer can improve setup and hold slack without changing combinational logic.
+
+However, this optimization is highly coupled. A clock-tree edit does not affect only one data path; it changes the clock arrival time of an entire downstream subtree. As a result, a move that improves one violating path may degrade other paths that share the same clock-tree nodes. In addition, buffer insertion and upsizing may increase area, while aggressive area recovery may undo previous timing improvements. The objective is therefore not simply to fix the worst violation, but to balance SS setup improvement, FF hold improvement, and clock-tree area.
+
+In this work, we formulate timing fixing by useful skew as a constrained local-search problem over legal clock-tree states. Our solver maintains a mutable clock-tree representation, evaluates timing and area metrics after local edits, and uses reversible trial operations to explore the search space efficiently. Candidate-generation policies decide which clock-tree edits should be evaluated, while acceptance strategies decide how the solver moves from one tree state to another. The experimental discussion focuses on how these policies trade off setup slack, hold slack, and area.
+
+The rest of this report is organized as follows. Section 2 formulates the timing model, objective, and legal action space. Section 3 describes the local-search framework, including candidate generation, action evaluation, acceptance strategies, and legality checks. Section 4 reports experimental results and discusses the trade-offs among the tested optimizers. Section 5 concludes the report and outlines future improvements.
+
 
 \section{Problem Formulation}
-\lipsum[1] % Placeholder text for the abstract
+
+\subsection{Input Design and Legal Solution Space}
+
+Each testcase consists of an initial clock tree, a buffer library, and two data-path delay reports under the SS and FF corners. The clock tree contains a clock source as the root, clock buffers as internal nodes, and flip-flops as leaf nodes. The buffer library specifies the available buffer types, including their area, maximum fanout constraint, and fanout-dependent delay under each timing corner. The delay reports give the clock period and the fixed data-path delay between launch and capture flip-flops.
+
+The optimizer is allowed to improve timing only by modifying the clock tree. The data-path delay is fixed, so the combinational logic is not part of the optimization space. A legal output must preserve all original contest nodes and their names, and the relative order among original nodes in the clock tree must remain unchanged. Newly inserted buffers must have unique names.
+
+We model a solution as a clock-tree state. A state records the cell type of each buffer, the parent-child connectivity of the clock tree, and the set of buffers inserted by the optimizer. The legal solution space consists of all clock trees reachable from the input tree by legal clock-tree edits while satisfying the structural constraints above.
+
+\subsection{Clock Arrival Time and Useful Skew}
+For each flip-flop, the clock arrival time is the total delay from the clock source to that flip-flop through the clock tree. Since buffer delay depends on the selected cell type, the fanout count, and the timing corner, the clock arrival time is also corner-dependent.
+
+A data path connects a launch flip-flop to a capture flip-flop through combinational logic. Let $D_{clk}^{\mathrm{launch}}$ and $D_{clk}^{\mathrm{capture}}$ denote the clock arrival times from the clock source to the launch and capture flip-flops. We define clock skew as
+\begin{equation}
+\mathrm{Skew} = D_{clk}^{\mathrm{capture}} - D_{clk}^{\mathrm{launch}}.
+\end{equation}
+With this convention, positive skew means that the capture clock arrives later than the launch clock. A clock-tree edit may change the arrival time of an entire downstream subtree, so the skew of many data paths can change after a single local modification.
+\subsection{Setup/Hold Slack and Timing Metrics}
+
+Let $D_{\mathrm{data}}$ be the data-path delay, $T_{\mathrm{clk}}$ be the clock period, $T_{\mathrm{setup}}$ be the setup requirement, and $T_{\mathrm{hold}}$ be the hold requirement.  With the skew convention above, the setup and hold slacks are
+\begin{align}
+  \mathrm{Slack}_{\mathrm{setup}}
+  &= T_{\mathrm{clk}} - T_{\mathrm{setup}} - D_{\mathrm{data}} + \mathrm{Skew}, \\
+  \mathrm{Slack}_{\mathrm{hold}}
+  &= D_{\mathrm{data}} - T_{\mathrm{hold}} - \mathrm{Skew}.
+\end{align}
+
+A negative setup slack means that data arrives too late at the capture flip-flop.  A negative hold slack means that data arrives too early and may overwrite the previous value.  Therefore, a setup violation can often be improved by increasing the capture clock delay, while a hold violation can often be improved by increasing the launch clock delay.
+
+Timing quality is measured using total negative slack (TNS) and worst negative slack (WNS).  WNS captures the most severe timing violation among all paths, while TNS measures the accumulated amount of negative slack.  In this problem, setup timing is evaluated under the SS corner, and hold timing is evaluated under the FF corner.
+
+\subsection{Timing-Area Objective and Internal Proxy Score}
+The objective combines timing and area. Timing quality is measured by TNS and WNS under the SS and FF corners, while area is the total area of the clock-tree buffers.  We define the setup score, hold score, and area score as
+\begin{footnotesize}
+\begin{equation}
+  S_{\mathrm{setup}} =
+  \left( 1 - \frac{\mathrm{TNS}_{SS}}{\mathrm{TNS}_{SS}^{ori}} \right)
+  +
+  \left( 1 - \frac{\mathrm{WNS}_{SS}}{\mathrm{WNS}_{SS}^{ori}} \right), \quad
+  S_{\mathrm{hold}} =
+  \left( 1 - \frac{\mathrm{TNS}_{FF}}{\mathrm{TNS}_{FF}^{ori}} \right)
+  +
+  \left( 1 - \frac{\mathrm{WNS}_{FF}}{\mathrm{WNS}_{FF}^{ori}} \right), \quad
+  S_{\mathrm{area}} =
+  1 - \frac{\mathrm{Area}}{\mathrm{Area}^{ori}}.
+  \end{equation}
+\end{footnotesize}
+Each denominator uses the metric value of the original input clock tree.  Higher setup and hold scores mean that the negative timing metrics have moved closer to zero, while a higher area score means that the clock-tree buffer area is smaller than the baseline.
+
+The official contest score is a weighted sum of these three components:
+
+\begin{equation}
+  S_\mathrm{total} =
+  \alpha S_{\mathrm{setup}} +
+  \beta S_{\mathrm{hold}} +
+  \gamma S_{\mathrm{area}}.
+\end{equation}
+
+The official weights are not disclosed, so the optimizer cannot directly use the official score as its search objective.  According to the Q\&A session, the organizers indicated that the weights roughly satisfy $\alpha > \beta \approx \gamma$.  Based on this hint, we use a proxy score with fixed weights $\alpha = 0.5$, $\beta = 0.25$, and $\gamma = 0.25$ to guide move selection during optimization.  These parameters are not claimed to be the hidden official weights; they are used only as an internal ranking function that reflects the relative importance of setup repair, hold repair, and area control.
+
+This objective captures the main trade-off in the problem.  Aggressive buffer insertion or upsizing may improve setup or hold slack, but the same move can reduce the area component and may also hurt timing on other paths.  On the other hand, area recovery may remove unnecessary delay but can also undo a previous timing repair.  Therefore, the optimizer must balance timing improvement and area cost rather than optimizing only one metric independently.
+
+\subsection{Local Edit Semantics}
+
+During search, our optimizer explores the solution space with three local edit primitives. First, an \emph{insert} places a new buffer on an existing clock-tree edge, increasing the clock delay of the downstream subtree. This can adjust useful skew, but also increases area.
+
+Second, a \emph{resize} changes the cell type of an existing buffer, providing a finer way to increase or decrease clock delay and area without changing the clock-tree topology. Depending on the selected cell, it may improve timing by adding delay or reduce area by using a smaller buffer.
+
+Third, a \emph{remove} deletes a buffer inserted by the optimizer in an earlier step and reconnects the surrounding tree. This move is used only internally for reversible exploration and area recovery. Original contest nodes remain part of the design and are never removed, so the final output still satisfies the legal modification constraints.
 
 \section{Methodology}
-\lipsum[1] % Placeholder text for the abstract
+
+\subsection{Solver Overview}
+
+After defining the legal edit operations and the timing-area objective, the remaining question is how to search the large space of legal clock-tree states efficiently. Our solver uses a local-search framework that repeatedly moves from the current clock tree to a nearby legal state. Each iteration is organized around two decisions: which candidate moves should be evaluated, and which evaluated move should be accepted as the next state.
+
+We separate these two decisions into a \textbf{candidate-generation policy} and an \textbf{acceptance strategy}. The candidate-generation policy defines the local neighborhood visible to the solver in the current iteration. It may focus on violating timing paths, expand around upstream clock-tree regions, or include remove and resize moves for area recovery. The acceptance strategy then decides how the solver moves inside this neighborhood. It may greedily accept the best immediate improvement, probabilistically accept a temporary degradation, or use short-term memory to avoid cycling.
+
+Algorithm~\ref{alg:local-search} summarizes the overall optimization flow. Each iteration first constructs a bounded candidate set, evaluates the candidates through temporary application, and then applies one move according to the acceptance strategy. The solver also maintains the best-seen state separately from the current state, because exploratory strategies may temporarily move to lower-scoring states.
+
+\begin{algorithm}[htbp]
+  \caption{Overall local-search optimization flow}
+  \label{alg:local-search}
+  \begin{algorithmic}[1]
+    \State Build the initial \texttt{ClockTree}, \texttt{DataPathGraph}, and \texttt{TimingState}
+    \State $T_{\mathrm{cur}} \gets$ baseline clock tree
+    \State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$, \quad $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
+    \While{current time $<$ time budget}
+    \State Generate a candidate move set $M$ using the candidate policy
+    \State Evaluate each $m \in M$ by temporary apply-score-undo and collect results in $E$
+    \State Select a move $m^*$ from $E$ using the acceptance strategy
+    \If{$m^*$ exists}
+    \State Apply $m^*$ to $T_{\mathrm{cur}}$ and update \texttt{TimingState}
+    \If{$S_{\mathrm{proxy}}(T_{\mathrm{cur}}) > S_{\mathrm{best}}$}
+    \State $T_{\mathrm{best}} \gets T_{\mathrm{cur}}$, \quad $S_{\mathrm{best}} \gets S_{\mathrm{proxy}}(T_{\mathrm{cur}})$
+    \EndIf
+    \EndIf
+    \EndWhile
+    \State Restore $T_{\mathrm{best}}$, perform full timing evaluation, and write \texttt{modified\_clk\_tree.structure}
+    \end{algorithmic}
+\end{algorithm}
+
+The rest of this section follows the structure of Algorithm~\ref{alg:local-search}. Section~3.2 describes the optimization state and the incremental timing evaluation used inside the temporary apply-score-undo loop. Section~3.3 describes how candidate-generation policies construct the move set $M$. Section~3.4 describes how acceptance strategies choose the move $m^\star$ from the evaluated set. Finally, Section~3.5 explains how the best-seen internal state is converted into a legal output file.
+\subsection{Optimization State and Incremental Evaluation}
+
+The optimizer maintains three main data structures during search. The \texttt{ClockTree} is the mutable solution state and stores the active topology and buffer cell types. The \texttt{DataPathGraph} stores the fixed timing paths, including the launch flip-flop, capture flip-flop, and data delay of each path. Since useful-skew optimization modifies only the clock tree, this graph remains read-only. The \texttt{TimingState} connects the two structures and caches the quantities needed for fast evaluation, including clock arrivals, setup and hold slacks, TNS, WNS, area, and the proxy score.
+
+Candidate evaluation follows the temporary apply-score-undo loop shown in Algorithm~\ref{alg:local-search}. For each trial edit, the solver applies the move to the \texttt{ClockTree}, updates the affected clock arrivals and related timing paths in \texttt{TimingState}, and computes the proxy-score change. The move is then either accepted or rolled back. Rollback restores both the clock-tree state and the timing cache, so rejected candidates do not affect later evaluations.
+This design avoids recomputing all clock arrivals and slacks for every trial move. Instead, the solver updates only the parts of the timing state affected by the local edit, allowing many candidate moves to be evaluated within the fixed time budget.
+
+\subsection{Candidate Generation}
+
+Since the legal edit space is too large to evaluate exhaustively, candidate generation defines the local neighborhood seen by the optimizer at each iteration. A good candidate policy should include moves that are likely to improve useful skew, but it should also keep the candidate set small enough that many iterations can be completed within the time budget. We therefore explored several policies with different degrees of timing awareness and search breadth.
+
+The simplest policy is \textbf{random generation}. It uniformly samples legal insert, remove, and resize moves from the current clock tree. This policy is the most naive way to explore the solution space, and it does not directly use timing information to guide move selection. As a result, it may generate many weak moves that do not improve timing. However, it can also expose non-obvious area-recovery or resizing opportunities that more focused policies may miss.
+
+The most direct timing-driven policy is \textbf{violation path generation}. It scans all data paths, selects paths with negative slack, and prioritizes the most severe violations. For setup violations, it generates moves near the capture flip-flop; for hold violations, it generates moves near the launch flip-flop. This follows the useful-skew formulas directly, but the resulting neighborhood can be too narrow when the best repair is not close to the violating endpoint.
+
+To address this limitation, the \textbf{upstream-window policy} expands the search region from a violating endpoint toward the root of the clock tree. Instead of considering only the endpoint edge, it considers several upstream buffers and edges. These moves may affect a larger downstream subtree and can therefore repair several related timing paths at once.
+
+The \textbf{critical-endpoint policy} uses path violations to assign a criticality value to each flip-flop. Negative setup slack contributes to the criticality of the capture flip-flop, while negative hold slack contributes to the criticality of the launch flip-flop. The policy then generates moves around the most critical flip-flops. Compared with selecting individual violating paths, this policy tries to identify endpoints that participate in many violations and may therefore produce moves with broader timing impact.
+
+Finally, the \textbf{union-pool policy} combines the action sources of violation path, upstream window, and critical endpoint into one candidate pool. It uses the same total sampling budget as the individual policies, so the goal is not to evaluate more candidates, but to obtain a more diverse candidate set under the same cost. For simulated-annealing-based optimizers, we use a \textbf{sampled-union-pool policy}, which samples only one move from this mixed pool in each iteration to match the single-proposal style of simulated annealing.
+
+\subsection{Acceptance Strategies}
+
+After candidate generation defines the visible neighborhood, the acceptance strategy determines how the search moves through that neighborhood. This decision is important because the proxy score is not a smooth objective. A move that is locally worse may still help the solver reach a better region later, while a purely greedy sequence may quickly become trapped after all immediate improvements are exhausted.
+
+The \textbf{greedy strategy} is the most direct baseline. It evaluates all candidates in the current set and applies the move with the largest positive proxy-score improvement. This strategy is stable and easy to interpret: every accepted move immediately improves the current solution according to the proxy score. However, greedy search is also the most vulnerable to local optima.
+
+The \textbf{two-step strategy} is designed around the scoring structure of the problem. Since the official objective contains setup, hold, and area components, the first phase focuses on improving setup slack and maximizing Setup Score. The second phase switches back to the full proxy score to recover area and balance setup, hold, and area. This strategy matches the intuition that timing violations should be repaired before area cleanup. Its limitation is that the three components are not independent: area recovery may remove useful delay, while timing-focused edits may introduce area overhead that is difficult to recover later.
+
+\textbf{Simulated annealing}\cite{kirkpatrick1983optimization} is used to handle the non-smoothness of the proxy objective. At each step, it samples a proposal and always accepts improving moves, but it may also accept worsening moves with a temperature-controlled probability. This is useful in our setting because some useful-skew repairs require passing through intermediate states that temporarily hurt area or another timing corner. The solver records the best-seen state separately, so exploratory moves can be used without making temporary degradation determine the final output.
+
+\textbf{Iterated simulated annealing} extends this idea by alternating between exploration and recovery. Each annealing round explores nearby clock-tree states, and between rounds the solver restores the best-seen state and performs small greedy cleanup batches. This is intended to prevent the current state from drifting too far after many stochastic moves, while still preserving the ability to escape local optima. In this problem, such restoration is important because aggressive timing repairs can accumulate unnecessary inserted buffers and reduce the area component.
+
+\textbf{Tabu search}\cite{glover1989tabu} uses short-term memory to guide exploration while keeping each step score-driven. At each iteration, it chooses the best non-tabu move from the evaluated candidate set, and recently used moves are marked tabu to discourage the solver from cycling between similar states. A tabu move can still be accepted by aspiration if it improves the global best score. This is well suited to clock-tree editing because operations can easily undo one another; tabu memory reduces such short cycles while still allowing the search to follow strong proxy-score improvements.
+
+Overall, these acceptance strategies represent different trade-offs between exploitation and exploration. Greedy search tests immediate local improvement, two-step search encodes a timing-first repair schedule, annealing-based methods allow temporary degradation, and tabu search adds memory to avoid cycling. The optimizer variants evaluated in Section~4 combine these acceptance strategies with different candidate-generation policies to study which search behavior best balances setup repair, hold repair, and area control.
+
+\subsection{Output Format Validation}
+
+Output validity is enforced during move construction rather than repaired after optimization. Inserted buffers receive unique generated names, resize and insertion moves are rejected if the selected cell type violates the fanout limit, and remove moves are limited to optimizer-inserted buffers. Original contest nodes remain active and keep their names, while removed search-only buffers are marked inactive so that they cannot appear in the final output.
+After the optimizer finishes, the solver restores the best-seen \texttt{ClockTree} and writes only active nodes through a preorder traversal with depth information, matching the required clock-tree format.
 
 \section{Experimental Results and Discussion}
-\lipsum[1] % Placeholder text for the abstract
+\label{sec:experiments}
 
+\subsection{Experimental Setup and Metrics}
+
+We evaluate all optimizer variants on five public testcases. Each optimizer is run with five random seeds, resulting in 325 runs in total. We set the optimization time budget to 570 seconds per testcase, leaving a safety margin under the 10-minute contest limit. During each run, we record progress traces including elapsed time, best proxy score, SS/FF timing metrics, and clock-tree area. These traces are used to compare how quickly different optimizers improve the solution and how the improvements are distributed across timing and area.
+
+Each trajectory figure contains four panels: best-score gap, setup score, hold score, and area score. To make different testcases comparable, the best-score panel aligns each testcase to its own best observed score across all optimizers, seeds, and time points. We plot each run relative to this testcase-specific reference, so the gap is at most zero and values closer to zero indicate better performance. The other panels report the setup, hold, and area score components directly.
+
+For aggregation, we bin runtime into fixed intervals, carry forward the latest recorded value, take the median over five seeds for each testcase, and then average the testcase-level medians. The shaded region shows variation across testcases.
+
+\subsection{Effect of Different Candidate Generation Policies}
+
+We first isolate the effect of different candidate generation policies by fixing the acceptance policy to greedy best-score selection. 
+Under this setting, the optimizer can only accept an immediately improving move, so the result mainly reflects whether the candidate pool contains useful local edits.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\linewidth]{images/fig1.png}
+  \caption{Candidate-policy comparison under greedy acceptance.  Each method
+  uses the same greedy acceptance rule, but differs in how candidate clock-tree
+  edits are generated.  The panels show the best-score gap, setup score, hold
+  score, and area score over the fixed time budget.}
+  \label{fig:candidate-policy}
+\end{figure}
+
+Figure~\ref{fig:candidate-policy} shows that the random, union-pool, and upstream window candidate policies reach the best final best-score gap among the greedy variants, while random remains competitive.
+The violation-path and critical-endpoint policies improve timing early, but their curves flatten at a worse gap. 
+This supports the claim that endpoint-focused candidate generation is too narrow for useful-skew optimization, because a clock-tree edit affects an entire downstream subtree, and a good repair is often not located directly at the currently violating endpoint.
+The area panel also explains that pure timing awareness may cause the optimizer to keep many area-expensive edits, while the union-pool and upstream-window and random policies maintain a more balanced area trajectory.
+Therefore, greedy search benefits more from candidate diversity than from a narrowly targeted violation-only neighborhood.
+
+\subsection{Effect of Different Acceptance Policies}
+
+We next fix the candidate family and compare how different acceptance policies move through the generated neighborhood. 
+This experiment separates the quality of candidate generation from the ability of the search strategy to escape local optima.
+
+\subsubsection{Random Candidate Policy}
+
+With random candidates, the optimizer sees a broad but noisy neighborhood. 
+This setting is useful for testing whether an acceptance policy can extract useful moves from an unstructured candidate stream.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\linewidth]{images/fig2.png}
+  \caption{Acceptance-policy comparison under the random candidate policy. The candidate generator is fixed to random sampling, while the acceptance rule varies among greedy, two-step, SA, ISA, and tabu search.}
+  \label{fig:acceptance-random}
+\end{figure}
+
+Figure~\ref{fig:acceptance-random} shows that tabu search obtains the closest best-score gap to zero under random candidates. 
+The reason is visible in the component plots: tabu-random is not merely strong in one metric, but maintains a balanced trajectory. 
+It obtains high hold score, competitive setup score, and a positive area score by the end of the run. 
+SA and ISA also escape the limitations of greedy search and improve timing, but their area curves remain negative, indicating that part of their timing gain is paid for by extra buffer area. 
+The two-step method is the weakest in this setting. 
+Its timing-first phase does not create enough durable timing advantage, and the later cleanup phase does not recover enough area or hold quality to close the gap. 
+The main insight is that a random neighborhood can be useful, but only if the acceptance strategy has a mechanism, such as tabu memory, to avoid short cycles while still selecting high-quality moves.
+
+
+\subsubsection{Union-Based Candidate Policies}
+
+We also compare acceptance policies when the candidate pool is built from the union of timing-aware sources. 
+For SA and ISA, the sampled-union-pool variant uses a single sampled proposal per iteration to match the single-proposal style of annealing.
+
+\begin{figure}[htbp]
+  \vspace{-0.5em}
+  \centering
+  \includegraphics[width=0.9\linewidth]{images/fig3.png}
+  \caption{Acceptance-policy comparison under union-based candidate policies. Greedy, two-step, and tabu use the union pool, while SA and ISA use sampled union-pool proposals.}
+  \label{fig:acceptance-union}
+  \vspace{-0.8em}
+\end{figure}
+
+Figure~\ref{fig:acceptance-union} shows a different trade-off from the random candidate experiment. 
+\textit{SA-sampled-union-pool} and \textit{ISA-sampled-union-pool} improve setup aggressively and also obtain strong hold scores, but both suffer from a large negative area score, especially SA.
+This indicates that sampled union proposals are very effective at finding timing-repair moves, but the stochastic acceptance process tends to keep many area-increasing edits. 
+\textit{Tabu-union-pool} is more conservative: its setup score is lower than the annealing-based methods, but its area score stays near the baseline.
+\textit{Two-step-union-pool} again remains weak because the fixed timing-repair-then-recovery schedule is too rigid for the coupled setup-hold-area objective.
+Overall, this figure shows that timing-aware candidates are useful for finding repair moves, but the acceptance rule must still control the area cost of these moves.
+
+\subsection{ISA and Tabu as Search-Memory Strategies}
+
+The previous experiments suggest that the strongest strategies are not the ones that maximize a single component. 
+We therefore compare ISA and tabu search more directly, since both methods use search history to avoid the limitations of plain greedy search. 
+ISA uses repeated annealing rounds with best-state restoration, while tabu search uses a short-term tabu list and aspiration to avoid cycling while still accepting globally promising moves.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\linewidth]{images/fig4.png}
+  \caption{Direct comparison between ISA and tabu variants. The figure compares random and union-based variants of ISA and tabu search using the same four trajectory components.}
+  \label{fig:tabu-isa}
+\end{figure}
+
+Figure~\ref{fig:tabu-isa} compares the memory-based variants of ISA and tabu search.
+\textit{ISA-sampled-union-pool} achieves the strongest setup trajectory, but its area score drops sharply and remains strongly negative.
+This indicates that its exploration is effective at finding setup-repair moves, but also tends to keep many area-expensive edits.
+In contrast, the tabu variants are more conservative in setup improvement, but maintain much better area scores.
+Among the variants in this comparison, \textit{tabu-random} gives the most balanced trajectory: it stays close to the empirical best-score gap, improves hold score strongly, and keeps the area score positive.
+This suggests that tabu memory provides a more stable form of exploration for this benchmark, because it can move beyond greedy local optima while still keeping the search trajectory close to high-quality states.
+
+The figure also shows that, in ISA and tabu search, the random variants are more balanced than the union-based variants.
+This suggests that random candidates are not merely a weaker baseline; when combined with a memory-based acceptance strategy, they can provide useful candidate diversity and expose moves that are missed by more timing-directed candidate pools.
+
+
+\subsection{Overall Optimizer Comparison}
+
+Table~\ref{tab:optimizer_results} summarizes the final score decomposition for all optimizer variants. 
+The best-performing optimizer is \textit{tabu-random}, which achieves the highest average proxy score among all tested methods.
+Although it does not obtain the highest setup score, it achieves the strongest hold score and keeps a positive area score.
+This indicates that its advantage comes from a better overall timing-area balance rather than from optimizing one component alone.
+
+
+\begin{table}[htbp]
+\centering
+\caption{Performance comparison of different optimizers. Standard deviation is computed from the final scores over five testcases and five seeds.}
+\footnotesize
+\label{tab:optimizer_results}
+\begin{tabular}{
+l
+S[table-format=1.6]
+S[table-format=1.6]
+S[table-format=1.6]
+S[table-format=-1.6]
+S[table-format=1.6]
+}
+\toprule
+{Optimizer} &
+{Avg. Score} &
+{Setup} &
+{Hold} &
+{Area} &
+{Std.} \\
+\midrule
+
+tabu-random              & \bfseries 1.140722 & 1.276422 & \bfseries 1.916255 &  0.093788 & 0.235526 \\
+isa-random               & 1.084773 & 1.322733 & 1.737303 & -0.043676 & 0.273375 \\
+tabu-union-pool          & 1.062058 & 1.259221 & 1.731261 & -0.001474 & 0.274410 \\
+isa-sampled-union-pool   & 1.044759 & 1.521136 & 1.721173 & -0.584406 & 0.183581 \\
+sa-sampled-union-pool    & 1.044015 & 1.653149 & 1.833949 & -0.964191 & \bfseries 0.165838 \\
+greedy-union-pool        & 1.042167 & 1.193238 & 1.757868 &  0.024327 & 0.266567 \\
+greedy-upstream-window   & 1.031489 & 1.227970 & 1.710767 & -0.040751 & 0.275511 \\
+greedy-random            & 1.009059 & 1.104560 & 1.806695 &  0.020420 & 0.214807 \\
+sa-random                & 0.998808 & 1.149864 & 1.750100 & -0.054596 & 0.276991 \\
+two-step-random          & 0.876061 & 1.148869 & 1.334986 & -0.128479 & 0.318905 \\
+two-step-union-pool      & 0.859649 & 1.045729 & 1.405060 & -0.057920 & 0.401216 \\
+greedy-violation-path    & 0.829324 & 1.032678 & 1.300464 & -0.048521 & 0.277805 \\
+greedy-critical-endpoint & 0.746583 & 0.923081 & 1.188662 & -0.048491 & 0.375666 \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+One noteworthy observation is the interaction between candidate generation and acceptance strategy.
+For tabu search and ISA, random candidate generation performs better than the corresponding union-based policy.
+In contrast, under greedy acceptance, the union-pool policy outperforms random generation.
+This suggests that there is no universally best candidate generator.
+
+For greedy search, the solver can only accept immediately improving moves, so it benefits from a timing-aware candidate pool that provides stronger local improvements.
+For tabu search and ISA, however, the acceptance strategy already provides exploration through memory, restoration, or temporary degradation.
+In this setting, random candidates are more useful because they expose a broader and less biased set of insert, remove, and resize opportunities, including area-recovery moves that a timing-focused pool may miss.
+
+Overall, the results show that useful-skew optimization requires both candidate diversity and search control.
+The final optimizer, \textit{tabu-random}, combines a broad random neighborhood with tabu memory, allowing it to improve hold timing strongly, maintain competitive setup repair, and reduce area at the same time.
 
 \section{Conclusion}
-\lipsum[1] % Placeholder text for the abstract
+This work formulates useful-skew timing fixing as a constrained local-search
+problem over legal clock-tree states.  The solver modifies only the clock tree
+through buffer insertion, inserted-buffer removal, and buffer resizing, and uses
+a proxy score to balance SS setup repair, FF hold repair, and area control.
+Internally, a mutable \texttt{ClockTree}, a fixed \texttt{DataPathGraph}, and an
+incremental \texttt{TimingState} support reversible candidate evaluation, so
+different search policies can be compared while keeping the final output legal.
 
-\section{Future Plan}
-\lipsum[1] % Placeholder text for the abstract
+The experimental results show that both candidate generation and acceptance
+strategy are decisive.  Greedy search is stable and benefits from the diverse
+union-pool neighborhood, but it cannot pass through temporary score degradation.
+SA and ISA explore more aggressively and achieve strong setup improvement with
+sampled-union proposals, but their area penalty reduces the final score.
+Two-step optimization captures the intended timing-first and cleanup structure,
+yet the fixed phase boundary is too rigid for the coupled setup-hold-area
+objective.
+
+Among all tested optimizers, \textit{tabu-random} achieves the best average
+score.  Its advantage comes from combining a broad random neighborhood with
+score-driven tabu memory: random candidates expose non-local insert, remove, and
+resize opportunities, while tabu search avoids short cycles and keeps the
+current trajectory close to high-quality states.  As a result, it does not
+maximize setup improvement alone, but obtains the best balance among setup
+repair, hold repair, and area reduction.  Future work could improve this
+framework by adapting the candidate policy to the current violation pattern,
+calibrating the proxy weights with more feedback, and adding a stronger late-stage area-aware polish.
 
 \section*{Author Contributions}
 
+\begin{itemize}
+  \item \textbf{Aaron Wu}: Designed the overall algorithmic framework and implementation plan. Developed and implemented the optimization algorithms, conducted experiments, analyzed the experimental results, and contributed to writing the final report.
+
+  \item \textbf{Yucheng Liu}: Implemented the core data structures and algorithms. Assisted with experimental data analysis, prepared the presentation slides, and contributed to writing the final report.
+
+  \item \textbf{Hong-Bin Lai}: Contributed to the preparation of the presentation slides and the final report.
+
+  \item \textbf{Sheng-Yu Cheng}: Served as a non-enrolled collaborator. Assisted with algorithm design, experimental data analysis, plot generation, report writing, and presentation preparation.
+\end{itemize}
+
+\vspace{-0.5em}
 \section*{Generative AI Usage Disclosure}
-We used generative AI tools during the development of this project. In particular, OpenAI Codex and Cursor was used extensively to assist with source-code implementation, including parser construction, clock-tree data structures, timing evaluation routines, optimization-loop implementation, test scripts, and refactoring. Approximately 80\% of the submitted source code was initially generated or modified with the assistance of Codex or Cursor.
+\vspace{-0.5em}
+We used generative AI tools, including OpenAI Codex, Cursor, and ChatGPT, during this project.
+These tools assisted with source-code implementation, refactoring, report word refinement, and documentation polishing.
+Approximately 80\% of the submitted source code was initially generated or modified with AI assistance.
 
-The algorithmic ideas, including the useful-skew optimization strategy, candidate generation policies, acceptance strategies, timing-area trade-off considerations, experimental design, and final optimizer selection, were designed and evaluated by the team members. All AI-generated code was manually reviewed, integrated, debugged, and tested by the team. The reported experimental results were obtained by executing our implemented solver on the test cases; no experimental data or performance numbers were generated by AI tools.
+The algorithmic ideas, candidate-generation policies, acceptance strategies, experimental design, and final optimizer selection were designed and evaluated by the team.
+All AI-generated code was manually reviewed, debugged, integrated, and tested.
+The reported experimental results were obtained by running our implemented solver on the testcases; no experimental data or performance numbers were generated by AI tools.
 
-We also used ChatGPT/Codex to assist with report organization, wording refinement, and documentation polishing. The final technical content, claims, results, and conclusions were checked and approved by the team.
-
-
-\medskip
 {
   \small
-  \bibliographystyle{unsrt}
+  \bibliographystyle{abbrv}
   \bibliography{references}
 }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
